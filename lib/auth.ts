@@ -7,8 +7,36 @@ import {
   signInWithPopup,
   sendPasswordResetEmail,
 } from "firebase/auth"
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore"
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { auth, db } from "./firebase"
+
+// Helper function to read user document by UID (searches by uid field, not document ID)
+const readUserById = async (userId: string) => {
+  try {
+    // First try by document ID (current approach)
+    const docRef = doc(db, "users", userId)
+    const docSnap = await getDoc(docRef)
+
+    if (docSnap.exists()) {
+      const userData = docSnap.data()
+      return { exists: true, data: userData }
+    }
+
+    // Try querying by uid field
+    const usersRef = collection(db, "users")
+    const q = query(usersRef, where("uid", "==", userId))
+    const querySnapshot = await getDocs(q)
+
+    if (!querySnapshot.empty) {
+      const userData = querySnapshot.docs[0].data()
+      return { exists: true, data: userData }
+    }
+
+    return { exists: false, data: null }
+  } catch (error) {
+    return { exists: false, data: null }
+  }
+}
 
 export interface User {
   id: string
@@ -28,7 +56,7 @@ export interface BusinessUser extends User {
 
 export interface AdminUser extends User {
   role: "admin"
-  permissions: "super_admin"[]
+  permissions: ("super_admin")[]
 }
 
 export const loginWithEmail = async (email: string, password: string, role: "business" | "admin"): Promise<User> => {
@@ -36,24 +64,43 @@ export const loginWithEmail = async (email: string, password: string, role: "bus
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
     const firebaseUser = userCredential.user
 
-    // Get user profile from Firestore
-    const userDoc = await getDoc(doc(db, `${role}s`, firebaseUser.uid))
+    // Get user profile from Firestore users collection using helper
+    const userResult = await readUserById(firebaseUser.uid)
 
-    if (!userDoc.exists()) {
-      throw new Error("User profile not found")
+    if (!userResult.exists || !userResult.data) {
+      throw new Error("User profile not found in Firestore")
     }
 
-    const userData = userDoc.data()
+    const userData = userResult.data
 
-    if (role === "business") {
+    // Check if user has the required role based on permissions
+    console.log(`🔍 Checking permissions for role: ${role}`)
+    console.log(`👤 User role: ${userData.role}`)
+    console.log(`🔑 User permissions: ${JSON.stringify(userData.permission)}`)
+
+    if (role === "admin" && !userData.permission?.includes("admin")) {
+      console.log("❌ Admin access denied - missing admin permission")
+      throw new Error("Insufficient permissions for admin access")
+    }
+
+    if (role === "business" && !userData.permission?.includes("business") && userData.role !== "business") {
+      console.log("❌ Business access denied - missing business permission or role")
+      console.log(`   Required: permission includes 'business' OR role === 'business'`)
+      console.log(`   Actual: permission=${JSON.stringify(userData.permission)}, role=${userData.role}`)
+      throw new Error("Insufficient permissions for business access")
+    }
+
+    console.log("✅ Permission check passed")
+
+    if (role === "business" || userData.role === "business") {
       const businessUser: BusinessUser = {
         id: firebaseUser.uid,
         email: firebaseUser.email!,
         role: "business",
-        businessId: userData.businessId,
-        businessName: userData.businessName,
+        businessId: userData.businessId || firebaseUser.uid,
+        businessName: userData.businessName || "Mi Empresa",
         plan: userData.plan || "gratis",
-        permissions: userData.permissions || ["owner"],
+        permissions: userData.permission || ["owner"],
       }
       return businessUser
     } else {
@@ -61,7 +108,7 @@ export const loginWithEmail = async (email: string, password: string, role: "bus
         id: firebaseUser.uid,
         email: firebaseUser.email!,
         role: "admin",
-        permissions: userData.permissions || ["super_admin"],
+        permissions: userData.permission || ["super_admin"],
       }
       return adminUser
     }
@@ -77,28 +124,30 @@ export const loginWithGoogle = async (role: "business" | "admin"): Promise<User>
     const firebaseUser = userCredential.user
 
     // Check if user profile exists
-    const userDoc = await getDoc(doc(db, `${role}s`, firebaseUser.uid))
+    const userDoc = await getDoc(doc(db, "users", firebaseUser.uid))
 
     if (!userDoc.exists()) {
       // Create new user profile for Google sign-in
       const newUserData = {
         email: firebaseUser.email,
+        role: role,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
 
       if (role === "business") {
-        await setDoc(doc(db, "businesses", firebaseUser.uid), {
+        await setDoc(doc(db, "users", firebaseUser.uid), {
           ...newUserData,
           businessName: firebaseUser.displayName || "Mi Empresa",
+          businessId: firebaseUser.uid,
           plan: "gratis",
-          permissions: ["owner"],
+          permission: ["business", "owner"],
           status: "pending",
         })
       } else {
-        await setDoc(doc(db, "admins", firebaseUser.uid), {
+        await setDoc(doc(db, "users", firebaseUser.uid), {
           ...newUserData,
-          permissions: ["super_admin"],
+          permission: ["admin", "super_admin"],
         })
       }
     }
@@ -124,22 +173,24 @@ export const registerBusiness = async (
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const firebaseUser = userCredential.user
 
-    // Create business profile in Firestore
+    // Create business profile in Firestore users collection
     const businessProfile = {
       email: firebaseUser.email,
+      role: "business",
       businessName: businessData.businessName,
+      businessId: firebaseUser.uid,
       nit: businessData.nit,
       phone: businessData.phone,
       category: businessData.category,
       description: businessData.description,
       plan: "gratis",
       status: "pending",
-      permissions: ["owner"],
+      permission: ["business", "owner"],
       createdAt: new Date(),
       updatedAt: new Date(),
     }
 
-    await setDoc(doc(db, "businesses", firebaseUser.uid), businessProfile)
+    await setDoc(doc(db, "users", firebaseUser.uid), businessProfile)
 
     const businessUser: BusinessUser = {
       id: firebaseUser.uid,
@@ -165,9 +216,9 @@ export const logout = async (): Promise<void> => {
   }
 }
 
-export const mockLogout = (role: "business" | "admin") => {
-  // Use the Firebase logout function
-  logout()
+export const mockLogout = async (): Promise<void> => {
+  // Use the Firebase logout function and wait for completion
+  await logout()
 }
 
 export const resetPassword = async (email: string): Promise<void> => {
@@ -181,62 +232,97 @@ export const resetPassword = async (email: string): Promise<void> => {
 export const getCurrentUser = (): Promise<User | null> => {
   return new Promise((resolve) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      unsubscribe()
-
       if (!firebaseUser) {
+        unsubscribe()
         resolve(null)
         return
       }
 
       try {
-        // Try business first
-        const businessDoc = await getDoc(doc(db, "businesses", firebaseUser.uid))
-        if (businessDoc.exists()) {
-          const userData = businessDoc.data()
-          const businessUser: BusinessUser = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email!,
-            role: "business",
-            businessId: firebaseUser.uid,
-            businessName: userData.businessName,
-            plan: userData.plan || "gratis",
-            permissions: userData.permissions || ["owner"],
+        // Retry mechanism for Firestore document retrieval
+        const maxRetries = 3
+        let retryCount = 0
+        let userResult: { exists: boolean; data: any } = { exists: false, data: null }
+
+        while (retryCount < maxRetries && !userResult.exists) {
+          userResult = await readUserById(firebaseUser.uid)
+
+          if (!userResult.exists) {
+            retryCount++
+            if (retryCount < maxRetries) {
+              // Wait before retrying (exponential backoff)
+              await new Promise(resolve => setTimeout(resolve, 500 * retryCount))
+            }
           }
-          resolve(businessUser)
-          return
         }
 
-        // Try admin
-        const adminDoc = await getDoc(doc(db, "admins", firebaseUser.uid))
-        if (adminDoc.exists()) {
-          const userData = adminDoc.data()
-          const adminUser: AdminUser = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email!,
-            role: "admin",
-            permissions: userData.permissions || ["super_admin"],
+        if (userResult.exists && userResult.data) {
+          const userData = userResult.data
+
+          if (userData.role === "business" || userData.permission?.includes("business")) {
+            const businessUser: BusinessUser = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email!,
+              role: "business",
+              businessId: userData.businessId || firebaseUser.uid,
+              businessName: userData.businessName || "Mi Empresa",
+              plan: userData.plan || "gratis",
+              permissions: userData.permission || ["owner"],
+            }
+            unsubscribe()
+            resolve(businessUser)
+            return
           }
-          resolve(adminUser)
-          return
+
+          if (userData.role === "admin" || userData.permission?.includes("admin")) {
+            const adminUser: AdminUser = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email!,
+              role: "admin",
+              permissions: userData.permission || ["super_admin"],
+            }
+            unsubscribe()
+            resolve(adminUser)
+            return
+          }
         }
 
+        unsubscribe()
         resolve(null)
       } catch (error) {
         console.error("Error getting user profile:", error)
+        unsubscribe()
         resolve(null)
       }
     })
   })
 }
 
-export const updateUserProfile = async (userId: string, role: "business" | "admin", data: any): Promise<void> => {
+export const updateUserProfile = async (userId: string, data: any): Promise<void> => {
   try {
-    const docRef = doc(db, `${role}s`, userId)
+    const docRef = doc(db, "users", userId)
     await updateDoc(docRef, {
       ...data,
       updatedAt: new Date(),
     })
   } catch (error: any) {
     throw new Error(error.message || "Profile update failed")
+  }
+}
+
+// Helper function to create admin user document in Firestore
+export const createAdminUser = async (userId: string, email: string): Promise<void> => {
+  try {
+    const adminUserData = {
+      email: email,
+      role: "admin",
+      permission: ["admin", "super_admin"],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    await setDoc(doc(db, "users", userId), adminUserData)
+  } catch (error: any) {
+    throw new Error(error.message || "Failed to create admin user")
   }
 }

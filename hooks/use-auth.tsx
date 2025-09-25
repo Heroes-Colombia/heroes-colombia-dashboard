@@ -1,6 +1,8 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { onAuthStateChanged } from "firebase/auth"
+import { auth } from "@/lib/firebase"
 import { type User, getCurrentUser } from "@/lib/auth"
 
 interface AuthContextType {
@@ -28,7 +30,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    fetchUser()
+    // Listen for Firebase auth state changes
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        // User logged out, clear the user state immediately
+        setUser(null)
+        setLoading(false)
+      } else {
+        // User logged in or auth state restored, fetch full user profile
+        setLoading(true)
+        await fetchUser()
+      }
+    })
+
+    return () => unsubscribe()
   }, [])
 
   const refetch = async () => {

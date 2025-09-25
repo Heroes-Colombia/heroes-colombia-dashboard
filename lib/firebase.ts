@@ -26,9 +26,10 @@ export const storage = getStorage(app)
 // Initialize Analytics (only in browser)
 export const analytics = typeof window !== "undefined" ? getAnalytics(app) : null
 
-// Connect to emulators in development (detect by hostname)
+// Connect to emulators in development (only if explicitly enabled)
 if (
   typeof window !== "undefined" &&
+  process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true" &&
   (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
 ) {
   try {

@@ -28,7 +28,7 @@ import {
   Plus,
   ArrowUpRight,
 } from "lucide-react"
-import { getCurrentUser } from "@/lib/auth"
+import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
 
 // Mock data
@@ -57,8 +57,9 @@ const funnelData = [
 ]
 
 export default function BusinessDashboardPage() {
-  const user = getCurrentUser("business") as any
-  const plan = user?.plan || "gratis"
+  const { user } = useAuth()
+  const businessUser = user as any
+  const plan = businessUser?.plan || "gratis"
   const isPremium = plan === "pro" || plan === "enterprise"
 
   const getKPIsByPlan = () => {

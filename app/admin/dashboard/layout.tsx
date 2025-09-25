@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AuthGuard } from "@/components/auth-guard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -24,7 +24,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { getCurrentUser, mockLogout } from "@/lib/auth"
+import { mockLogout } from "@/lib/auth"
+import { useAuth } from "@/hooks/use-auth"
 
 const navigation = [
   { name: "Panel General", href: "/admin/dashboard", icon: BarChart3 },
@@ -38,13 +39,27 @@ const navigation = [
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
-  const user = getCurrentUser("admin") as any
+  const { user, loading } = useAuth()
 
-  const handleLogout = () => {
-    mockLogout("admin")
+  // Prevent hydration issues
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  // Wait for both auth and mount
+  if (!isMounted || loading) {
+    return null
+  }
+
+  // Show user info in admin badge
+  const userEmail = user?.email || "admin@heroescolombia.com"
+
+  const handleLogout = async () => {
+    await mockLogout()
     router.push("/admin/login")
   }
 
@@ -88,7 +103,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                 <Badge variant="secondary" className="mb-2">
                   SUPER ADMIN
                 </Badge>
-                <p className="text-xs text-muted-foreground">Control total de la plataforma</p>
+                <p className="text-xs text-muted-foreground mb-1">Control total de la plataforma</p>
+                <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
               </CardContent>
             </Card>
           </li>
@@ -114,16 +130,15 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
               <Sidebar mobile />
             </div>
           </SheetContent>
-        </Sheet>
 
-        <div className="lg:pl-72 flex flex-col flex-1">
-          {/* Top bar */}
-          <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
+          <div className="lg:pl-72 flex flex-col flex-1">
+            {/* Top bar */}
+            <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
 
             <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
               <div className="flex flex-1 items-center">
@@ -140,11 +155,12 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
             </div>
           </div>
 
-          {/* Main content */}
-          <main className="flex-1 overflow-y-auto">
-            <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>
-          </main>
-        </div>
+            {/* Main content */}
+            <main className="flex-1 overflow-y-auto">
+              <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+            </main>
+          </div>
+        </Sheet>
       </div>
     </AuthGuard>
   )

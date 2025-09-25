@@ -355,6 +355,7 @@ export default function AdminBusinessesPage() {
           </CardContent>
         </Card>
       )}
+
     </div>
   )
 }

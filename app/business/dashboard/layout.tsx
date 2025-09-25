@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AuthGuard } from "@/components/auth-guard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,7 +12,8 @@ import { HeroesLogo } from "@/components/heroes-logo"
 import { BarChart3, Building2, CreditCard, MapPin, Menu, Settings, Tag, Users, LogOut, Bell, Crown } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { getCurrentUser, mockLogout } from "@/lib/auth"
+import { mockLogout } from "@/lib/auth"
+import { useAuth } from "@/hooks/use-auth"
 
 const navigation = [
   { name: "Resumen", href: "/business/dashboard", icon: BarChart3 },
@@ -27,14 +28,26 @@ const navigation = [
 
 export default function BusinessDashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
-  const user = getCurrentUser("business") as any
-  const isPremium = user?.plan === "pro" || user?.plan === "enterprise"
+  const { user, loading } = useAuth()
+  const businessUser = user as any // Type assertion for now
+  const isPremium = businessUser?.plan === "pro" || businessUser?.plan === "enterprise"
 
-  const handleLogout = () => {
-    mockLogout("business")
+  // Prevent hydration issues
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  // Wait for both auth and mount
+  if (!isMounted || loading) {
+    return null
+  }
+
+  const handleLogout = async () => {
+    await mockLogout()
     router.push("/business/login")
   }
 
@@ -50,7 +63,7 @@ export default function BusinessDashboardLayout({ children }: { children: React.
               {navigation.map((item) => {
                 const isActive = pathname === item.href
                 return (
-                  <li key={item.name}>
+                  <li key={`nav-${item.href}`}>
                     <Link
                       href={item.href}
                       onClick={() => mobile && setSidebarOpen(false)}
@@ -76,7 +89,7 @@ export default function BusinessDashboardLayout({ children }: { children: React.
                   {isPremium && <Crown className="h-4 w-4 text-primary" />}
                 </div>
                 <Badge variant={isPremium ? "default" : "secondary"} className="mb-2">
-                  {user?.plan?.toUpperCase() || "GRATIS"}
+                  {(businessUser?.plan || "gratis").toUpperCase()}
                 </Badge>
                 <p className="text-xs text-muted-foreground">
                   {isPremium ? "Acceso completo a todas las funciones" : "Funciones básicas disponibles"}
@@ -106,21 +119,20 @@ export default function BusinessDashboardLayout({ children }: { children: React.
               <Sidebar mobile />
             </div>
           </SheetContent>
-        </Sheet>
 
-        <div className="lg:pl-72 flex flex-col flex-1">
-          {/* Top bar */}
-          <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
+          <div className="lg:pl-72 flex flex-col flex-1">
+            {/* Top bar */}
+            <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
 
             <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
               <div className="flex flex-1 items-center">
                 <h1 className="text-lg font-semibold text-foreground">
-                  {user?.businessName || "Dashboard Empresarial"}
+                  {businessUser?.businessName || "Dashboard Empresarial"}
                 </h1>
               </div>
               <div className="flex items-center gap-x-4 lg:gap-x-6">
@@ -134,11 +146,12 @@ export default function BusinessDashboardLayout({ children }: { children: React.
             </div>
           </div>
 
-          {/* Main content */}
-          <main className="flex-1 overflow-y-auto">
-            <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>
-          </main>
-        </div>
+            {/* Main content */}
+            <main className="flex-1 overflow-y-auto">
+              <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+            </main>
+          </div>
+        </Sheet>
       </div>
     </AuthGuard>
   )
