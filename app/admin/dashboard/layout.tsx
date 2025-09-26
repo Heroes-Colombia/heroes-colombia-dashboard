@@ -60,7 +60,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   const handleLogout = async () => {
     await mockLogout()
-    router.push("/admin/login")
+    router.push("/")
   }
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (

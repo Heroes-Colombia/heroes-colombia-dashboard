@@ -25,14 +25,14 @@ export function AuthGuard({ children, requiredRole = "business", redirectTo }: A
 
     if (!user) {
       setIsAuthenticated(false)
-      const loginPath = redirectTo || `/${requiredRole}/login`
+      const loginPath = redirectTo || `/`
       router.push(loginPath)
       return
     }
 
     if (user.role !== requiredRole) {
       setIsAuthenticated(false)
-      const loginPath = redirectTo || `/${requiredRole}/login`
+      const loginPath = redirectTo || `/`
       router.push(loginPath)
       return
     }

@@ -59,7 +59,7 @@ export interface AdminUser extends User {
   permissions: ("super_admin")[]
 }
 
-export const loginWithEmail = async (email: string, password: string, role: "business" | "admin"): Promise<User> => {
+export const loginWithEmail = async (email: string, password: string): Promise<User> => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
     const firebaseUser = userCredential.user
@@ -74,25 +74,16 @@ export const loginWithEmail = async (email: string, password: string, role: "bus
     const userData = userResult.data
 
     // Check if user has the required role based on permissions
-    console.log(`🔍 Checking permissions for role: ${role}`)
-    console.log(`👤 User role: ${userData.role}`)
     console.log(`🔑 User permissions: ${JSON.stringify(userData.permission)}`)
 
-    if (role === "admin" && !userData.permission?.includes("admin")) {
+    if (!userData.permission?.includes("admin") && !userData.permission?.includes("business")) {
       console.log("❌ Admin access denied - missing admin permission")
-      throw new Error("Insufficient permissions for admin access")
-    }
-
-    if (role === "business" && !userData.permission?.includes("business") && userData.role !== "business") {
-      console.log("❌ Business access denied - missing business permission or role")
-      console.log(`   Required: permission includes 'business' OR role === 'business'`)
-      console.log(`   Actual: permission=${JSON.stringify(userData.permission)}, role=${userData.role}`)
-      throw new Error("Insufficient permissions for business access")
+      throw new Error("User found with insufficient permissions")
     }
 
     console.log("✅ Permission check passed")
 
-    if (role === "business" || userData.role === "business") {
+    if (userData.permission?.includes("business")) {
       const businessUser: BusinessUser = {
         id: firebaseUser.uid,
         email: firebaseUser.email!,
@@ -152,7 +143,7 @@ export const loginWithGoogle = async (role: "business" | "admin"): Promise<User>
       }
     }
 
-    return await loginWithEmail(firebaseUser.email!, "", role)
+    return await loginWithEmail(firebaseUser.email!, "")
   } catch (error: any) {
     throw new Error(error.message || "Google login failed")
   }

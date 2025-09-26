@@ -21,38 +21,6 @@ const mockBusiness = {
   category: "Restaurante",
   nit: "900123456-7",
   plan: "Básico",
-  locations: [
-    {
-      id: 1,
-      name: "Sede Principal",
-      address: "Carrera 15 #85-32, Bogotá",
-      phone: "+57 1 234 5678",
-      manager: "Carlos Rodríguez",
-    },
-    {
-      id: 2,
-      name: "Sede Norte",
-      address: "Calle 127 #15-45, Bogotá",
-      phone: "+57 1 234 5679",
-      manager: "Ana García",
-    },
-  ],
-  team: [
-    {
-      id: 1,
-      name: "Carlos Rodríguez",
-      email: "carlos@eldorado.com",
-      role: "Gerente General",
-      status: "active",
-    },
-    {
-      id: 2,
-      name: "Ana García",
-      email: "ana@eldorado.com",
-      role: "Gerente de Marketing",
-      status: "active",
-    },
-  ],
 }
 
 export default function SettingsPage() {
@@ -81,8 +49,6 @@ export default function SettingsPage() {
       <Tabs defaultValue="business" className="space-y-6">
         <TabsList>
           <TabsTrigger value="business">Empresa</TabsTrigger>
-          <TabsTrigger value="locations">Ubicaciones</TabsTrigger>
-          <TabsTrigger value="team">Equipo</TabsTrigger>
           <TabsTrigger value="notifications">Notificaciones</TabsTrigger>
           <TabsTrigger value="security">Seguridad</TabsTrigger>
         </TabsList>
@@ -135,115 +101,6 @@ export default function SettingsPage() {
                 <Button onClick={handleSave} disabled={isLoading}>
                   {isLoading ? "Guardando..." : "Guardar Cambios"}
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="locations" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    Ubicaciones
-                  </CardTitle>
-                  <CardDescription>Gestiona las ubicaciones de tu empresa</CardDescription>
-                </div>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Agregar Ubicación
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockBusiness.locations.map((location) => (
-                  <Card key={location.id}>
-                    <CardContent className="pt-6">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          <h3 className="font-semibold">{location.name}</h3>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            {location.address}
-                          </p>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Phone className="h-4 w-4" />
-                            {location.phone}
-                          </p>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Users className="h-4 w-4" />
-                            Gerente: {location.manager}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            Editar
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="team" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Equipo
-                  </CardTitle>
-                  <CardDescription>Gestiona los miembros de tu equipo</CardDescription>
-                </div>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Invitar Miembro
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockBusiness.team.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${member.name}`} />
-                        <AvatarFallback>
-                          {member.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{member.name}</p>
-                        <p className="text-sm text-muted-foreground">{member.email}</p>
-                        <Badge variant="outline" className="text-xs">
-                          {member.role}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={member.status === "active" ? "default" : "secondary"}>
-                        {member.status === "active" ? "Activo" : "Inactivo"}
-                      </Badge>
-                      <Button variant="outline" size="sm">
-                        Editar
-                      </Button>
-                    </div>
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>

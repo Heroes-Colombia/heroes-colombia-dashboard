@@ -48,7 +48,7 @@ export default function BusinessDashboardLayout({ children }: { children: React.
 
   const handleLogout = async () => {
     await mockLogout()
-    router.push("/business/login")
+    router.push("/")
   }
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (

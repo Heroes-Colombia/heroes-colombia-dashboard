@@ -1,0 +1,236 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================================
+    // Helper Functions
+    // ============================================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+             'admin' in request.auth.token &&
+             request.auth.token.admin == true;
+    }
+
+    function isBusinessUser() {
+      return isAuthenticated() &&
+             'businessId' in request.auth.token;
+    }
+
+    function belongsToBusiness(businessId) {
+      return isBusinessUser() &&
+             request.auth.token.businessId == businessId;
+    }
+
+    function hasBusinessPermission(permission) {
+      return isBusinessUser() &&
+             'permissions' in request.auth.token &&
+             permission in request.auth.token.permissions;
+    }
+
+    function isBusinessOwnerOrManager(businessId) {
+      return belongsToBusiness(businessId) &&
+             (hasBusinessPermission('owner') || hasBusinessPermission('manager'));
+    }
+
+    // ============================================================================
+    // Users Collection (Authentication & Profiles)
+    // ============================================================================
+
+    match /users/{userId} {
+      // Users can read their own profile
+      // Admins can read all profiles
+      allow read: if isAuthenticated() &&
+                     (request.auth.uid == userId || isAdmin());
+
+      // Users can update their own profile (limited fields)
+      // Admins can update any profile
+      allow update: if isAuthenticated() &&
+                       (request.auth.uid == userId || isAdmin()) &&
+                       // Prevent users from changing critical fields
+                       (isAdmin() ||
+                        (!('role' in request.resource.data) &&
+                         !('permission' in request.resource.data) &&
+                         !('businessId' in request.resource.data)));
+
+      // Only admins and registration process can create users
+      allow create: if isAdmin() ||
+                       (isAuthenticated() && request.auth.uid == userId);
+
+      // Only admins can delete users
+      allow delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // Businesses Collection (Business Profiles)
+    // ============================================================================
+
+    match /businesses/{businessId} {
+      // Business users can read their own business
+      // Admins can read all businesses
+      allow read: if belongsToBusiness(businessId) || isAdmin();
+
+      // Business owners/managers can update their business profile
+      // Admins can update any business
+      allow update: if isBusinessOwnerOrManager(businessId) || isAdmin();
+
+      // Only admins can create businesses (usually through approval process)
+      allow create: if isAdmin();
+
+      // Only admins can delete businesses
+      allow delete: if isAdmin();
+
+      // ========================================================================
+      // Business Subcollections
+      // ========================================================================
+
+      // Business Locations
+      match /locations/{locationId} {
+        allow read, write: if belongsToBusiness(businessId) || isAdmin();
+      }
+
+      // Team Members
+      match /team_members/{memberId} {
+        allow read: if belongsToBusiness(businessId) || isAdmin();
+        allow write: if isBusinessOwnerOrManager(businessId) || isAdmin();
+      }
+
+      // Promotions
+      match /promotions/{promotionId} {
+        allow read: if belongsToBusiness(businessId) || isAdmin();
+        allow write: if (belongsToBusiness(businessId) &&
+                        hasBusinessPermission('owner') ||
+                        hasBusinessPermission('manager')) ||
+                        isAdmin();
+      }
+
+      // Analytics (Read-only for business users, full access for admins)
+      match /analytics/{analyticsId} {
+        allow read: if belongsToBusiness(businessId) || isAdmin();
+        allow write: if isAdmin();
+      }
+
+      // Redemptions
+      match /redemptions/{redemptionId} {
+        allow read: if belongsToBusiness(businessId) || isAdmin();
+        // Staff can create redemptions, owners/managers can update
+        allow create: if belongsToBusiness(businessId);
+        allow update: if isBusinessOwnerOrManager(businessId) || isAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ============================================================================
+    // Global Collections (Admin-managed)
+    // ============================================================================
+
+    // Plan Configurations (Read by all, write by admins)
+    match /plan_configurations/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // System Settings (Admin only)
+    match /system_settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ============================================================================
+    // Public Collections (Read-only for authenticated users)
+    // ============================================================================
+
+    // Categories, Countries, etc. (if needed in the future)
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ============================================================================
+    // Analytics & Reporting Collections
+    // ============================================================================
+
+    // Platform-wide analytics (Admin only)
+    match /platform_analytics/{analyticsId} {
+      allow read, write: if isAdmin();
+    }
+
+    // User verification queue (Admin only)
+    match /verification_queue/{verificationId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Business approval queue (Admin only)
+    match /business_approval_queue/{approvalId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Promotion moderation queue (Admin only)
+    match /promotion_moderation_queue/{moderationId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ============================================================================
+    // Audit Logs (Admin read-only, system write)
+    // ============================================================================
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      // Write operations should be done via Cloud Functions only
+      allow write: if false;
+    }
+
+    // ============================================================================
+    // Notifications
+    // ============================================================================
+
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      allow read: if isAuthenticated() &&
+                     resource.data.recipientId == request.auth.uid;
+
+      // Admins can create notifications for users
+      allow create: if isAdmin();
+
+      // Users can mark their own notifications as read
+      allow update: if isAuthenticated() &&
+                       resource.data.recipientId == request.auth.uid &&
+                       // Only allow updating the 'read' status
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['read', 'readAt', 'updatedAt']);
+    }
+
+    // ============================================================================
+    // Invitations (Team member invitations)
+    // ============================================================================
+
+    match /invitations/{invitationId} {
+      // Business owners/managers can read invitations for their business
+      allow read: if (resource.data.businessId in resource.data &&
+                      belongsToBusiness(resource.data.businessId)) ||
+                     isAdmin();
+
+      // Business owners/managers can create invitations
+      allow create: if request.resource.data.businessId in request.resource.data &&
+                       isBusinessOwnerOrManager(request.resource.data.businessId);
+
+      // Invited users can update their invitation status (accept/decline)
+      allow update: if resource.data.email == request.auth.token.email &&
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['status', 'acceptedAt', 'updatedAt']);
+    }
+
+    // ============================================================================
+    // Default Deny Rule
+    // ============================================================================
+
+    // Explicitly deny access to any collections not covered above
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
