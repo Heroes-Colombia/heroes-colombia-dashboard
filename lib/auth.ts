@@ -9,6 +9,8 @@ import {
 } from "firebase/auth"
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { auth, db } from "./firebase"
+import { firebaseService } from "./firebase-service"
+import type { BusinessProfile, GeoPoint } from "./types"
 
 // Helper function to read user document by UID (searches by uid field, not document ID)
 const readUserById = async (userId: string) => {
@@ -158,36 +160,68 @@ export const registerBusiness = async (
     phone: string
     category: string
     description: string
+    address?: string
+    ownerName?: string
   },
 ): Promise<BusinessUser> => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const firebaseUser = userCredential.user
 
-    // Create business profile in Firestore users collection
-    const businessProfile = {
-      email: firebaseUser.email,
-      role: "business",
-      businessName: businessData.businessName,
-      businessId: firebaseUser.uid,
-      nit: businessData.nit,
-      phone: businessData.phone,
-      category: businessData.category,
+    // Create business document in businesses collection
+    const businessProfile: Omit<BusinessProfile, "id"> = {
+      name: businessData.businessName,
+      identification: businessData.nit,
+      email: firebaseUser.email!,
+      phone_number: businessData.phone,
+      categories: [businessData.category],
       description: businessData.description,
-      plan: "gratis",
+      address: businessData.address || "",
+      owner_name: businessData.ownerName || firebaseUser.email?.split("@")[0] || "Business Owner",
+      owner_uid: firebaseUser.uid,
+
+      // Default location (Bogotá center for now - should be updated with real geocoding)
+      location: { latitude: 4.6097, longitude: -74.0817 },
+      geo_hash: {
+        geohash: "d2cbe0c0b", // Default geohash for Bogotá
+        geopoint: { latitude: 4.6097, longitude: -74.0817 }
+      },
+
       status: "pending",
-      permission: ["business", "owner"],
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      featured: false,
+      reviews: [],
+      plan: "gratis",
     }
 
-    await setDoc(doc(db, "users", firebaseUser.uid), businessProfile)
+    // Create business document
+    const businessId = await firebaseService.createBusiness(businessProfile)
+
+    if (!businessId) {
+      throw new Error("Failed to create business profile")
+    }
+
+    // Create user profile in users collection
+    const userProfile = {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email!,
+      permission: "business",
+      status: "active",
+      owned_businesses: [businessId],
+      first_name: businessData.ownerName?.split(" ")[0] || "Business",
+      first_last_name: businessData.ownerName?.split(" ")[1] || "Owner",
+      identification_card: businessData.nit,
+      verified: false,
+      rank: "Business Owner",
+      phone_number: businessData.phone,
+    }
+
+    await setDoc(doc(db, "users", firebaseUser.uid), userProfile)
 
     const businessUser: BusinessUser = {
       id: firebaseUser.uid,
       email: firebaseUser.email!,
       role: "business",
-      businessId: firebaseUser.uid,
+      businessId: businessId,
       businessName: businessData.businessName,
       plan: "gratis",
       permissions: ["owner"],
@@ -195,6 +229,7 @@ export const registerBusiness = async (
 
     return businessUser
   } catch (error: any) {
+    console.error("Registration error:", error)
     throw new Error(error.message || "Registration failed")
   }
 }

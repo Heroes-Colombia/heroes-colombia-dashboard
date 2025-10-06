@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useBusinesses } from "@/hooks/use-businesses"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -137,19 +138,37 @@ const mockPlans: PlanConfiguration[] = [
   },
 ]
 
-// Mock subscription statistics
-const subscriptionStats = {
-  gratis: { count: 1245, revenue: 0, growth: "+12%" },
-  basico: { count: 387, revenue: 19350000, growth: "+8%" },
-  pro: { count: 156, revenue: 23400000, growth: "+15%" },
-  enterprise: { count: 23, revenue: 11500000, growth: "+25%" },
-}
 
 export default function AdminPlansPage() {
+  const { businesses, isLoading } = useBusinesses()
   const [plans, setPlans] = useState(mockPlans)
   const [selectedPlan, setSelectedPlan] = useState<PlanConfiguration | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState<Partial<PlanConfiguration>>({})
+
+  // Calculate real subscription stats from businesses
+  const subscriptionStats = {
+    gratis: {
+      count: businesses.filter(b => !b.plan || b.plan === "gratis").length,
+      revenue: 0,
+      growth: "+0%"
+    },
+    basico: {
+      count: businesses.filter(b => b.plan === "basico").length,
+      revenue: businesses.filter(b => b.plan === "basico").length * 50000,
+      growth: "+0%"
+    },
+    pro: {
+      count: businesses.filter(b => b.plan === "pro").length,
+      revenue: businesses.filter(b => b.plan === "pro").length * 150000,
+      growth: "+0%"
+    },
+    enterprise: {
+      count: businesses.filter(b => b.plan === "enterprise").length,
+      revenue: businesses.filter(b => b.plan === "enterprise").length * 500000,
+      growth: "+0%"
+    },
+  }
 
   const handleEditPlan = (plan: PlanConfiguration) => {
     setSelectedPlan(plan)
@@ -208,7 +227,7 @@ export default function AdminPlansPage() {
       "Plan,Precio,Suscriptores,Ingresos,Ubicaciones Máx,Promociones Máx,Equipo Máx,Estado",
       ...plans.map(plan => {
         const stats = subscriptionStats[plan.id as keyof typeof subscriptionStats]
-        return `"${plan.name}",${plan.price},${stats.count},${stats.revenue},${formatLimitValue(plan.maxLocations)},${formatLimitValue(plan.maxPromotions)},${formatLimitValue(plan.maxTeamMembers)},"${plan.isActive ? 'Activo' : 'Inactivo'}"`
+        return `"${plan.name}",${plan.price},${stats?.count || 0},${stats?.revenue || 0},${formatLimitValue(plan.maxLocations)},${formatLimitValue(plan.maxPromotions)},${formatLimitValue(plan.maxTeamMembers)},"${plan.isActive ? 'Activo' : 'Inactivo'}"`
       })
     ].join("\n")
 
@@ -223,11 +242,21 @@ export default function AdminPlansPage() {
     window.URL.revokeObjectURL(url)
   }
 
-  const totalRevenue = Object.values(subscriptionStats).reduce((sum, stat) => sum + stat.revenue, 0)
-  const totalSubscribers = Object.values(subscriptionStats).reduce((sum, stat) => sum + stat.count, 0)
+  const totalRevenue = Object.values(subscriptionStats).reduce((sum, stat) => sum + (stat?.revenue || 0), 0)
+  const totalSubscribers = Object.values(subscriptionStats).reduce((sum, stat) => sum + (stat?.count || 0), 0)
 
   return (
     <div className="space-y-6">
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2 text-muted-foreground">Cargando estadísticas de planes...</span>
+        </div>
+      )}
+
+      {!isLoading && (
+        <>
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -265,15 +294,15 @@ export default function AdminPlansPage() {
                     <span className="font-medium text-sm">{plan.name}</span>
                   </div>
                   <Badge variant="outline" className="text-xs">
-                    {stats.growth}
+                    {stats?.growth || "+0%"}
                   </Badge>
                 </div>
                 <div className="space-y-1">
                   <div className="text-2xl font-bold">
-                    {stats.count.toLocaleString()}
+                    {(stats?.count || 0).toLocaleString()}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {formatPrice(stats.revenue)}
+                    {formatPrice(stats?.revenue || 0)}
                   </div>
                 </div>
               </CardContent>
@@ -306,7 +335,7 @@ export default function AdminPlansPage() {
                 <div className="flex items-center gap-2">
                   <div className="text-right mr-4">
                     <div className="text-lg font-semibold">
-                      {subscriptionStats[plan.id as keyof typeof subscriptionStats].count.toLocaleString()}
+                      {(subscriptionStats[plan.id as keyof typeof subscriptionStats]?.count || 0).toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">suscriptores</div>
                   </div>
@@ -541,6 +570,8 @@ export default function AdminPlansPage() {
           )}
         </DialogContent>
       </Dialog>
+        </>
+      )}
     </div>
   )
 }

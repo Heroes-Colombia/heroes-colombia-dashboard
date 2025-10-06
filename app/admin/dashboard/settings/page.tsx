@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useBusinesses } from "@/hooks/use-businesses"
+import { usePromotions } from "@/hooks/use-promotions"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -89,23 +91,28 @@ const mockSystemSettings: SystemSettings = {
   updatedBy: "admin@heroescolombia.com",
 }
 
-// Mock platform statistics
-const platformStats = {
-  totalUsers: 1811,
-  totalBusinesses: 566,
-  totalPromotions: 1247,
-  activePromotions: 892,
-  monthlyRevenue: 54250000,
-  systemUptime: 99.9,
-  averageResponseTime: 120,
-  errorRate: 0.1,
-}
 
 export default function AdminSettingsPage() {
+  const { businesses, isLoading: businessesLoading } = useBusinesses()
+  const { promotions, isLoading: promotionsLoading } = usePromotions()
   const [settings, setSettings] = useState(mockSystemSettings)
   const [hasChanges, setHasChanges] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [activeTab, setActiveTab] = useState("platform")
+
+  // Calculate real platform statistics
+  const platformStats = {
+    totalUsers: 0, // Would need to implement users fetching
+    totalBusinesses: businesses.length,
+    totalPromotions: promotions.length,
+    activePromotions: promotions.filter(p => p.status === "active").length,
+    monthlyRevenue: businesses.filter(b => b.plan === "basico").length * 50000 +
+                   businesses.filter(b => b.plan === "pro").length * 150000 +
+                   businesses.filter(b => b.plan === "enterprise").length * 500000,
+    systemUptime: 99.9,
+    averageResponseTime: 120,
+    errorRate: 0.1,
+  }
 
   const handleSettingChange = (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }))
@@ -176,6 +183,16 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {(businessesLoading || promotionsLoading) && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2 text-muted-foreground">Cargando configuraciones...</span>
+        </div>
+      )}
+
+      {!businessesLoading && !promotionsLoading && (
+        <>
       {/* Platform Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -526,6 +543,8 @@ export default function AdminSettingsPage() {
           </div>
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   )
 }

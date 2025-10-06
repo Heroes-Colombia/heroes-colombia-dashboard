@@ -16,6 +16,7 @@ export type PromotionType = "percentage" | "fixed" | "bogo" | "free_shipping" | 
 export type PromotionStatus = "draft" | "active" | "expired" | "suspended"
 export type BusinessStatus = "pending" | "approved" | "suspended" | "rejected"
 export type UserVerificationStatus = "pending" | "approved" | "rejected"
+export type CategoryStatus = "active" | "inactive"
 
 // ============================================================================
 // User & Authentication Types
@@ -85,40 +86,72 @@ export interface AdminUser extends BaseUser {
 export type User = BusinessUser | AdminUser
 
 // ============================================================================
+// Category Types
+// ============================================================================
+
+export interface BusinessCategory {
+  category_id: string
+  name: string
+  image: string
+  status: CategoryStatus
+}
+
+// ============================================================================
 // Business & Organization Types
 // ============================================================================
 
 export interface BusinessProfile {
   id: string
-  businessName: string
-  nit: string
+  name: string // Firebase field name
+  identification: string // Business NIT/identification
   email: string
-  phone: string
-  category: string
-  description: string
-  logo?: string
+  phone_number: string // Firebase field name
+  phoneNumber?: string // Alternative phone field
+  categories: string[] // Array of category IDs
+  description?: string
+  featured_image?: string // Firebase field name
   website?: string
+  address: string
 
-  // Plan & Billing
-  plan: PlanType
-  planStartDate: Date | Timestamp
-  planEndDate: Date | Timestamp
+  // Owner Information
+  owner_name: string
+  owner_uid: string // Link to user account
+
+  // Location Data
+  location: GeoPoint // Firebase GeoPoint
+  geo_hash: {
+    geohash: string
+    geopoint: GeoPoint
+  }
+
+  // Status & Features
+  status: "pending" | "under_review" | "approved" | "active" | "suspended" | "rejected"
+  featured: boolean
+  reviews: any[] // Review array
+
+  // Plan & Billing (extended fields)
+  plan?: PlanType
+  planStartDate?: Date | Timestamp
+  planEndDate?: Date | Timestamp
   billingEmail?: string
 
-  // Status & Verification
-  status: BusinessStatus
+  // Verification Documents
   verificationDocuments?: string[]
   verificationNotes?: string
 
   // Settings
-  featuredHighlighting: boolean // Pro/Enterprise feature
-  notificationPreferences: NotificationPreferences
+  notificationPreferences?: NotificationPreferences
 
   // Metadata
-  createdAt: Date | Timestamp
-  updatedAt: Date | Timestamp
-  createdBy: string
+  createdAt?: Date | Timestamp
+  updatedAt?: Date | Timestamp
   lastActiveAt?: Date | Timestamp
+}
+
+// Firebase GeoPoint type
+export interface GeoPoint {
+  latitude: number
+  longitude: number
 }
 
 export interface NotificationPreferences {
@@ -216,19 +249,43 @@ export interface TeamPermissions {
 // Promotion Types
 // ============================================================================
 
-export interface Promotion {
+// Firebase Advertisement/Promotion Interface
+export interface Advertisement {
   id: string
-  businessId: string
-
-  // Basic Information
+  business_id: string // Firebase field name
   title: string
   description: string
-  type: PromotionType
+  instructions: string
+  percentage: number
+  featured_image: string
+  expired_at: Date | Timestamp
+  status: "active" | "inactive"
 
-  // Promotion Details
-  value: number // percentage or fixed amount
+  // Extended fields for dashboard functionality
+  createdAt?: Date | Timestamp
+  updatedAt?: Date | Timestamp
+}
+
+// Legacy Promotion interface - extends Advertisement for backward compatibility
+export interface Promotion extends Advertisement {
+  // Legacy fields mapped from Advertisement
+  businessId: string // Maps to business_id
+  type: PromotionType
+  value: number // Maps to percentage
   originalPrice?: number
   discountedPrice?: number
+  startDate: Date | Timestamp
+  endDate: Date | Timestamp // Maps to expired_at
+  isActive: boolean // Maps to status === "active"
+  currentRedemptions: number
+  maxRedemptions?: number
+  maxRedemptionsPerUser?: number
+  digitalCardEligible: boolean
+  targetLocations?: string[]
+  targetUserCategories?: string[]
+  isFeatured: boolean
+  featuredUntil?: Date | Timestamp
+  createdBy: string
 
   // BOGO specific
   bogoDetails?: {
@@ -236,33 +293,6 @@ export interface Promotion {
     getQuantity: number
     applicableItems?: string[]
   }
-
-  // Scheduling
-  startDate: Date | Timestamp
-  endDate: Date | Timestamp
-  isActive: boolean
-  status: PromotionStatus
-
-  // Limitations
-  maxRedemptions?: number
-  currentRedemptions: number
-  maxRedemptionsPerUser?: number
-
-  // Digital Card
-  digitalCardEligible: boolean
-
-  // Targeting (future use)
-  targetLocations?: string[] // location IDs
-  targetUserCategories?: string[]
-
-  // Featured (Pro/Enterprise)
-  isFeatured: boolean
-  featuredUntil?: Date | Timestamp
-
-  // Metadata
-  createdAt: Date | Timestamp
-  updatedAt: Date | Timestamp
-  createdBy: string
 }
 
 // ============================================================================

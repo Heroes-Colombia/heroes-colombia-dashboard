@@ -16,8 +16,10 @@ import { HeroesLogo } from "@/components/heroes-logo"
 import { Building2, Mail, Lock, Phone, MapPin, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { registerBusiness } from "@/lib/auth"
+import { useCategories } from "@/hooks/use-categories"
 
 export default function BusinessRegisterPage() {
+  const { categories, isLoading: categoriesLoading } = useCategories()
   const [formData, setFormData] = useState({
     businessName: "",
     email: "",
@@ -100,7 +102,7 @@ export default function BusinessRegisterPage() {
                 <Label htmlFor="businessName">Nombre de la empresa *</Label>
                 <Input
                   id="businessName"
-                  placeholder="Mi Empresa S.A.S."
+                  placeholder="Como lo verán los usuarios"
                   value={formData.businessName}
                   onChange={(e) => handleInputChange("businessName", e.target.value)}
                   required
@@ -122,19 +124,16 @@ export default function BusinessRegisterPage() {
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="category">Categoría *</Label>
-                <Select onValueChange={(value) => handleInputChange("category", value)}>
+                <Select onValueChange={(value) => handleInputChange("category", value)} disabled={categoriesLoading}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una categoría" />
+                    <SelectValue placeholder={categoriesLoading ? "Cargando categorías..." : "Selecciona una categoría"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="restaurante">Restaurante</SelectItem>
-                    <SelectItem value="retail">Retail/Tienda</SelectItem>
-                    <SelectItem value="servicios">Servicios</SelectItem>
-                    <SelectItem value="salud">Salud y Bienestar</SelectItem>
-                    <SelectItem value="educacion">Educación</SelectItem>
-                    <SelectItem value="tecnologia">Tecnología</SelectItem>
-                    <SelectItem value="entretenimiento">Entretenimiento</SelectItem>
-                    <SelectItem value="otros">Otros</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.category_id} value={category.category_id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -163,7 +162,7 @@ export default function BusinessRegisterPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="contacto@empresa.com"
+                  placeholder="nombre@empresa.com"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
                   className="pl-10"
@@ -256,7 +255,7 @@ export default function BusinessRegisterPage() {
 
           <div className="text-center text-sm mt-6">
             <span className="text-muted-foreground">¿Ya tienes cuenta? </span>
-            <Link href="/business/login" className="text-primary hover:underline">
+            <Link href="/" className="text-primary hover:underline">
               Inicia sesión aquí
             </Link>
           </div>

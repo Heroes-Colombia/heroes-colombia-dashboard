@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
             <p className="text-sm text-muted-foreground text-center">
               Revisa tu bandeja de entrada y sigue las instrucciones para restablecer tu contraseña.
             </p>
-            <Link href="/business/login">
+            <Link href="/">
               <Button variant="outline" className="w-full bg-transparent">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Volver al inicio de sesión
@@ -105,7 +105,7 @@ export default function ForgotPasswordPage() {
           </form>
 
           <div className="text-center">
-            <Link href="/business/login" className="text-sm text-muted-foreground hover:underline">
+            <Link href="/" className="text-sm text-muted-foreground hover:underline">
               <ArrowLeft className="h-4 w-4 mr-1 inline" />
               Volver al inicio de sesión
             </Link>

@@ -1,5 +1,7 @@
 "use client"
 
+import { useBusinesses } from "@/hooks/use-businesses"
+import { usePromotions } from "@/hooks/use-promotions"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,52 +34,77 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
-// Mock data
-const platformKPIs = [
-  { title: "Total Empresas", value: "1,247", change: "+12%", icon: Building2, trend: "up" },
-  { title: "Usuarios Activos", value: "45,678", change: "+8%", icon: Users, trend: "up" },
-  { title: "Promociones Activas", value: "3,456", change: "+15%", icon: Tag, trend: "up" },
-  { title: "Ingresos MRR", value: "$287M", change: "+23%", icon: DollarSign, trend: "up" },
-]
 
-const businessesByTier = [
-  { name: "Gratis", value: 623, color: "#94A3B8" },
-  { name: "Básico", value: 312, color: "#7A8B5A" },
-  { name: "Pro", value: 234, color: "#1E3A8A" },
-  { name: "Enterprise", value: 78, color: "#059669" },
-]
 
-const monthlyGrowth = [
-  { month: "Ene", businesses: 980, users: 38000, revenue: 220 },
-  { month: "Feb", businesses: 1050, users: 41000, revenue: 245 },
-  { month: "Mar", businesses: 1120, users: 43500, revenue: 267 },
-  { month: "Apr", businesses: 1180, users: 44800, revenue: 278 },
-  { month: "May", businesses: 1247, users: 45678, revenue: 287 },
-]
 
-const topBusinesses = [
-  { name: "Restaurante El Dorado", plan: "Enterprise", revenue: 45000, redemptions: 1234 },
-  { name: "Tienda Fashion Plus", plan: "Pro", revenue: 32000, redemptions: 987 },
-  { name: "Café Central", plan: "Pro", revenue: 28000, redemptions: 756 },
-  { name: "Supermercado Familiar", plan: "Enterprise", revenue: 52000, redemptions: 1456 },
-  { name: "Librería Académica", plan: "Básico", revenue: 15000, redemptions: 234 },
-]
 
-const verificationStats = [
-  { title: "Verificaciones Exitosas", value: "94.2%", icon: CheckCircle, color: "text-green-600" },
-  { title: "Verificaciones Fallidas", value: "5.8%", icon: XCircle, color: "text-red-600" },
-  { title: "Pendientes de Revisión", value: "127", icon: Clock, color: "text-yellow-600" },
-]
 
-const geoData = [
-  { city: "Bogotá", businesses: 456, users: 18234 },
-  { city: "Medellín", businesses: 234, users: 9876 },
-  { city: "Cali", businesses: 189, users: 7654 },
-  { city: "Barranquilla", businesses: 123, users: 4567 },
-  { city: "Cartagena", businesses: 98, users: 3456 },
-]
 
 export default function AdminDashboardPage() {
+  const { businesses, isLoading: businessesLoading } = useBusinesses()
+  const { promotions, isLoading: promotionsLoading } = usePromotions()
+
+  // Calculate real-time stats
+  const totalBusinesses = businesses.length
+  const approvedBusinesses = businesses.filter(b => b.status === "approved" || b.status === "active").length
+  const pendingBusinesses = businesses.filter(b => b.status === "pending").length
+  const suspendedBusinesses = businesses.filter(b => b.status === "suspended").length
+
+  const totalPromotions = promotions.length
+  const activePromotions = promotions.filter(p => p.status === "active").length
+  const inactivePromotions = promotions.filter(p => p.status === "inactive").length
+
+  // Calculate business distribution by plan
+  const planDistribution = businesses.reduce((acc, business) => {
+    const plan = business.plan || "gratis"
+    acc[plan] = (acc[plan] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  const businessesByTier = [
+    { name: "Gratis", value: planDistribution.gratis || 0, color: "#94A3B8" },
+    { name: "Básico", value: planDistribution.basico || 0, color: "#7A8B5A" },
+    { name: "Pro", value: planDistribution.pro || 0, color: "#1E3A8A" },
+    { name: "Enterprise", value: planDistribution.enterprise || 0, color: "#059669" },
+  ]
+
+  // Calculate platform KPIs with real data
+  const platformKPIs = [
+    { title: "Total Empresas", value: totalBusinesses.toString(), change: "+0%", icon: Building2, trend: "up" as const },
+    { title: "Empresas Aprobadas", value: approvedBusinesses.toString(), change: "+0%", icon: CheckCircle, trend: "up" as const },
+    { title: "Promociones Activas", value: activePromotions.toString(), change: "+0%", icon: Tag, trend: "up" as const },
+    { title: "Total Promociones", value: totalPromotions.toString(), change: "+0%", icon: DollarSign, trend: "up" as const },
+  ]
+
+  // Verification stats with real data
+  const verificationStats = [
+    { title: "Empresas Aprobadas", value: approvedBusinesses.toString(), icon: CheckCircle, color: "text-green-600" },
+    { title: "Empresas Suspendidas", value: suspendedBusinesses.toString(), icon: XCircle, color: "text-red-600" },
+    { title: "Pendientes de Revisión", value: pendingBusinesses.toString(), icon: Clock, color: "text-yellow-600" },
+  ]
+
+  // Top businesses based on real data (sorted by creation date for now)
+  const topBusinesses = businesses
+    .filter(b => b.status === "approved" || b.status === "active")
+    .slice(0, 5)
+    .map(business => ({
+      name: business.name,
+      plan: business.plan || "gratis",
+      id: business.id,
+      status: business.status
+    }))
+
+  if (businessesLoading || promotionsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2 text-muted-foreground">Cargando datos del dashboard...</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -120,23 +147,29 @@ export default function AdminDashboardPage() {
 
       {/* Charts Section */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Growth Trends */}
+        {/* Business Status Overview */}
         <Card>
           <CardHeader>
-            <CardTitle>Crecimiento de la Plataforma</CardTitle>
-            <CardDescription>Evolución mensual de empresas, usuarios e ingresos</CardDescription>
+            <CardTitle>Estado de Empresas</CardTitle>
+            <CardDescription>Distribución actual por estado de verificación</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyGrowth}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="businesses" stroke="#7A8B5A" strokeWidth={2} name="Empresas" />
-                <Line type="monotone" dataKey="users" stroke="#1E3A8A" strokeWidth={2} name="Usuarios" />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">{approvedBusinesses}</div>
+                  <div className="text-sm text-green-600">Aprobadas</div>
+                </div>
+                <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                  <div className="text-2xl font-bold text-yellow-600">{pendingBusinesses}</div>
+                  <div className="text-sm text-yellow-600">Pendientes</div>
+                </div>
+                <div className="text-center p-4 bg-red-50 rounded-lg">
+                  <div className="text-2xl font-bold text-red-600">{suspendedBusinesses}</div>
+                  <div className="text-sm text-red-600">Suspendidas</div>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -201,47 +234,59 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {topBusinesses.map((business, index) => (
-                <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+              {topBusinesses.length > 0 ? topBusinesses.map((business, index) => (
+                <div key={business.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex-1">
                     <h4 className="font-medium">{business.name}</h4>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={business.plan === "Enterprise" ? "default" : "secondary"} className="text-xs">
+                      <Badge variant={business.plan === "enterprise" || business.plan === "pro" ? "default" : "secondary"} className="text-xs">
                         {business.plan}
                       </Badge>
-                      <span className="text-sm text-muted-foreground">{business.redemptions} redenciones</span>
+                      <Badge variant="outline" className="text-xs">
+                        {business.status}
+                      </Badge>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-medium">${business.revenue.toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground">ingresos</div>
+                    <div className="text-sm font-medium">#{index + 1}</div>
+                    <div className="text-xs text-muted-foreground">posición</div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No hay empresas aprobadas aún</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Geographic Distribution */}
+        {/* Promotion Status Overview */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <MapPin className="h-5 w-5 mr-2" />
-              Distribución Geográfica
+              <Tag className="h-5 w-5 mr-2" />
+              Estado de Promociones
             </CardTitle>
-            <CardDescription>Empresas y usuarios por ciudad</CardDescription>
+            <CardDescription>Distribución de promociones por estado</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={geoData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="city" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="businesses" fill="#7A8B5A" name="Empresas" />
-                <Bar dataKey="users" fill="#1E3A8A" name="Usuarios" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">{activePromotions}</div>
+                  <div className="text-sm text-blue-600">Activas</div>
+                </div>
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <div className="text-2xl font-bold text-gray-600">{inactivePromotions}</div>
+                  <div className="text-sm text-gray-600">Inactivas</div>
+                </div>
+              </div>
+              <div className="text-center pt-2">
+                <div className="text-lg font-medium">Total: {totalPromotions} promociones</div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -253,7 +298,7 @@ export default function AdminDashboardPage() {
             <div className="text-center">
               <Building2 className="h-8 w-8 mx-auto mb-2 text-primary" />
               <h3 className="font-medium mb-1">Empresas Pendientes</h3>
-              <p className="text-2xl font-bold text-primary">23</p>
+              <p className="text-2xl font-bold text-primary">{pendingBusinesses}</p>
               <Button variant="outline" size="sm" className="mt-2 bg-transparent" asChild>
                 <Link href="/admin/dashboard/businesses">Revisar</Link>
               </Button>
@@ -266,7 +311,7 @@ export default function AdminDashboardPage() {
             <div className="text-center">
               <Users className="h-8 w-8 mx-auto mb-2 text-secondary" />
               <h3 className="font-medium mb-1">Verificaciones</h3>
-              <p className="text-2xl font-bold text-secondary">127</p>
+              <p className="text-2xl font-bold text-secondary">{pendingBusinesses}</p>
               <Button variant="outline" size="sm" className="mt-2 bg-transparent" asChild>
                 <Link href="/admin/dashboard/users">Procesar</Link>
               </Button>
@@ -279,7 +324,7 @@ export default function AdminDashboardPage() {
             <div className="text-center">
               <Tag className="h-8 w-8 mx-auto mb-2 text-green-600" />
               <h3 className="font-medium mb-1">Promociones</h3>
-              <p className="text-2xl font-bold text-green-600">45</p>
+              <p className="text-2xl font-bold text-green-600">{activePromotions}</p>
               <Button variant="outline" size="sm" className="mt-2 bg-transparent" asChild>
                 <Link href="/admin/dashboard/promotions">Moderar</Link>
               </Button>
@@ -292,7 +337,7 @@ export default function AdminDashboardPage() {
             <div className="text-center">
               <Activity className="h-8 w-8 mx-auto mb-2 text-orange-600" />
               <h3 className="font-medium mb-1">Reportes</h3>
-              <p className="text-2xl font-bold text-orange-600">12</p>
+              <p className="text-2xl font-bold text-orange-600">{totalBusinesses}</p>
               <Button variant="outline" size="sm" className="mt-2 bg-transparent" asChild>
                 <Link href="/admin/dashboard/analytics">Generar</Link>
               </Button>

@@ -145,8 +145,14 @@ service cloud.firestore {
     // ============================================================================
 
     // Categories, Countries, etc. (if needed in the future)
-    match /categories/{categoryId} {
+    match /business_categories/{categoryId} {
       allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Business Categories Collection
+    match /business_categories/{categoryId} {
+      allow read: if true; // Public read access for categories
       allow write: if isAdmin();
     }
 

@@ -15,24 +15,12 @@ import {
 } from "firebase/firestore"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
 import { db, storage } from "./firebase"
+import type { BusinessCategory, BusinessProfile, GeoPoint, Advertisement } from "./types"
 
-// Types based on Heroes Colombia data structure
-export interface Business {
-  id: string
-  name: string
-  email: string
-  phone: string
-  website?: string
-  description: string
-  category: string
-  nit: string
-  plan: "gratis" | "basico" | "pro" | "enterprise"
-  status: "pending" | "approved" | "rejected" | "suspended"
-  createdAt: Timestamp
-  updatedAt: Timestamp
-  locations: Location[]
-  documents: BusinessDocument[]
-  subscription: Subscription
+// Legacy Business interface - now using BusinessProfile from types.ts
+// Kept for backward compatibility during migration
+export interface Business extends BusinessProfile {
+  // Any legacy-specific fields can be added here
 }
 
 export interface Location {
@@ -113,81 +101,290 @@ export interface BusinessDocument {
 }
 
 class FirebaseService {
+  // Category operations
+  async getCategories(): Promise<BusinessCategory[]> {
+    try {
+      // Simple query without compound filtering to avoid index requirements
+      const snapshot = await getDocs(collection(db, "business_categories"))
+      const categories = snapshot.docs
+        .map((doc) => ({
+          category_id: doc.data().category_id,
+          name: doc.data().name,
+          image: doc.data().image,
+          status: doc.data().status,
+        }))
+        .filter((category) => category.status === "active") // Filter in memory
+        .sort((a, b) => a.name.localeCompare(b.name)) // Sort in memory
+
+      return categories
+    } catch (error) {
+      console.error("Error fetching categories:", error)
+      return []
+    }
+  }
+
+  async getCategory(categoryId: string): Promise<BusinessCategory | null> {
+    try {
+      // Get all categories and find the one we need in memory
+      const snapshot = await getDocs(collection(db, "business_categories"))
+      const category = snapshot.docs
+        .map((doc) => ({
+          category_id: doc.data().category_id,
+          name: doc.data().name,
+          image: doc.data().image,
+          status: doc.data().status,
+        }))
+        .find((cat) => cat.category_id === categoryId)
+
+      return category || null
+    } catch (error) {
+      console.error("Error fetching category:", error)
+      return null
+    }
+  }
+
   // Business operations
-  async getBusinesses(filters?: { status?: string; plan?: string; limit?: number }) {
-    let q = query(collection(db, "businesses"), orderBy("createdAt", "desc"))
+  async getBusinesses(filters?: { status?: string; plan?: string; limit?: number; category?: string }): Promise<BusinessProfile[]> {
+    try {
+      // Use simple query to avoid index requirements
+      const snapshot = await getDocs(collection(db, "businesses"))
+      let businesses = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as BusinessProfile[]
 
-    if (filters?.status) {
-      q = query(q, where("status", "==", filters.status))
+      // Apply filters in memory
+      if (filters?.status) {
+        businesses = businesses.filter((business) => business.status === filters.status)
+      }
+      if (filters?.plan) {
+        businesses = businesses.filter((business) => business.plan === filters.plan)
+      }
+      if (filters?.category) {
+        businesses = businesses.filter((business) =>
+          business.categories?.includes(filters.category!)
+        )
+      }
+
+      // Sort by creation date (newest first)
+      businesses.sort((a, b) => {
+        const aDate = a.createdAt ? (a.createdAt as any).seconds || 0 : 0
+        const bDate = b.createdAt ? (b.createdAt as any).seconds || 0 : 0
+        return bDate - aDate
+      })
+
+      // Apply limit
+      if (filters?.limit) {
+        businesses = businesses.slice(0, filters.limit)
+      }
+
+      return businesses
+    } catch (error) {
+      console.error("Error fetching businesses:", error)
+      return []
     }
-    if (filters?.plan) {
-      q = query(q, where("plan", "==", filters.plan))
+  }
+
+  async getBusiness(businessId: string): Promise<BusinessProfile | null> {
+    try {
+      const docRef = doc(db, "businesses", businessId)
+      const docSnap = await getDoc(docRef)
+      return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as BusinessProfile) : null
+    } catch (error) {
+      console.error("Error fetching business:", error)
+      return null
     }
-    if (filters?.limit) {
-      q = query(q, limit(filters.limit))
+  }
+
+  async createBusiness(businessData: Omit<BusinessProfile, "id">): Promise<string | null> {
+    try {
+      const docRef = await addDoc(collection(db, "businesses"), {
+        ...businessData,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      })
+      return docRef.id
+    } catch (error) {
+      console.error("Error creating business:", error)
+      return null
     }
-
-    const snapshot = await getDocs(q)
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Business)
   }
 
-  async getBusiness(businessId: string): Promise<Business | null> {
-    const docRef = doc(db, "businesses", businessId)
-    const docSnap = await getDoc(docRef)
-    return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Business) : null
+  async updateBusiness(businessId: string, data: Partial<BusinessProfile>): Promise<boolean> {
+    try {
+      const docRef = doc(db, "businesses", businessId)
+      await updateDoc(docRef, { ...data, updatedAt: Timestamp.now() })
+      return true
+    } catch (error) {
+      console.error("Error updating business:", error)
+      return false
+    }
   }
 
-  async updateBusiness(businessId: string, data: Partial<Business>) {
-    const docRef = doc(db, "businesses", businessId)
-    await updateDoc(docRef, { ...data, updatedAt: Timestamp.now() })
+  async updateBusinessStatus(businessId: string, status: BusinessProfile["status"], notes?: string): Promise<boolean> {
+    try {
+      const docRef = doc(db, "businesses", businessId)
+      await updateDoc(docRef, {
+        status,
+        verificationNotes: notes,
+        updatedAt: Timestamp.now(),
+      })
+      return true
+    } catch (error) {
+      console.error("Error updating business status:", error)
+      return false
+    }
   }
 
-  async updateBusinessStatus(businessId: string, status: Business["status"], notes?: string) {
-    const docRef = doc(db, "businesses", businessId)
-    await updateDoc(docRef, {
-      status,
-      reviewNotes: notes,
-      reviewedAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    })
+  async getBusinessesByOwner(ownerUid: string): Promise<BusinessProfile[]> {
+    try {
+      const snapshot = await getDocs(collection(db, "businesses"))
+      const businesses = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() } as BusinessProfile))
+        .filter((business) => business.owner_uid === ownerUid)
+
+      return businesses
+    } catch (error) {
+      console.error("Error fetching businesses by owner:", error)
+      return []
+    }
   }
 
-  // Promotion operations
+  // Advertisement/Promotion operations
+  async getAdvertisements(filters?: { businessId?: string; status?: string; limit?: number }): Promise<Advertisement[]> {
+    try {
+      // Use simple query to avoid index requirements
+      const snapshot = await getDocs(collection(db, "advertisements"))
+      let advertisements = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Advertisement[]
+
+      // Apply filters in memory
+      if (filters?.businessId) {
+        advertisements = advertisements.filter((ad) => ad.business_id === filters.businessId)
+      }
+      if (filters?.status) {
+        advertisements = advertisements.filter((ad) => ad.status === filters.status)
+      }
+
+      // Sort by creation date or expiry date (newest first)
+      advertisements.sort((a, b) => {
+        const aDate = a.createdAt ? (a.createdAt as any).seconds || 0 : 0
+        const bDate = b.createdAt ? (b.createdAt as any).seconds || 0 : 0
+        return bDate - aDate
+      })
+
+      // Apply limit
+      if (filters?.limit) {
+        advertisements = advertisements.slice(0, filters.limit)
+      }
+
+      return advertisements
+    } catch (error) {
+      console.error("Error fetching advertisements:", error)
+      return []
+    }
+  }
+
+  async getAdvertisement(advertisementId: string): Promise<Advertisement | null> {
+    try {
+      const docRef = doc(db, "advertisements", advertisementId)
+      const docSnap = await getDoc(docRef)
+      return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Advertisement) : null
+    } catch (error) {
+      console.error("Error fetching advertisement:", error)
+      return null
+    }
+  }
+
+  async createAdvertisement(advertisementData: Omit<Advertisement, "id">): Promise<string | null> {
+    try {
+      const docRef = await addDoc(collection(db, "advertisements"), {
+        ...advertisementData,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      })
+      return docRef.id
+    } catch (error) {
+      console.error("Error creating advertisement:", error)
+      return null
+    }
+  }
+
+  async updateAdvertisement(advertisementId: string, data: Partial<Advertisement>): Promise<boolean> {
+    try {
+      const docRef = doc(db, "advertisements", advertisementId)
+      await updateDoc(docRef, { ...data, updatedAt: Timestamp.now() })
+      return true
+    } catch (error) {
+      console.error("Error updating advertisement:", error)
+      return false
+    }
+  }
+
+  async updateAdvertisementStatus(advertisementId: string, status: "active" | "inactive"): Promise<boolean> {
+    try {
+      const docRef = doc(db, "advertisements", advertisementId)
+      await updateDoc(docRef, {
+        status,
+        updatedAt: Timestamp.now(),
+      })
+      return true
+    } catch (error) {
+      console.error("Error updating advertisement status:", error)
+      return false
+    }
+  }
+
+  async deleteAdvertisement(advertisementId: string): Promise<boolean> {
+    try {
+      const docRef = doc(db, "advertisements", advertisementId)
+      await deleteDoc(docRef)
+      return true
+    } catch (error) {
+      console.error("Error deleting advertisement:", error)
+      return false
+    }
+  }
+
+  async getAdvertisementsByBusiness(businessId: string): Promise<Advertisement[]> {
+    try {
+      const snapshot = await getDocs(collection(db, "advertisements"))
+      const advertisements = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() } as Advertisement))
+        .filter((ad) => ad.business_id === businessId)
+
+      return advertisements
+    } catch (error) {
+      console.error("Error fetching advertisements by business:", error)
+      return []
+    }
+  }
+
+  // Legacy promotion methods - wrapper around advertisement methods for backward compatibility
   async getPromotions(businessId?: string, filters?: { isActive?: boolean; limit?: number }) {
-    let q = query(collection(db, "promotions"), orderBy("createdAt", "desc"))
+    const adFilters: any = {}
+    if (businessId) adFilters.businessId = businessId
+    if (filters?.isActive !== undefined) adFilters.status = filters.isActive ? "active" : "inactive"
+    if (filters?.limit) adFilters.limit = filters.limit
 
-    if (businessId) {
-      q = query(q, where("businessId", "==", businessId))
-    }
-    if (filters?.isActive !== undefined) {
-      q = query(q, where("isActive", "==", filters.isActive))
-    }
-    if (filters?.limit) {
-      q = query(q, limit(filters.limit))
-    }
+    const advertisements = await this.getAdvertisements(adFilters)
 
-    const snapshot = await getDocs(q)
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Promotion)
-  }
-
-  async createPromotion(promotion: Omit<Promotion, "id" | "currentRedemptions">) {
-    const docRef = await addDoc(collection(db, "promotions"), {
-      ...promotion,
+    // Convert Advertisement to legacy Promotion format
+    return advertisements.map((ad) => ({
+      ...ad,
+      businessId: ad.business_id,
+      type: "percentage" as const,
+      value: ad.percentage,
+      startDate: ad.createdAt || new Date(),
+      endDate: ad.expired_at,
+      isActive: ad.status === "active",
       currentRedemptions: 0,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    })
-    return docRef.id
-  }
-
-  async updatePromotion(promotionId: string, data: Partial<Promotion>) {
-    const docRef = doc(db, "promotions", promotionId)
-    await updateDoc(docRef, { ...data, updatedAt: Timestamp.now() })
-  }
-
-  async deletePromotion(promotionId: string) {
-    const docRef = doc(db, "promotions", promotionId)
-    await deleteDoc(docRef)
+      digitalCardEligible: true,
+      isFeatured: false,
+      createdBy: "",
+    }))
   }
 
   // Redemption operations

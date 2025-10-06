@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useBusinesses } from "@/hooks/use-businesses"
+import { usePromotions } from "@/hooks/use-promotions"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -24,30 +26,8 @@ import {
 import { Building2, Users, Tag, DollarSign, Download, MapPin, Activity } from "lucide-react"
 import { addDays } from "date-fns"
 
-// Mock global analytics data
-const globalKPIs = {
-  totalBusinesses: 1247,
-  activePromotions: 3456,
-  totalUsers: 45678,
-  totalRedemptions: 23456,
-  platformRevenue: 287000000,
-  monthlyGrowth: 12.5,
-}
 
-const platformTrends = [
-  { month: "Ene", businesses: 980, users: 38000, promotions: 2800, revenue: 220 },
-  { month: "Feb", businesses: 1050, users: 41000, promotions: 3100, revenue: 245 },
-  { month: "Mar", businesses: 1120, users: 43500, promotions: 3300, revenue: 267 },
-  { month: "Apr", businesses: 1180, users: 44800, promotions: 3400, revenue: 278 },
-  { month: "May", businesses: 1247, users: 45678, promotions: 3456, revenue: 287 },
-]
 
-const planAdoption = [
-  { plan: "Gratis", count: 623, revenue: 0, color: "#94A3B8" },
-  { plan: "Básico", count: 312, revenue: 18720000, color: "#7A8B5A" },
-  { plan: "Pro", count: 234, revenue: 53820000, color: "#1E3A8A" },
-  { plan: "Enterprise", count: 78, revenue: 214460000, color: "#059669" },
-]
 
 const userActivity = [
   { day: "Lun", dau: 12000, mau: 35000 },
@@ -59,24 +39,12 @@ const userActivity = [
   { day: "Dom", dau: 14000, mau: 36500 },
 ]
 
-const geoHeatmap = [
-  { region: "Bogotá", businesses: 456, users: 18234, revenue: 125000000 },
-  { region: "Medellín", businesses: 234, users: 9876, revenue: 67000000 },
-  { region: "Cali", businesses: 189, users: 7654, revenue: 45000000 },
-  { region: "Barranquilla", businesses: 123, users: 4567, revenue: 28000000 },
-  { region: "Cartagena", businesses: 98, users: 3456, revenue: 22000000 },
-  { region: "Otras", businesses: 147, users: 1891, revenue: 15000000 },
-]
 
-const churnAnalysis = [
-  { month: "Ene", newBusinesses: 45, churnedBusinesses: 12, netGrowth: 33 },
-  { month: "Feb", newBusinesses: 67, churnedBusinesses: 15, netGrowth: 52 },
-  { month: "Mar", newBusinesses: 89, churnedBusinesses: 18, netGrowth: 71 },
-  { month: "Apr", newBusinesses: 78, churnedBusinesses: 22, netGrowth: 56 },
-  { month: "May", newBusinesses: 92, churnedBusinesses: 19, netGrowth: 73 },
-]
 
 export default function AdminAnalyticsPage() {
+  const { businesses, isLoading: businessesLoading } = useBusinesses()
+  const { promotions, isLoading: promotionsLoading } = usePromotions()
+
   const [dateRange, setDateRange] = useState({
     from: addDays(new Date(), -30),
     to: new Date(),
@@ -84,8 +52,65 @@ export default function AdminAnalyticsPage() {
   const [selectedMetric, setSelectedMetric] = useState("overview")
   const [selectedRegion, setSelectedRegion] = useState("all")
 
+  // Calculate real analytics data
+  const globalKPIs = {
+    totalBusinesses: businesses.length,
+    activePromotions: promotions.filter(p => p.status === "active").length,
+    totalUsers: 0, // Would need to implement users fetching
+    totalRedemptions: 0, // Would need to implement redemptions fetching
+    platformRevenue: businesses.filter(b => b.plan === "basico").length * 50000 +
+                    businesses.filter(b => b.plan === "pro").length * 150000 +
+                    businesses.filter(b => b.plan === "enterprise").length * 500000,
+    monthlyGrowth: 0, // Would need historical data
+  }
+
+  const planAdoption = [
+    { plan: "Gratis", count: businesses.filter(b => !b.plan || b.plan === "gratis").length, revenue: 0, color: "#94A3B8" },
+    { plan: "Básico", count: businesses.filter(b => b.plan === "basico").length, revenue: businesses.filter(b => b.plan === "basico").length * 50000, color: "#7A8B5A" },
+    { plan: "Pro", count: businesses.filter(b => b.plan === "pro").length, revenue: businesses.filter(b => b.plan === "pro").length * 150000, color: "#1E3A8A" },
+    { plan: "Enterprise", count: businesses.filter(b => b.plan === "enterprise").length, revenue: businesses.filter(b => b.plan === "enterprise").length * 500000, color: "#059669" },
+  ]
+
+  // Create current month snapshot data (placeholder for trend analysis)
+  const platformTrends = [
+    {
+      month: "Actual",
+      businesses: globalKPIs.totalBusinesses,
+      users: globalKPIs.totalUsers,
+      promotions: globalKPIs.activePromotions,
+      revenue: Math.round((globalKPIs.platformRevenue || 0) / 1000000)
+    }
+  ]
+
+  // Create churn analysis data (placeholder for actual churn tracking)
+  const churnAnalysis = [
+    {
+      month: "Actual",
+      newBusinesses: globalKPIs.totalBusinesses,
+      churnedBusinesses: 0, // Would need historical tracking
+      netGrowth: globalKPIs.totalBusinesses
+    }
+  ]
+
+  // Create geographic data (placeholder - would need actual location tracking)
+  const geoHeatmap = [
+    { region: "Total", businesses: globalKPIs.totalBusinesses, users: globalKPIs.totalUsers, revenue: globalKPIs.platformRevenue },
+  ]
+
   const handleExportReport = (format: "csv" | "pdf") => {
     console.log(`Exporting admin analytics as ${format}`)
+  }
+
+  // Show loading state while data is being fetched
+  if (businessesLoading || promotionsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2 text-muted-foreground">Cargando analíticas...</span>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -141,8 +166,8 @@ export default function AdminAnalyticsPage() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{globalKPIs.totalBusinesses.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+{globalKPIs.monthlyGrowth}% este mes</p>
+            <div className="text-2xl font-bold">{(globalKPIs.totalBusinesses || 0).toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">+{(globalKPIs.monthlyGrowth || 0)}% este mes</p>
           </CardContent>
         </Card>
 
@@ -152,7 +177,7 @@ export default function AdminAnalyticsPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{globalKPIs.totalUsers.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{(globalKPIs.totalUsers || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">MAU activos</p>
           </CardContent>
         </Card>
@@ -163,7 +188,7 @@ export default function AdminAnalyticsPage() {
             <Tag className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{globalKPIs.activePromotions.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{(globalKPIs.activePromotions || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">activas hoy</p>
           </CardContent>
         </Card>
@@ -174,7 +199,7 @@ export default function AdminAnalyticsPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{globalKPIs.totalRedemptions.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{(globalKPIs.totalRedemptions || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">este mes</p>
           </CardContent>
         </Card>
@@ -185,7 +210,7 @@ export default function AdminAnalyticsPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${(globalKPIs.platformRevenue / 1000000).toFixed(0)}M</div>
+            <div className="text-2xl font-bold">${((globalKPIs.platformRevenue || 0) / 1000000).toFixed(0)}M</div>
             <p className="text-xs text-muted-foreground">ingresos mensuales</p>
           </CardContent>
         </Card>
@@ -361,7 +386,7 @@ export default function AdminAnalyticsPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm">ARPU (Ingreso por Usuario)</span>
-                <span className="font-bold">${Math.round(globalKPIs.platformRevenue / globalKPIs.totalUsers)}</span>
+                <span className="font-bold">${Math.round((globalKPIs.platformRevenue || 0) / Math.max(globalKPIs.totalUsers || 1, 1))}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Tasa de Conversión Global</span>
