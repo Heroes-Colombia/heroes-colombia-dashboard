@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { firebaseService } from "@/lib/firebase-service"
+import { BusinessService } from "@/lib/services/business-service"
 import type { BusinessProfile } from "@/lib/types"
 
 interface UseBusinessesFilters {
@@ -29,7 +29,7 @@ export function useBusinesses(filters?: UseBusinessesFilters) {
         setIsLoading(true)
         setError(null)
 
-        const fetchedBusinesses = await firebaseService.getBusinesses(filters)
+        const fetchedBusinesses = await BusinessService.getBusinesses(filters)
         setBusinesses(fetchedBusinesses)
       } catch (err) {
         console.error("Error fetching businesses:", err)
@@ -49,7 +49,7 @@ export function useBusinesses(filters?: UseBusinessesFilters) {
     try {
       setIsLoading(true)
       setError(null)
-      const fetchedBusinesses = await firebaseService.getBusinesses(filters)
+      const fetchedBusinesses = await BusinessService.getBusinesses(filters)
       setBusinesses(fetchedBusinesses)
     } catch (err) {
       console.error("Error refreshing businesses:", err)
@@ -61,7 +61,7 @@ export function useBusinesses(filters?: UseBusinessesFilters) {
 
   const updateBusinessStatus = async (businessId: string, status: BusinessProfile["status"], notes?: string) => {
     try {
-      const success = await firebaseService.updateBusinessStatus(businessId, status, notes)
+      const success = await BusinessService.updateBusinessStatus(businessId, status, notes)
       if (success) {
         // Update local state
         setBusinesses((prev) =>
@@ -123,7 +123,7 @@ export function useBusiness(businessId: string | null) {
         setIsLoading(true)
         setError(null)
 
-        const fetchedBusiness = await firebaseService.getBusiness(businessId)
+        const fetchedBusiness = await BusinessService.getBusiness(businessId)
         setBusiness(fetchedBusiness)
       } catch (err) {
         console.error("Error fetching business:", err)
@@ -141,7 +141,7 @@ export function useBusiness(businessId: string | null) {
     if (!businessId) return false
 
     try {
-      const success = await firebaseService.updateBusiness(businessId, data)
+      const success = await BusinessService.updateBusiness(businessId, data)
       if (success && business) {
         setBusiness({ ...business, ...data })
         return true
@@ -160,7 +160,7 @@ export function useBusiness(businessId: string | null) {
     try {
       setIsLoading(true)
       setError(null)
-      const fetchedBusiness = await firebaseService.getBusiness(businessId)
+      const fetchedBusiness = await BusinessService.getBusiness(businessId)
       setBusiness(fetchedBusiness)
     } catch (err) {
       console.error("Error refreshing business:", err)
@@ -197,7 +197,7 @@ export function useBusinessesByOwner(ownerUid: string | null) {
         setIsLoading(true)
         setError(null)
 
-        const fetchedBusinesses = await firebaseService.getBusinessesByOwner(ownerUid)
+        const fetchedBusinesses = await BusinessService.getBusinessesByOwner(ownerUid)
         setBusinesses(fetchedBusinesses)
       } catch (err) {
         console.error("Error fetching businesses by owner:", err)

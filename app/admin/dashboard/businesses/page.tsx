@@ -171,7 +171,7 @@ export default function AdminBusinessesPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Phone className="h-4 w-4" />
-                        {business.phone_number || business.phoneNumber || "N/A"}
+                        {business.phone_number || "N/A"}
                       </div>
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
@@ -185,7 +185,7 @@ export default function AdminBusinessesPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
-                        Registrado: {business.createdAt ? ((business.createdAt as any).seconds ? new Date((business.createdAt as any).seconds * 1000).toLocaleDateString() : new Date(business.createdAt as Date).toLocaleDateString()) : "N/A"}
+                        Registrado: {business.created_at ? ((business.created_at as any).seconds ? new Date((business.created_at as any).seconds * 1000).toLocaleDateString() : new Date(business.created_at as Date).toLocaleDateString()) : "N/A"}
                       </div>
                       <div className="flex items-center gap-2">
                         <Mail className="h-4 w-4" />
@@ -195,7 +195,7 @@ export default function AdminBusinessesPage() {
                   </div>
                   <div className="flex items-center gap-4 mt-3 text-sm">
                     <span>Propietario: {business.owner_name}</span>
-                    <span>Tel: {business.phone_number || business.phoneNumber}</span>
+                    <span>Tel: {business.phone_number}</span>
                     {business.featured && <Badge variant="secondary">Destacado</Badge>}
                   </div>
                 </div>

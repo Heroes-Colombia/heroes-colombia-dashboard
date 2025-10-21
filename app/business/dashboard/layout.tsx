@@ -20,6 +20,7 @@ const navigation = [
   { name: "Promociones", href: "/business/dashboard/promotions", icon: Tag },
   { name: "Redenciones", href: "/business/dashboard/redemptions", icon: Building2 },
   { name: "Analíticas", href: "/business/dashboard/analytics", icon: BarChart3 },
+  { name: "Planes", href: "/business/dashboard/plans", icon: Crown },
   { name: "Facturación", href: "/business/dashboard/billing", icon: CreditCard },
   { name: "Ubicaciones", href: "/business/dashboard/locations", icon: MapPin },
   { name: "Equipo", href: "/business/dashboard/team", icon: Users },

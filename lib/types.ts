@@ -1,5 +1,6 @@
 // Heroes Colombia Dashboard - Data Models & Types
-// Based on the documented business requirements and Firebase schema
+// Firebase Schema V2 - Aligned with Firebase collections structure
+// Updated: January 2026
 
 import type { Timestamp } from "firebase/firestore"
 
@@ -12,479 +13,696 @@ export type UserRole = "business" | "admin"
 export type BusinessPermission = "owner" | "manager" | "staff"
 export type AdminPermission = "super_admin"
 export type LocationType = "physical" | "online"
-export type PromotionType = "percentage" | "fixed" | "bogo" | "free_shipping" | "flash_deal"
-export type PromotionStatus = "draft" | "active" | "expired" | "suspended"
-export type BusinessStatus = "pending" | "approved" | "suspended" | "rejected"
-export type UserVerificationStatus = "pending" | "approved" | "rejected"
+export type BusinessType = "physical" | "online" | "hybrid"
+export type PromotionStatus = "draft" | "pending" | "active" | "inactive" | "expired"
+export type BusinessStatus = "pending" | "active" | "inactive" | "approved" | "rejected" | "suspended"
+export type UserVerificationStatus = "pending" | "active" | "rejected"
 export type CategoryStatus = "active" | "inactive"
+export type BillingPeriod = "monthly" | "annual"
+export type SubscriptionStatus = "trial" | "active" | "past_due" | "cancelled" | "expired"
 
 // ============================================================================
-// User & Authentication Types
+// Firebase GeoPoint Type
 // ============================================================================
 
-export interface BaseUser {
-  id: string
-  email: string
-  role: UserRole
-  createdAt: Date | Timestamp
-  updatedAt: Date | Timestamp
+export interface GeoPoint {
+  latitude: number
+  longitude: number
 }
 
-// Firebase User document structure (matches actual Firestore data)
-export interface FirebaseUser {
+export interface GeoHash {
+  geohash: string
+  geopoint: GeoPoint
+}
+
+// ============================================================================
+// Business Types (Firebase Schema V2)
+// ============================================================================
+
+/**
+ * Firebase business document structure
+ * Collection: businesses/{businessId}
+ */
+export interface FirebaseBusiness {
+  // Basic Information
+  name: string
+  identification: string
+  email: string
+  phone_number: string
+  website?: string
+  description?: string
+  featured_image?: string
+
+  // Owner Information
+  owner_name: string
+  owner_uid: string
+
+  // Type & Categories
+  type: BusinessType // "physical" | "online" | "hybrid"
+  categories: string[] // Simple IDs like ["tecnologia", "restaurante"] matching category_id in business_categories
+
+  // Primary Location (denormalized for geospatial queries)
+  address: string
+  location: GeoPoint | null // null for online-only businesses
+  geo_hash: GeoHash | null
+
+  // Status & Features
+  status: BusinessStatus
+  featured: boolean
+
+  // Plan & Subscription
+  plan: PlanType
+  subscription_status: SubscriptionStatus
+
+  // Plan Limits & Extra Resources
+  extra_promotions_purchased?: number // Total extra promotions bought
+  extra_promotions_active?: number // Currently active extra promotions
+
+  // Timestamps
+  created_at: Timestamp
+  updated_at: Timestamp
+}
+
+/**
+ * Firebase business location document (subcollection)
+ * Collection: businesses/{businessId}/locations/{locationId}
+ */
+export interface FirebaseLocation {
+  // Basic Information
+  name: string
+  is_primary: boolean // Exactly one location must be primary
+
+  // Type
+  type: LocationType // "physical" | "online"
+
+  // Contact Information (ALL locations have these)
+  phone?: string
+  email?: string
+  website?: string
+
+  // Physical Location Fields
+  address?: string | null
+  location?: GeoPoint | null // null for online locations
+  geo_hash?: GeoHash | null
+  business_hours?: BusinessHours[]
+
+  // Online Location Fields
+  delivery_zones?: string[] // For online/hybrid businesses
+  shipping_info?: string
+
+  // Status
+  status: "active" | "inactive"
+
+  // Timestamps
+  created_at: Timestamp
+  updated_at: Timestamp
+}
+
+export interface BusinessHours {
+  day_of_week: number // 0 = Sunday, 1 = Monday, etc.
+  is_open: boolean
+  open_time?: string // HH:mm format
+  close_time?: string // HH:mm format
+}
+
+// ============================================================================
+// Business Category Types (Firebase Schema V2)
+// ============================================================================
+
+/**
+ * Firebase business category document
+ * Collection: business_categories/{categoryId}
+ */
+export interface FirebaseBusinessCategory {
+  category_id: string // e.g., "restaurant", "gym"
+  name: string // Display name
+  icon_url: string
+  status: CategoryStatus
+  sort_order: number
+  created_at: Timestamp
+  updated_at: Timestamp
+}
+
+// ============================================================================
+// Promotion Types (Firebase Schema V2)
+// ============================================================================
+
+/**
+ * Firebase promotion document
+ * Collection: promotions/{promotionId}
+ * Note: Renamed from "advertisements" collection
+ */
+export interface FirebasePromotion {
+  // Basic Information
+  business_id: string
+  title: string
+  description: string
+  instructions: string
+  percentage: number
+  featured_image: string
+
+  // Location Targeting
+  location_ids: string[] // Empty array = applies to all locations
+
+  // Dates
+  expired_at: Timestamp
+  created_at: Timestamp
+  updated_at: Timestamp
+
+  // Status & Visibility
+  status: PromotionStatus
+  is_featured: boolean
+
+  // Analytics (updated by Cloud Functions)
+  views_count?: number
+  saves_count?: number
+  redemptions_count?: number
+}
+
+// ============================================================================
+// Subscription & Transaction Types (Firebase Schema V2)
+// ============================================================================
+
+/**
+ * Firebase subscription document
+ * Collection: subscriptions/{subscriptionId}
+ */
+export interface FirebaseSubscription {
+  business_id: string
+  plan: PlanType
+  billing_period: BillingPeriod
+
+  // Pricing
+  amount: number // COP including IVA
+  currency: "COP"
+
+  // Status
+  status: SubscriptionStatus
+  is_trial: boolean
+  trial_ends_at?: Timestamp
+
+  // Dates
+  current_period_start: Timestamp
+  current_period_end: Timestamp
+  cancelled_at?: Timestamp
+
+  // Payment
+  payment_method?: string
+  last_payment_date?: Timestamp
+  next_billing_date?: Timestamp
+
+  // Metadata
+  created_at: Timestamp
+  updated_at: Timestamp
+}
+
+/**
+ * Firebase transaction document
+ * Collection: transactions/{transactionId}
+ */
+export interface FirebaseTransaction {
+  business_id: string
+  subscription_id?: string
+
+  // Transaction Details
+  type: "subscription" | "extra_promotion" | "trial"
+  amount: number // COP including IVA
+  currency: "COP"
+
+  // Plan Information
+  plan?: PlanType
+  billing_period?: BillingPeriod
+
+  // Extra Promotions Purchase
+  extra_promotions_count?: number // Number of extra promotions purchased
+
+  // Payment Details
+  payment_method: "mercadopago" | "trial" | "admin_credit"
+  payment_reference: string // MercadoPago reference
+  payment_status: "pending" | "approved" | "rejected" | "cancelled"
+
+  // Dates
+  created_at: Timestamp
+  approved_at?: Timestamp
+  expiration_date?: Timestamp
+}
+
+// ============================================================================
+// Analytics Types (Firebase Schema V2)
+// ============================================================================
+
+/**
+ * Firebase analytics event document
+ * Collection: analytics_events/{eventId}
+ */
+export interface FirebaseAnalyticsEvent {
+  // Core
+  event_type: "impression" | "view" | "save" | "redemption"
+  business_id: string
+  promotion_id?: string
+  location_id?: string
+
+  // User Data
+  user_id?: string
+  user_rank?: string // For demographics
+  user_city?: string
+
+  // Context
+  timestamp: Timestamp
+  session_id?: string
+  device_type?: "ios" | "android" | "web"
+
+  // Metadata
+  created_at: Timestamp
+}
+
+// ============================================================================
+// User & Authentication Types (Firebase Schema V2)
+// ============================================================================
+
+/**
+ * Firebase user document (consumer)
+ * Collection: users/{userId}
+ */
+export interface FirebaseConsumerUser {
   uid: string
   email: string
-  device_notification_token?: string
-  favourite_businesses: string[]
+  user_type: "consumer"
+
+  // Military Personnel Information
   first_name: string
   second_name?: string
   first_last_name: string
   second_last_name?: string
   identification_card: string
   license: string
-  password: string // Note: This should not be stored in Firestore in production
-  permission: "user" | "admin"
   rank: string // Format: "BRANCH_CATEGORY_RANK"
-  status: "pending" | "active" | "rejected"
-  verified: boolean
+
+  // Contact
   phone?: string
   city?: string
-  notes?: string // Admin notes field
+
+  // App Data
+  favourite_businesses: string[]
+  device_notification_token?: string
+
+  // Status
+  status: UserVerificationStatus
+  verified: boolean
+
+  // Timestamps
+  created_at?: Timestamp
+  updated_at?: Timestamp
 }
 
-// Admin dashboard user interface (mapped from Firebase data)
+/**
+ * Firebase user document (business team member)
+ * Collection: users/{userId}
+ */
+export interface FirebaseBusinessUser {
+  uid: string
+  email: string
+  user_type: "business_team"
+
+  // Name
+  first_name: string
+  second_name?: string
+  first_last_name: string
+  second_last_name?: string
+
+  // Business Roles
+  business_roles?: BusinessRole[]
+
+  // Status
+  status: "active" | "inactive"
+
+  // Timestamps
+  created_at?: Timestamp
+  updated_at?: Timestamp
+}
+
+export interface BusinessRole {
+  business_id: string
+  role: BusinessPermission
+  permissions: TeamPermissions
+}
+
+export interface TeamPermissions {
+  can_manage_promotions: boolean
+  can_view_analytics: boolean
+  can_manage_redemptions: boolean
+  can_manage_team: boolean
+  can_manage_locations: boolean
+  can_view_billing: boolean
+}
+
+export type FirebaseUser = FirebaseConsumerUser | FirebaseBusinessUser
+
+// ============================================================================
+// Redemption Types (Firebase Schema V2 - Phase 2)
+// ============================================================================
+
+/**
+ * Firebase redemption document
+ * Collection: redemptions/{redemptionId}
+ */
+export interface FirebaseRedemption {
+  promotion_id: string
+  business_id: string
+  location_id?: string
+
+  // User Information
+  user_id: string
+  user_military_id: string
+
+  // Redemption Details
+  redeemed_at: Timestamp
+  redemption_method: "manual" | "qr_code"
+  processed_by?: string // Staff user ID
+
+  // Status
+  status: "completed" | "pending" | "cancelled"
+
+  // Metadata
+  created_at: Timestamp
+}
+
+// ============================================================================
+// Dashboard UI Types (mapped from Firebase)
+// ============================================================================
+
+/**
+ * Business profile for dashboard display
+ * Mapped from FirebaseBusiness - using snake_case to match database
+ */
+export interface BusinessProfile {
+  id: string
+  name: string
+  identification: string
+  email: string
+  phone_number: string
+  website?: string
+  description?: string
+  featured_image?: string
+
+  // Owner
+  owner_name: string
+  owner_uid: string
+
+  // Type & Categories
+  type: BusinessType
+  categories: string[]
+
+  // Primary Location
+  address: string
+  location: GeoPoint | null
+  geo_hash: GeoHash | null
+
+  // Status
+  status: BusinessStatus
+  featured: boolean
+
+  // Plan
+  plan: PlanType
+  subscription_status: SubscriptionStatus
+
+  // Extra Resources
+  extra_promotions_purchased?: number
+  extra_promotions_active?: number
+
+  // Dates
+  created_at?: Date | any
+  updated_at?: Date | any
+}
+
+/**
+ * Business category for dashboard display
+ * Mapped from FirebaseBusinessCategory
+ */
+export interface BusinessCategory {
+  id: string
+  category_id: string
+  name: string
+  image: string
+  status: CategoryStatus
+  sort_order: number
+}
+
+/**
+ * Location for dashboard display
+ * Mapped from FirebaseLocation
+ */
+export interface BusinessLocation {
+  id: string
+  name: string
+  is_primary: boolean
+  type: LocationType
+
+  // Contact
+  phone?: string
+  email?: string
+  website?: string
+
+  // Physical
+  address?: string
+  location?: GeoPoint
+  geo_hash?: GeoHash
+  business_hours?: any
+
+  // Online
+  delivery_zones?: string[]
+  delivery_type?: string
+  whatsapp?: string
+
+  // Status
+  status: "active" | "inactive"
+
+  // Dates
+  created_at: Date | any
+  updated_at: Date | any
+}
+
+/**
+ * Promotion for dashboard display
+ * Mapped from FirebasePromotion
+ */
+export interface Promotion {
+  id: string
+  business_id: string
+  title: string
+  description: string
+  instructions: string
+  percentage: number
+  featured_image: string
+
+  // Targeting
+  location_ids: string[]
+
+  // Dates
+  expired_at: Date | any
+  created_at: Date | any
+  updated_at: Date | any
+
+  // Status
+  status: PromotionStatus
+  is_featured: boolean
+
+  // Analytics
+  views_count?: number
+  saves_count?: number
+  redemptions_count?: number
+}
+
+/**
+ * Subscription for dashboard display
+ * Mapped from FirebaseSubscription
+ */
+export interface Subscription {
+  id: string
+  business_id: string
+  plan: PlanType
+  billing_period: BillingPeriod
+
+  // Pricing
+  amount: number
+  currency: "COP"
+
+  // Status
+  status: SubscriptionStatus
+  is_trial: boolean
+  trial_ends_at?: Date | any
+
+  // Dates
+  current_period_start: Date | any
+  current_period_end: Date | any
+  cancelled_at?: Date | any
+  next_billing_date?: Date | any
+
+  // Payment
+  payment_method?: string
+  last_payment_date?: Date | any
+}
+
+/**
+ * Transaction for dashboard display
+ * Mapped from FirebaseTransaction
+ */
+export interface Transaction {
+  id: string
+  businessId: string
+  subscriptionId?: string
+
+  // Details
+  type: "subscription" | "extra_promotion" | "trial"
+  amount: number
+  currency: "COP"
+
+  // Plan
+  plan?: PlanType
+  billingPeriod?: BillingPeriod
+
+  // Extra Promotions
+  extraPromotionsCount?: number
+
+  // Payment
+  paymentMethod: string
+  paymentReference: string
+  paymentStatus: "pending" | "approved" | "rejected" | "cancelled"
+
+  // Dates
+  createdAt: Date
+  approvedAt?: Date
+  expirationDate?: Date
+}
+
+/**
+ * Admin dashboard user interface
+ * Mapped from FirebaseConsumerUser
+ */
 export interface AdminDashboardUser {
   id: string
   email: string
   name: string // first_name + first_last_name
-  fullName: string // first_name + second_name + first_last_name + second_last_name
+  fullName: string // All name fields combined
   militaryId: string // identification_card
   rank: string
   branch: string
   phone?: string
   city?: string
   registrationDate: Date
-  status: "pending" | "active" | "rejected"
+  status: UserVerificationStatus
   notes?: string
   lastLogin?: Date
 }
 
-export interface BusinessUser extends BaseUser {
-  role: "business"
-  businessId: string
-  businessName: string
-  plan: PlanType
-  permissions: BusinessPermission[]
-  status: BusinessStatus
-}
-
-export interface AdminUser extends BaseUser {
-  role: "admin"
-  permissions: AdminPermission[]
-}
-
-export type User = BusinessUser | AdminUser
-
 // ============================================================================
-// Category Types
-// ============================================================================
-
-export interface BusinessCategory {
-  category_id: string
-  name: string
-  image: string
-  status: CategoryStatus
-}
-
-// ============================================================================
-// Business & Organization Types
-// ============================================================================
-
-export interface BusinessProfile {
-  id: string
-  name: string // Firebase field name
-  identification: string // Business NIT/identification
-  email: string
-  phone_number: string // Firebase field name
-  phoneNumber?: string // Alternative phone field
-  categories: string[] // Array of category IDs
-  description?: string
-  featured_image?: string // Firebase field name
-  website?: string
-  address: string
-
-  // Owner Information
-  owner_name: string
-  owner_uid: string // Link to user account
-
-  // Location Data
-  location: GeoPoint // Firebase GeoPoint
-  geo_hash: {
-    geohash: string
-    geopoint: GeoPoint
-  }
-
-  // Status & Features
-  status: "pending" | "under_review" | "approved" | "active" | "suspended" | "rejected"
-  featured: boolean
-  reviews: any[] // Review array
-
-  // Plan & Billing (extended fields)
-  plan?: PlanType
-  planStartDate?: Date | Timestamp
-  planEndDate?: Date | Timestamp
-  billingEmail?: string
-
-  // Verification Documents
-  verificationDocuments?: string[]
-  verificationNotes?: string
-
-  // Settings
-  notificationPreferences?: NotificationPreferences
-
-  // Metadata
-  createdAt?: Date | Timestamp
-  updatedAt?: Date | Timestamp
-  lastActiveAt?: Date | Timestamp
-}
-
-// Firebase GeoPoint type
-export interface GeoPoint {
-  latitude: number
-  longitude: number
-}
-
-export interface NotificationPreferences {
-  email: boolean
-  promotions: boolean
-  billing: boolean
-  systemUpdates: boolean
-}
-
-// ============================================================================
-// Location Types
-// ============================================================================
-
-export interface BusinessLocation {
-  id: string
-  businessId: string
-  name: string
-  type: LocationType
-
-  // Physical location fields
-  address?: {
-    street: string
-    city: string
-    state: string
-    zipCode: string
-    country: string
-  }
-  coordinates?: {
-    latitude: number
-    longitude: number
-  }
-  businessHours?: BusinessHours[]
-
-  // Online location fields
-  website?: string
-  deliveryZones?: string[]
-  onlineContactInfo?: {
-    phone?: string
-    email?: string
-    whatsapp?: string
-  }
-
-  // Status
-  isActive: boolean
-
-  // Metadata
-  createdAt: Date | Timestamp
-  updatedAt: Date | Timestamp
-}
-
-export interface BusinessHours {
-  dayOfWeek: number // 0 = Sunday, 1 = Monday, etc.
-  isOpen: boolean
-  openTime?: string // HH:mm format
-  closeTime?: string // HH:mm format
-}
-
-// ============================================================================
-// Team Management Types
-// ============================================================================
-
-export interface TeamMember {
-  id: string
-  businessId: string
-  userId?: string // null if invitation pending
-  email: string
-  name?: string
-  role: BusinessPermission
-
-  // Invitation Status
-  invitationStatus: "pending" | "accepted" | "rejected"
-  invitedBy: string
-  invitedAt: Date | Timestamp
-  acceptedAt?: Date | Timestamp
-
-  // Access Control
-  isActive: boolean
-  permissions: TeamPermissions
-
-  // Metadata
-  createdAt: Date | Timestamp
-  updatedAt: Date | Timestamp
-}
-
-export interface TeamPermissions {
-  canManagePromotions: boolean
-  canViewAnalytics: boolean
-  canManageRedemptions: boolean
-  canManageTeam: boolean
-  canManageLocations: boolean
-  canViewBilling: boolean
-}
-
-// ============================================================================
-// Promotion Types
-// ============================================================================
-
-// Firebase Advertisement/Promotion Interface
-export interface Advertisement {
-  id: string
-  business_id: string // Firebase field name
-  title: string
-  description: string
-  instructions: string
-  percentage: number
-  featured_image: string
-  expired_at: Date | Timestamp
-  status: "active" | "inactive"
-
-  // Extended fields for dashboard functionality
-  createdAt?: Date | Timestamp
-  updatedAt?: Date | Timestamp
-}
-
-// Legacy Promotion interface - extends Advertisement for backward compatibility
-export interface Promotion extends Advertisement {
-  // Legacy fields mapped from Advertisement
-  businessId: string // Maps to business_id
-  type: PromotionType
-  value: number // Maps to percentage
-  originalPrice?: number
-  discountedPrice?: number
-  startDate: Date | Timestamp
-  endDate: Date | Timestamp // Maps to expired_at
-  isActive: boolean // Maps to status === "active"
-  currentRedemptions: number
-  maxRedemptions?: number
-  maxRedemptionsPerUser?: number
-  digitalCardEligible: boolean
-  targetLocations?: string[]
-  targetUserCategories?: string[]
-  isFeatured: boolean
-  featuredUntil?: Date | Timestamp
-  createdBy: string
-
-  // BOGO specific
-  bogoDetails?: {
-    buyQuantity: number
-    getQuantity: number
-    applicableItems?: string[]
-  }
-}
-
-// ============================================================================
-// Redemption Types
-// ============================================================================
-
-export interface Redemption {
-  id: string
-  promotionId: string
-  businessId: string
-  locationId?: string
-
-  // User Information
-  userId: string
-  userMilitaryId: string
-  userEmail?: string
-
-  // Redemption Details
-  redeemedAt: Date | Timestamp
-  redeemedBy: string // staff member who processed
-  redemptionMethod: "manual" | "qr_code" | "digital_card"
-
-  // Transaction Details
-  originalAmount?: number
-  discountAmount?: number
-  finalAmount?: number
-
-  // Verification
-  verificationNotes?: string
-  verificationPhoto?: string
-
-  // Status
-  status: "completed" | "pending" | "cancelled"
-
-  // Metadata
-  createdAt: Date | Timestamp
-  updatedAt: Date | Timestamp
-}
-
-// ============================================================================
-// Analytics Types
+// Analytics Dashboard Types
 // ============================================================================
 
 export interface BusinessAnalytics {
-  id: string
   businessId: string
-  periodStart: Date | Timestamp
-  periodEnd: Date | Timestamp
+  periodStart: Date
+  periodEnd: Date
 
   // Basic Metrics (All Plans)
   totalImpressions: number
   totalViews: number
+  totalSaves: number
   totalRedemptions: number
 
-  // Pro+ Metrics
+  // Advanced Metrics (Pro+)
   conversionRate?: number
   revenueAttributed?: number
   userDemographics?: UserDemographics
 
-  // Enterprise Metrics
-  cohortData?: CohortAnalysis[]
-  heatmapData?: HeatmapData
-  benchmarkData?: BenchmarkData
+  // Per-Location Analytics (Pro+)
+  locationBreakdown?: LocationAnalytics[]
 
-  // Metadata
-  createdAt: Date | Timestamp
-  calculatedAt: Date | Timestamp
+  // Trend Data
+  dailyTrends?: DailyTrend[]
+}
+
+export interface LocationAnalytics {
+  locationId: string
+  locationName: string
+  impressions: number
+  views: number
+  saves: number
+  redemptions: number
+}
+
+export interface DailyTrend {
+  date: string // YYYY-MM-DD
+  impressions: number
+  views: number
+  saves: number
+  redemptions: number
 }
 
 export interface UserDemographics {
   ageGroups: Record<string, number>
   militaryRanks: Record<string, number>
   cities: Record<string, number>
-  familyMembers: number
 }
 
-export interface CohortAnalysis {
-  cohortMonth: string
-  retentionRates: number[]
-  lifetimeValue: number
-}
+// ============================================================================
+// Form Types (for UI components)
+// ============================================================================
 
-export interface HeatmapData {
-  locationId: string
-  interactionCount: number
-  coordinates: {
+export interface CreateLocationForm {
+  name: string
+  type: LocationType
+  isPrimary: boolean
+
+  // Contact
+  phone?: string
+  email?: string
+  website?: string
+
+  // Physical
+  address?: string
+  location?: {
     latitude: number
     longitude: number
   }
+  businessHours?: BusinessHours[]
+
+  // Online
+  deliveryZones?: string[]
+  shippingInfo?: string
 }
 
-export interface BenchmarkData {
-  industry: string
-  metric: string
-  value: number
-  percentile: number
+export interface CreatePromotionForm {
+  title: string
+  description: string
+  instructions: string
+  percentage: number
+  featuredImage: string
+  locationIds: string[]
+  expiredAt: Date
+  isFeatured: boolean
 }
 
-// ============================================================================
-// Plan Configuration Types
-// ============================================================================
-
-export interface PlanConfiguration {
-  id: PlanType
-  name: string
-  price: number // in COP
-  currency: "COP"
-  billingCycle: "monthly" | "annual"
-
-  // Limits
-  maxLocations: number | "unlimited"
-  maxPromotions: number | "unlimited"
-  maxTeamMembers: number | "unlimited"
-
-  // Features
-  features: PlanFeatures
-
-  // Analytics Access
-  analyticsLevel: "basic" | "advanced" | "enterprise"
-
-  // Support
-  supportLevel: "email" | "email_chat" | "dedicated"
-
-  // Status
-  isActive: boolean
-
-  // Metadata
-  createdAt: Date | Timestamp
-  updatedAt: Date | Timestamp
+export interface UpdateBusinessForm {
+  name?: string
+  email?: string
+  phoneNumber?: string
+  website?: string
+  description?: string
+  categoryIds?: string[]
+  featuredImage?: string
 }
 
-export interface PlanFeatures {
-  basicAnalytics: boolean
-  advancedAnalytics: boolean
-  enterpriseAnalytics: boolean
-  teamManagement: boolean
-  priorityListings: boolean
-  featuredPromotions: boolean
-  apiAccess: boolean
-  customCampaigns: boolean
-  dedicatedManager: boolean
+export interface PurchaseExtraPromotionsForm {
+  quantity: number
+  paymentMethod: "mercadopago"
 }
 
-// ============================================================================
-// System Configuration Types
-// ============================================================================
-
-export interface SystemSettings {
-  id: "global"
-
-  // Platform Settings
-  platformName: string
-  platformVersion: string
-  maintenanceMode: boolean
-
-  // Business Rules
-  autoApproveBusinesses: boolean
-  autoApprovePromotions: boolean
-  maxPromotionDuration: number // in days
-
-  // Email Settings
-  mailerliteApiKey?: string
-  emailTemplates: EmailTemplateConfig[]
-
-  // Payment Settings
-  wompiConfig?: {
-    publicKey: string
-    environment: "test" | "production"
-  }
-
-  // Notification Settings
-  notificationRules: NotificationRule[]
-
-  // Metadata
-  updatedAt: Date | Timestamp
-  updatedBy: string
-}
-
-export interface EmailTemplateConfig {
-  id: string
-  name: string
-  subject: string
-  template: string
-  variables: string[]
-}
-
-export interface NotificationRule {
-  id: string
-  event: string
-  channels: ("email" | "push" | "sms")[]
-  recipients: ("business" | "admin" | "user")[]
-  template: string
+export interface SelectPlanForm {
+  plan: PlanType
+  billingPeriod: BillingPeriod
+  paymentMethod: "mercadopago" | "trial"
+  applyEarlyBird: boolean
 }
 
 // ============================================================================
@@ -511,45 +729,81 @@ export interface PaginatedResponse<T> {
 }
 
 // ============================================================================
-// Form Types (for UI components)
+// System Configuration Types
 // ============================================================================
 
-export interface CreateLocationForm {
-  name: string
-  type: LocationType
-  address?: {
-    street: string
-    city: string
-    state: string
-    zipCode: string
+export interface SystemSettings {
+  id: "global"
+
+  // Platform
+  platformName: string
+  platformVersion: string
+  maintenanceMode: boolean
+
+  // Business Rules
+  autoApproveBusinesses: boolean
+  autoApprovePromotions: boolean
+  maxPromotionDuration: number // days
+
+  // Payment
+  mercadoPagoConfig?: {
+    publicKey: string
+    accessToken: string
+    environment: "test" | "production"
   }
-  website?: string
-  businessHours?: BusinessHours[]
+
+  // Metadata
+  updatedAt: Timestamp
+  updatedBy: string
 }
 
-export interface CreatePromotionForm {
-  title: string
-  description: string
-  type: PromotionType
-  value: number
-  startDate: Date
-  endDate: Date
-  maxRedemptions?: number
-  targetLocations: string[]
-  digitalCardEligible: boolean
+export interface NotificationPreferences {
+  email: boolean
+  promotions: boolean
+  billing: boolean
+  systemUpdates: boolean
 }
 
-export interface InviteTeamMemberForm {
+// ============================================================================
+// Legacy Type Aliases & Missing Exports (for backward compatibility)
+// ============================================================================
+
+/**
+ * @deprecated Use Promotion instead - renamed in Schema V2
+ * Kept for backward compatibility with old code referencing advertisements
+ */
+export type Advertisement = Promotion
+
+/**
+ * Redemption for dashboard display
+ */
+export interface Redemption {
+  id: string
+  promotion_id: string
+  business_id: string
+  location_id?: string
+  user_id: string
+  user_military_id: string
+  redeemed_at: Date | any
+  redemption_method: "manual" | "qr_code"
+  processed_by?: string
+  status: "completed" | "pending" | "cancelled"
+  created_at: Date | any
+}
+
+/**
+ * Team member dashboard type
+ */
+export interface TeamMember {
+  id: string
+  uid: string
   email: string
-  role: BusinessPermission
-  permissions: Partial<TeamPermissions>
-}
-
-export interface ProcessRedemptionForm {
-  promotionId: string
-  userMilitaryId: string
-  locationId?: string
-  verificationNotes?: string
-  originalAmount?: number
-  discountAmount?: number
+  first_name: string
+  last_name: string
+  role: "owner" | "manager" | "staff"
+  permissions: string[]
+  business_roles?: string[]
+  status: "active" | "inactive"
+  created_at: Date | any
+  added_by: string
 }

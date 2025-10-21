@@ -2,43 +2,50 @@
 import { collection, getDocs, doc, getDoc } from "firebase/firestore"
 import { User } from "firebase/auth"
 import { db } from "@/lib/firebase"
-import type { FirebaseUser, AdminDashboardUser } from "@/lib/types"
+import type { FirebaseUser, FirebaseConsumerUser, AdminDashboardUser } from "@/lib/types"
 import { parseRankString } from "@/lib/military-ranks"
 
-// Map Firebase user document to admin dashboard format
+// Map Firebase consumer user document to admin dashboard format
 export function mapFirebaseUserToAdminUser(
   firebaseUser: FirebaseUser,
   authUser?: User
-): AdminDashboardUser {
-  const { branch, rank } = parseRankString(firebaseUser.rank)
+): AdminDashboardUser | null {
+  // Type guard - only process consumer users
+  if (firebaseUser.user_type !== "consumer") {
+    console.warn("Attempted to map non-consumer user to AdminDashboardUser")
+    return null
+  }
 
-  const name = `${firebaseUser.first_name.trim()} ${firebaseUser.first_last_name.trim()}`
+  const consumerUser = firebaseUser as FirebaseConsumerUser
+  const { branch, rank } = parseRankString(consumerUser.rank)
+
+  const name = `${consumerUser.first_name.trim()} ${consumerUser.first_last_name.trim()}`
 
   const fullName = [
-    firebaseUser.first_name,
-    firebaseUser.second_name,
-    firebaseUser.first_last_name,
-    firebaseUser.second_last_name
+    consumerUser.first_name,
+    consumerUser.second_name,
+    consumerUser.first_last_name,
+    consumerUser.second_last_name
   ]
     .filter(part => part && part.trim().length > 0)
     .map(part => part.trim())
     .join(' ')
 
   return {
-    id: firebaseUser.uid,
-    email: firebaseUser.email,
+    id: consumerUser.uid,
+    email: consumerUser.email,
     name: name,
     fullName: fullName,
-    militaryId: firebaseUser.identification_card,
+    militaryId: consumerUser.identification_card,
     rank: rank,
     branch: branch,
-    phone: firebaseUser.phone,
-    city: firebaseUser.city,
+    phone: consumerUser.phone || "",
+    city: consumerUser.city || "",
     registrationDate: authUser?.metadata.creationTime
       ? new Date(authUser.metadata.creationTime)
       : new Date(),
-    status: mapFirebaseStatusToAdminStatus(firebaseUser.status, firebaseUser.verified),
-    notes: firebaseUser.notes || "",
+    status: mapFirebaseStatusToAdminStatus(consumerUser.status, consumerUser.verified),
+    notes: "", // Notes not stored in Firebase consumer schema
     lastLogin: authUser?.metadata.lastSignInTime
       ? new Date(authUser.metadata.lastSignInTime)
       : undefined,
@@ -66,10 +73,12 @@ export async function fetchAllUsersForAdmin(): Promise<AdminDashboardUser[]> {
     usersSnapshot.forEach((doc) => {
       const userData = doc.data() as FirebaseUser
 
-      // Only include users with permission="user" (not business users or other admins)
-      if (userData.permission === "user") {
+      // Only include users with user_type="consumer" (not business users or admins)
+      if (userData.user_type === "consumer") {
         const adminUser = mapFirebaseUserToAdminUser(userData)
-        users.push(adminUser)
+        if (adminUser) {
+          users.push(adminUser)
+        }
       }
     })
 

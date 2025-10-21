@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,96 +11,72 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search, Filter, MapPin, Globe, Clock, Edit, Trash2, MoreHorizontal, Crown } from "lucide-react"
+import { Plus, Search, Filter, MapPin, Globe, Clock, Edit, Trash2, MoreHorizontal, Star, AlertCircle, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { seedLocations, colombianCities } from "@/lib/seed-data"
-import type { BusinessLocation, BusinessHours } from "@/lib/types"
-
-// Mock data with proper typing
-const mockLocations: BusinessLocation[] = [
-  {
-    id: "loc_001",
-    businessId: "current_business",
-    name: "Sede Principal - Zona Rosa",
-    type: "physical",
-    address: {
-      street: "Carrera 13 #85-32",
-      city: "Bogotá",
-      state: "Cundinamarca",
-      zipCode: "110221",
-      country: "Colombia",
-    },
-    coordinates: {
-      latitude: 4.6628,
-      longitude: -74.0583,
-    },
-    businessHours: [
-      { dayOfWeek: 1, isOpen: true, openTime: "11:00", closeTime: "22:00" },
-      { dayOfWeek: 2, isOpen: true, openTime: "11:00", closeTime: "22:00" },
-      { dayOfWeek: 3, isOpen: true, openTime: "11:00", closeTime: "22:00" },
-      { dayOfWeek: 4, isOpen: true, openTime: "11:00", closeTime: "22:00" },
-      { dayOfWeek: 5, isOpen: true, openTime: "11:00", closeTime: "23:00" },
-      { dayOfWeek: 6, isOpen: true, openTime: "11:00", closeTime: "23:00" },
-      { dayOfWeek: 0, isOpen: true, openTime: "11:00", closeTime: "21:00" },
-    ],
-    isActive: true,
-    createdAt: new Date("2024-05-15"),
-    updatedAt: new Date("2024-05-15"),
-  },
-  {
-    id: "loc_002",
-    businessId: "current_business",
-    name: "Tienda Online",
-    type: "online",
-    website: "https://mitienda.com",
-    deliveryZones: ["Zona Norte", "Zona Rosa", "Centro", "Chapinero"],
-    onlineContactInfo: {
-      phone: "+57 301 234 5678",
-      email: "online@mitienda.com",
-      whatsapp: "+57 301 234 5678",
-    },
-    isActive: true,
-    createdAt: new Date("2024-05-16"),
-    updatedAt: new Date("2024-05-16"),
-  },
-]
+import { colombianCities } from "@/lib/seed-data"
+import { getPlanLimits } from "@/lib/plan-limits"
+import { PlanLimitBadge, PlanLimitProgress } from "@/components/plan-limit-badge"
+import { UpgradePlanButton } from "@/components/upgrade-plan-button"
+import { LockedFeature } from "@/components/locked-feature"
+import { LocationService } from "@/lib/services/location-service"
+import type { BusinessLocation, BusinessHours, PlanType } from "@/lib/types"
 
 const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
 
 export default function LocationsPage() {
-  const [locations, setLocations] = useState(mockLocations)
+  const [locations, setLocations] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [typeFilter, setTypeFilter] = useState("all")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [newLocation, setNewLocation] = useState({
     name: "",
     type: "physical" as "physical" | "online",
-    address: {
-      street: "",
-      city: "",
-      state: "Cundinamarca",
-      zipCode: "",
-      country: "Colombia",
-    },
+    isPrimary: false,
+    // Contact fields (all locations)
+    phone: "",
+    email: "",
     website: "",
+    // Physical fields
+    address: "",
+    city: "",
+    zipCode: "",
+    // Online fields
     deliveryZones: [] as string[],
-    onlineContactInfo: {
-      phone: "",
-      email: "",
-      whatsapp: "",
-    },
+    shippingInfo: "",
     businessHours: Array.from({ length: 7 }, (_, i) => ({
-      dayOfWeek: i,
-      isOpen: i > 0 && i < 6, // Monday to Friday open by default
-      openTime: "09:00",
-      closeTime: "18:00",
+      day_of_week: i,
+      is_open: i > 0 && i < 6, // Monday to Friday open by default
+      open_time: "09:00",
+      close_time: "18:00",
     })) as BusinessHours[],
   })
 
   const { user } = useAuth()
   const businessUser = user as any
-  const plan = businessUser?.plan || "gratis"
-  const isPremium = plan === "pro" || plan === "enterprise"
+  const plan: PlanType = businessUser?.plan || "gratis"
+  const limits = getPlanLimits(plan)
+  const businessId = businessUser?.businessId || businessUser?.id
+
+  // Fetch locations from Firebase
+  useEffect(() => {
+    const fetchLocations = async () => {
+      if (!businessId) return
+
+      setIsLoading(true)
+      try {
+        const fetchedLocations = await LocationService.getBusinessLocations(businessId)
+        setLocations(fetchedLocations)
+      } catch (error) {
+        console.error("Error fetching locations:", error)
+        alert("Error: No se pudieron cargar las ubicaciones")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchLocations()
+  }, [businessId])
 
   const filteredLocations = locations.filter((location) => {
     const matchesSearch = location.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -108,22 +84,9 @@ export default function LocationsPage() {
     return matchesSearch && matchesType
   })
 
-  const getLocationLimits = () => {
-    switch (plan) {
-      case "gratis":
-      case "basico":
-        return 1
-      case "pro":
-        return 5
-      case "enterprise":
-        return Number.POSITIVE_INFINITY
-      default:
-        return 1
-    }
-  }
-
-  const locationLimit = getLocationLimits()
+  const locationLimit = limits.maxLocations === Infinity ? Infinity : limits.maxLocations
   const canAddLocation = locations.length < locationLimit
+  const primaryLocation = locations.find((loc) => loc.isPrimary)
 
   const getTypeBadge = (type: "physical" | "online") => {
     return type === "physical" ? (
@@ -139,34 +102,79 @@ export default function LocationsPage() {
     )
   }
 
-  const handleCreateLocation = () => {
-    const newLocationData: BusinessLocation = {
-      id: `loc_${Date.now()}`,
-      businessId: businessUser?.businessId || "current_business",
-      ...newLocation,
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+  const handleCreateLocation = async () => {
+    if (!businessId) return
+
+    // Validation: Must have at least one primary location
+    const willBePrimary = locations.length === 0 || newLocation.isPrimary
+
+    const newLocationData = {
+      name: newLocation.name,
+      is_primary: willBePrimary,
+      type: newLocation.type,
+      // Contact fields
+      phone: newLocation.phone || null,
+      email: newLocation.email || null,
+      website: newLocation.website || null,
+      // Physical fields
+      address: newLocation.type === "physical" ? newLocation.address : null,
+      location:
+        newLocation.type === "physical"
+          ? {
+              latitude: 4.6097, // TODO: Get from map picker
+              longitude: -74.0817,
+            }
+          : null,
+      geo_hash: newLocation.type === "physical" ? null : null, // TODO: Generate geohash
+      business_hours: newLocation.type === "physical" ? newLocation.businessHours : null,
+      // Online fields
+      delivery_zones: newLocation.type === "online" ? newLocation.deliveryZones : null,
+      shipping_info: newLocation.type === "online" ? newLocation.shippingInfo : null,
+      status: "active",
     }
 
-    setLocations((prev) => [...prev, newLocationData])
-    setIsCreateDialogOpen(false)
+    try {
+      const locationId = await LocationService.createLocation(businessId, newLocationData)
 
-    // Reset form
-    setNewLocation({
-      name: "",
-      type: "physical",
-      address: { street: "", city: "", state: "Cundinamarca", zipCode: "", country: "Colombia" },
-      website: "",
-      deliveryZones: [],
-      onlineContactInfo: { phone: "", email: "", whatsapp: "" },
-      businessHours: Array.from({ length: 7 }, (_, i) => ({
-        dayOfWeek: i,
-        isOpen: i > 0 && i < 6,
-        openTime: "09:00",
-        closeTime: "18:00",
-      })),
-    })
+      if (locationId) {
+        // If this is primary, set it as primary (which will handle unsetting others)
+        if (willBePrimary) {
+          await LocationService.setPrimaryLocation(businessId, locationId)
+        }
+
+        // Refresh locations
+        const fetchedLocations = await LocationService.getBusinessLocations(businessId)
+        setLocations(fetchedLocations)
+
+        alert("Ubicación creada exitosamente")
+
+        setIsCreateDialogOpen(false)
+
+        // Reset form
+        setNewLocation({
+          name: "",
+          type: "physical",
+          isPrimary: false,
+          phone: "",
+          email: "",
+          website: "",
+          address: "",
+          city: "",
+          zipCode: "",
+          deliveryZones: [],
+          shippingInfo: "",
+          businessHours: Array.from({ length: 7 }, (_, i) => ({
+            day_of_week: i,
+            is_open: i > 0 && i < 6,
+            open_time: "09:00",
+            close_time: "18:00",
+          })),
+        })
+      }
+    } catch (error) {
+      console.error("Error creating location:", error)
+      alert("Error: No se pudo crear la ubicación")
+    }
   }
 
   const updateBusinessHours = (dayIndex: number, field: keyof BusinessHours, value: any) => {
@@ -181,7 +189,7 @@ export default function LocationsPage() {
   const formatBusinessHours = (hours: BusinessHours[] | undefined) => {
     if (!hours) return "No configurado"
 
-    const openDays = hours.filter((h) => h.isOpen)
+    const openDays = hours.filter((h) => h.is_open)
     if (openDays.length === 0) return "Cerrado"
 
     // Group consecutive days with same hours
@@ -190,9 +198,9 @@ export default function LocationsPage() {
     let currentHours = ""
 
     for (let i = 0; i < 7; i++) {
-      const day = hours.find((h) => h.dayOfWeek === i)
-      if (day?.isOpen) {
-        const dayHours = `${day.openTime} - ${day.closeTime}`
+      const day = hours.find((h) => h.day_of_week === i)
+      if (day?.is_open) {
+        const dayHours = `${day.open_time} - ${day.close_time}`
 
         if (currentHours === dayHours) {
           currentGroup.push(i)
@@ -232,6 +240,16 @@ export default function LocationsPage() {
     return days.map((day) => dayNames[day]).join(", ")
   }
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-3 text-muted-foreground">Cargando ubicaciones...</span>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -241,9 +259,7 @@ export default function LocationsPage() {
           <p className="text-muted-foreground">Gestiona tus ubicaciones físicas y online</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-sm text-muted-foreground">
-            {locations.length}/{locationLimit === Number.POSITIVE_INFINITY ? "∞" : locationLimit} ubicaciones
-          </div>
+          <PlanLimitBadge plan={plan} resourceType="locations" currentCount={locations.length} showIcon />
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button disabled={!canAddLocation}>
@@ -257,10 +273,25 @@ export default function LocationsPage() {
               </DialogHeader>
 
               <div className="space-y-6">
+                {/* Primary Location Notice */}
+                {locations.length === 0 && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="mt-0.5 h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-blue-900">Primera ubicación</p>
+                        <p className="text-sm text-blue-700">
+                          Esta será tu ubicación principal. Aparecerá en los resultados de búsqueda y mapas.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Basic Information */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="location-name">Nombre de la ubicación</Label>
+                    <Label htmlFor="location-name">Nombre de la ubicación *</Label>
                     <Input
                       id="location-name"
                       placeholder="Ej: Sede Principal, Tienda Online"
@@ -269,7 +300,7 @@ export default function LocationsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="location-type">Tipo de ubicación</Label>
+                    <Label htmlFor="location-type">Tipo de ubicación *</Label>
                     <Select
                       value={newLocation.type}
                       onValueChange={(value: "physical" | "online") =>
@@ -287,6 +318,58 @@ export default function LocationsPage() {
                   </div>
                 </div>
 
+                {/* Primary Location Toggle (only if not first location) */}
+                {locations.length > 0 && (
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Ubicación principal</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Aparecerá en búsquedas y mapas. Solo puede haber una ubicación principal.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={newLocation.isPrimary}
+                      onCheckedChange={(checked) => setNewLocation((prev) => ({ ...prev, isPrimary: checked }))}
+                    />
+                  </div>
+                )}
+
+                {/* Contact Information (ALL locations have these fields - Schema V2) */}
+                <div className="space-y-4">
+                  <h3 className="font-medium">Información de Contacto</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Teléfono</Label>
+                      <Input
+                        id="phone"
+                        placeholder="+57 300 123 4567"
+                        value={newLocation.phone}
+                        onChange={(e) => setNewLocation((prev) => ({ ...prev, phone: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="contacto@mitienda.com"
+                        value={newLocation.email}
+                        onChange={(e) => setNewLocation((prev) => ({ ...prev, email: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <Label htmlFor="website">Sitio Web</Label>
+                      <Input
+                        id="website"
+                        type="url"
+                        placeholder="https://mitienda.com"
+                        value={newLocation.website}
+                        onChange={(e) => setNewLocation((prev) => ({ ...prev, website: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <Tabs value={newLocation.type} className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="physical">Ubicación Física</TabsTrigger>
@@ -299,29 +382,19 @@ export default function LocationsPage() {
                       <h3 className="font-medium">Información de Dirección</h3>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-2 space-y-2">
-                          <Label htmlFor="street">Dirección</Label>
+                          <Label htmlFor="address">Dirección *</Label>
                           <Input
-                            id="street"
+                            id="address"
                             placeholder="Ej: Carrera 13 #85-32"
-                            value={newLocation.address.street}
-                            onChange={(e) =>
-                              setNewLocation((prev) => ({
-                                ...prev,
-                                address: { ...prev.address, street: e.target.value },
-                              }))
-                            }
+                            value={newLocation.address}
+                            onChange={(e) => setNewLocation((prev) => ({ ...prev, address: e.target.value }))}
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="city">Ciudad</Label>
+                          <Label htmlFor="city">Ciudad *</Label>
                           <Select
-                            value={newLocation.address.city}
-                            onValueChange={(value) =>
-                              setNewLocation((prev) => ({
-                                ...prev,
-                                address: { ...prev.address, city: value },
-                              }))
-                            }
+                            value={newLocation.city}
+                            onValueChange={(value) => setNewLocation((prev) => ({ ...prev, city: value }))}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Seleccionar ciudad" />
@@ -340,13 +413,8 @@ export default function LocationsPage() {
                           <Input
                             id="zipCode"
                             placeholder="110221"
-                            value={newLocation.address.zipCode}
-                            onChange={(e) =>
-                              setNewLocation((prev) => ({
-                                ...prev,
-                                address: { ...prev.address, zipCode: e.target.value },
-                              }))
-                            }
+                            value={newLocation.zipCode}
+                            onChange={(e) => setNewLocation((prev) => ({ ...prev, zipCode: e.target.value }))}
                           />
                         </div>
                       </div>
@@ -358,29 +426,29 @@ export default function LocationsPage() {
                       <div className="space-y-3">
                         {newLocation.businessHours.map((hours, index) => (
                           <div key={index} className="flex items-center gap-4">
-                            <div className="w-20 text-sm font-medium">{dayNames[hours.dayOfWeek]}</div>
+                            <div className="w-20 text-sm font-medium">{dayNames[hours.day_of_week]}</div>
                             <Switch
-                              checked={hours.isOpen}
-                              onCheckedChange={(checked) => updateBusinessHours(index, "isOpen", checked)}
+                              checked={hours.is_open}
+                              onCheckedChange={(checked) => updateBusinessHours(index, "is_open", checked)}
                             />
-                            {hours.isOpen && (
+                            {hours.is_open && (
                               <>
                                 <Input
                                   type="time"
-                                  value={hours.openTime}
-                                  onChange={(e) => updateBusinessHours(index, "openTime", e.target.value)}
+                                  value={hours.open_time}
+                                  onChange={(e) => updateBusinessHours(index, "open_time", e.target.value)}
                                   className="w-32"
                                 />
                                 <span className="text-muted-foreground">a</span>
                                 <Input
                                   type="time"
-                                  value={hours.closeTime}
-                                  onChange={(e) => updateBusinessHours(index, "closeTime", e.target.value)}
+                                  value={hours.close_time}
+                                  onChange={(e) => updateBusinessHours(index, "close_time", e.target.value)}
                                   className="w-32"
                                 />
                               </>
                             )}
-                            {!hours.isOpen && <span className="text-sm text-muted-foreground">Cerrado</span>}
+                            {!hours.is_open && <span className="text-sm text-muted-foreground">Cerrado</span>}
                           </div>
                         ))}
                       </div>
@@ -389,19 +457,8 @@ export default function LocationsPage() {
 
                   <TabsContent value="online" className="space-y-4">
                     <div className="space-y-4">
-                      <h3 className="font-medium">Información Online</h3>
+                      <h3 className="font-medium">Información de Entrega</h3>
                       <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="website">Sitio Web</Label>
-                          <Input
-                            id="website"
-                            type="url"
-                            placeholder="https://mitienda.com"
-                            value={newLocation.website}
-                            onChange={(e) => setNewLocation((prev) => ({ ...prev, website: e.target.value }))}
-                          />
-                        </div>
-
                         <div className="space-y-2">
                           <Label htmlFor="delivery-zones">Zonas de Entrega</Label>
                           <Textarea
@@ -417,50 +474,13 @@ export default function LocationsPage() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="online-phone">Teléfono</Label>
-                            <Input
-                              id="online-phone"
-                              placeholder="+57 300 123 4567"
-                              value={newLocation.onlineContactInfo.phone}
-                              onChange={(e) =>
-                                setNewLocation((prev) => ({
-                                  ...prev,
-                                  onlineContactInfo: { ...prev.onlineContactInfo, phone: e.target.value },
-                                }))
-                              }
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="online-whatsapp">WhatsApp</Label>
-                            <Input
-                              id="online-whatsapp"
-                              placeholder="+57 300 123 4567"
-                              value={newLocation.onlineContactInfo.whatsapp}
-                              onChange={(e) =>
-                                setNewLocation((prev) => ({
-                                  ...prev,
-                                  onlineContactInfo: { ...prev.onlineContactInfo, whatsapp: e.target.value },
-                                }))
-                              }
-                            />
-                          </div>
-                        </div>
-
                         <div className="space-y-2">
-                          <Label htmlFor="online-email">Email de Contacto</Label>
-                          <Input
-                            id="online-email"
-                            type="email"
-                            placeholder="contacto@mitienda.com"
-                            value={newLocation.onlineContactInfo.email}
-                            onChange={(e) =>
-                              setNewLocation((prev) => ({
-                                ...prev,
-                                onlineContactInfo: { ...prev.onlineContactInfo, email: e.target.value },
-                              }))
-                            }
+                          <Label htmlFor="shipping-info">Información de Envío</Label>
+                          <Textarea
+                            id="shipping-info"
+                            placeholder="Ej: Envíos gratis en compras superiores a $50,000"
+                            value={newLocation.shippingInfo}
+                            onChange={(e) => setNewLocation((prev) => ({ ...prev, shippingInfo: e.target.value }))}
                           />
                         </div>
                       </div>
@@ -472,7 +492,9 @@ export default function LocationsPage() {
                   <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleCreateLocation}>Crear Ubicación</Button>
+                  <Button onClick={handleCreateLocation} disabled={!newLocation.name}>
+                    Crear Ubicación
+                  </Button>
                 </div>
               </div>
             </DialogContent>
@@ -480,22 +502,20 @@ export default function LocationsPage() {
         </div>
       </div>
 
+      {/* Plan Limits Progress */}
+      {locationLimit !== Infinity && (
+        <PlanLimitProgress plan={plan} resourceType="locations" currentCount={locations.length} />
+      )}
+
       {/* Plan Limits Warning */}
       {!canAddLocation && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Crown className="h-5 w-5 text-yellow-600" />
-              <div>
-                <p className="font-medium text-yellow-800">Límite de ubicaciones alcanzado</p>
-                <p className="text-sm text-yellow-700">
-                  Tu plan {plan} permite hasta {locationLimit} ubicación{locationLimit > 1 ? "es" : ""}.
-                  <span className="underline cursor-pointer ml-1">Actualizar plan</span>
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <LockedFeature
+          currentPlan={plan}
+          featureName="Ubicaciones adicionales"
+          requiredPlan={plan === "gratis" ? "basico" : plan === "basico" ? "pro" : "enterprise"}
+          description={`Tu plan actual permite hasta ${locationLimit} ubicación${locationLimit > 1 ? "es" : ""}.`}
+          variant="inline"
+        />
       )}
 
       {/* Filters */}
@@ -530,37 +550,51 @@ export default function LocationsPage() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
+                    {location.isPrimary && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
                     <h3 className="text-lg font-semibold">{location.name}</h3>
                     {getTypeBadge(location.type)}
+                    {location.isPrimary && (
+                      <Badge variant="outline" className="text-xs">
+                        Principal
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="mb-3 flex flex-wrap gap-3 text-sm text-muted-foreground">
+                    {location.phone && <span>📞 {location.phone}</span>}
+                    {location.email && <span>✉️ {location.email}</span>}
+                    {location.website && (
+                      <a href={location.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        🌐 {location.website}
+                      </a>
+                    )}
                   </div>
 
                   {location.type === "physical" && location.address && (
                     <div className="space-y-1 mb-4">
                       <p className="text-muted-foreground flex items-center gap-1">
                         <MapPin className="h-4 w-4" />
-                        {location.address.street}, {location.address.city}
+                        {location.address}
                       </p>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        {formatBusinessHours(location.businessHours)}
-                      </p>
+                      {location.businessHours && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          {formatBusinessHours(location.businessHours)}
+                        </p>
+                      )}
                     </div>
                   )}
 
                   {location.type === "online" && (
                     <div className="space-y-1 mb-4">
-                      {location.website && (
-                        <p className="text-muted-foreground flex items-center gap-1">
-                          <Globe className="h-4 w-4" />
-                          <a href={location.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                            {location.website}
-                          </a>
-                        </p>
-                      )}
                       {location.deliveryZones && location.deliveryZones.length > 0 && (
                         <p className="text-sm text-muted-foreground">
-                          Zonas de entrega: {location.deliveryZones.join(", ")}
+                          📦 Zonas de entrega: {location.deliveryZones.join(", ")}
                         </p>
+                      )}
+                      {location.shippingInfo && (
+                        <p className="text-sm text-muted-foreground">ℹ️ {location.shippingInfo}</p>
                       )}
                     </div>
                   )}
@@ -570,7 +604,7 @@ export default function LocationsPage() {
                   <Button variant="ghost" size="icon">
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" disabled={location.isPrimary}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon">

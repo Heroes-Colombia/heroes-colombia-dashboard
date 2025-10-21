@@ -1,63 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { firebaseService } from "@/lib/firebase-service"
+import { CategoryService } from "@/lib/services/category-service"
 import type { BusinessCategory } from "@/lib/types"
 
-// Fallback categories matching the current hardcoded ones
-const FALLBACK_CATEGORIES: BusinessCategory[] = [
-  {
-    category_id: "restaurante",
-    name: "Restaurante",
-    image: "",
-    status: "active",
-  },
-  {
-    category_id: "retail",
-    name: "Retail/Tienda",
-    image: "",
-    status: "active",
-  },
-  {
-    category_id: "servicios",
-    name: "Servicios",
-    image: "",
-    status: "active",
-  },
-  {
-    category_id: "salud",
-    name: "Salud y Bienestar",
-    image: "",
-    status: "active",
-  },
-  {
-    category_id: "educacion",
-    name: "Educación",
-    image: "",
-    status: "active",
-  },
-  {
-    category_id: "tecnologia",
-    name: "Tecnología",
-    image: "",
-    status: "active",
-  },
-  {
-    category_id: "entretenimiento",
-    name: "Entretenimiento",
-    image: "",
-    status: "active",
-  },
-  {
-    category_id: "otros",
-    name: "Otros",
-    image: "",
-    status: "active",
-  },
-]
-
 export function useCategories() {
-  const [categories, setCategories] = useState<BusinessCategory[]>(FALLBACK_CATEGORIES)
+  const [categories, setCategories] = useState<BusinessCategory[]>([])
   const [isLoading, setIsLoading] = useState(false) // Start as false for SSR
   const [error, setError] = useState<string | null>(null)
   const [isClient, setIsClient] = useState(false)
@@ -76,7 +24,7 @@ export function useCategories() {
         setIsLoading(true)
         setError(null)
 
-        const fetchedCategories = await firebaseService.getCategories()
+        const fetchedCategories = await CategoryService.getCategories()
 
         if (fetchedCategories.length > 0) {
           setCategories(fetchedCategories)

@@ -9,8 +9,9 @@ import {
 } from "firebase/auth"
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { auth, db } from "./firebase"
-import { firebaseService } from "./firebase-service"
-import type { BusinessProfile, GeoPoint } from "./types"
+import { BusinessService } from "./services/business-service"
+import { LocationService } from "./services/location-service"
+import type { FirebaseBusinessUser, FirebaseConsumerUser, BusinessType, BusinessStatus, PlanType, SubscriptionStatus } from "./types"
 
 // Helper function to read user document by UID (searches by uid field, not document ID)
 const readUserById = async (userId: string) => {
@@ -78,22 +79,29 @@ export const loginWithEmail = async (email: string, password: string): Promise<U
     // Check if user has the required role based on permissions
     console.log(`🔑 User permissions: ${JSON.stringify(userData.permission)}`)
 
-    if (!userData.permission?.includes("admin") && !userData.permission?.includes("business")) {
+    if (userData.user_type != "admin" && userData.user_type != "business_team") {
       console.log("❌ Admin access denied - missing admin permission")
       throw new Error("User found with insufficient permissions")
     }
 
     console.log("✅ Permission check passed")
 
-    if (userData.permission?.includes("business")) {
+    if (userData.user_type == "business_team") {
+      // Extract role from business_roles array (V2 schema)
+      const businessRoles = userData.business_roles || []
+      const userRole = businessRoles.find((role: any) =>
+        role.business_id === (userData.businessId || firebaseUser.uid)
+      )
+      const businesDetails = await BusinessService.getBusinessByOwnerId(userData.uid)
+
       const businessUser: BusinessUser = {
         id: firebaseUser.uid,
         email: firebaseUser.email!,
         role: "business",
-        businessId: userData.businessId || firebaseUser.uid,
-        businessName: userData.businessName || "Mi Empresa",
-        plan: userData.plan || "gratis",
-        permissions: userData.permission || ["owner"],
+        businessId: businesDetails?.id || firebaseUser.uid,
+        businessName: businesDetails?.name || "Mi Empresa",
+        plan: businesDetails?.plan || "gratis",
+        permissions: userRole ? [userRole.role as ("owner" | "manager" | "staff")] : ["owner"],
       }
       return businessUser
     } else {
@@ -101,7 +109,7 @@ export const loginWithEmail = async (email: string, password: string): Promise<U
         id: firebaseUser.uid,
         email: firebaseUser.email!,
         role: "admin",
-        permissions: userData.permission || ["super_admin"],
+        permissions: Array.isArray(userData.permission) ? userData.permission : ["super_admin"],
       }
       return adminUser
     }
@@ -134,13 +142,16 @@ export const loginWithGoogle = async (role: "business" | "admin"): Promise<User>
           businessName: firebaseUser.displayName || "Mi Empresa",
           businessId: firebaseUser.uid,
           plan: "gratis",
-          permission: ["business", "owner"],
+          permission: "business", // V1 compatibility
+          user_type: "business_team", // V2 schema
+          business_roles: [], // V2 schema - empty until business created
           status: "pending",
         })
       } else {
         await setDoc(doc(db, "users", firebaseUser.uid), {
           ...newUserData,
-          permission: ["admin", "super_admin"],
+          permission: "admin", // V1 compatibility
+          user_type: "admin", // V2 schema
         })
       }
     }
@@ -162,6 +173,7 @@ export const registerBusiness = async (
     description: string
     address?: string
     ownerName?: string
+    plan?: string
   },
 ): Promise<BusinessUser> => {
   try {
@@ -169,16 +181,20 @@ export const registerBusiness = async (
     const firebaseUser = userCredential.user
 
     // Create business document in businesses collection
-    const businessProfile: Omit<BusinessProfile, "id"> = {
+    // Use snake_case fields to match Firebase schema
+    const businessDataFirebase = {
       name: businessData.businessName,
       identification: businessData.nit,
       email: firebaseUser.email!,
       phone_number: businessData.phone,
-      categories: [businessData.category],
+      categories: [businessData.category], // String array of category IDs
       description: businessData.description,
       address: businessData.address || "",
       owner_name: businessData.ownerName || firebaseUser.email?.split("@")[0] || "Business Owner",
       owner_uid: firebaseUser.uid,
+
+      // Type & Categories
+      type: (businessData.address ? "physical" : "online") as BusinessType,
 
       // Default location (Bogotá center for now - should be updated with real geocoding)
       location: { latitude: 4.6097, longitude: -74.0817 },
@@ -187,24 +203,38 @@ export const registerBusiness = async (
         geopoint: { latitude: 4.6097, longitude: -74.0817 }
       },
 
-      status: "pending",
+      status: "pending" as BusinessStatus,
       featured: false,
-      reviews: [],
-      plan: "gratis",
+      plan: businessData.plan as PlanType,
+      subscription_status: "trial" as SubscriptionStatus,
     }
 
     // Create business document
-    const businessId = await firebaseService.createBusiness(businessProfile)
+    const businessId = await BusinessService.createBusiness(businessDataFirebase)
 
     if (!businessId) {
       throw new Error("Failed to create business profile")
     }
 
-    // Create user profile in users collection
+    // Create user profile in users collection (Schema V2)
     const userProfile = {
       uid: firebaseUser.uid,
       email: firebaseUser.email!,
+
+      // V1 field (keep for backward compatibility)
       permission: "business",
+
+      // V2 fields (new schema)
+      user_type: "business_team",
+      business_roles: [
+        {
+          business_id: businessId,
+          role: "owner",
+          permissions: ["manage_all"],
+          added_at: new Date()
+        }
+      ],
+
       status: "active",
       owned_businesses: [businessId],
       first_name: businessData.ownerName?.split(" ")[0] || "Business",
@@ -213,9 +243,32 @@ export const registerBusiness = async (
       verified: false,
       rank: "Business Owner",
       phone_number: businessData.phone,
+      created_at: new Date(),
+      updated_at: new Date()
     }
 
     await setDoc(doc(db, "users", firebaseUser.uid), userProfile)
+
+    // Create primary location in subcollection (Schema V2)
+    await LocationService.createLocation(businessId, {
+      name: `${businessData.businessName} - Sede Principal`,
+      is_primary: true,
+      type: businessData.address ? "physical" : "online",
+      phone: businessData.phone || null,
+      email: firebaseUser.email || null,
+      website: null,
+      address: businessData.address || null,
+      location: businessData.address ? { latitude: 4.6097, longitude: -74.0817 } : null,
+      geo_hash: businessData.address ? {
+        geohash: "d2cbe0c0b",
+        geopoint: { latitude: 4.6097, longitude: -74.0817 }
+      } : null,
+      business_hours: null,
+      delivery_zones: null,
+      delivery_type: null,
+      whatsapp: null,
+      status: "active"
+    })
 
     const businessUser: BusinessUser = {
       id: firebaseUser.uid,
@@ -223,7 +276,7 @@ export const registerBusiness = async (
       role: "business",
       businessId: businessId,
       businessName: businessData.businessName,
-      plan: "gratis",
+      plan: businessData.plan as PlanType || "gratis",
       permissions: ["owner"],
     }
 
@@ -285,27 +338,35 @@ export const getCurrentUser = (): Promise<User | null> => {
         if (userResult.exists && userResult.data) {
           const userData = userResult.data
 
-          if (userData.role === "business" || userData.permission?.includes("business")) {
+          // Check both V1 (role/permission) and V2 (user_type) fields for backward compatibility
+          if (userData.role === "business" || userData.user_type === "business_team") {
+            // Extract role from business_roles array (V2 schema)
+            const businessRoles = userData.business_roles || []
+            const userRole = businessRoles.find((role: any) =>
+              role.business_id === (userData.businessId || firebaseUser.uid)
+            )
+            const businesDetails = await BusinessService.getBusinessByOwnerId(userData.uid)
+
             const businessUser: BusinessUser = {
               id: firebaseUser.uid,
               email: firebaseUser.email!,
               role: "business",
-              businessId: userData.businessId || firebaseUser.uid,
-              businessName: userData.businessName || "Mi Empresa",
-              plan: userData.plan || "gratis",
-              permissions: userData.permission || ["owner"],
+              businessId: businesDetails?.id || firebaseUser.uid,
+              businessName: businesDetails?.name || "Mi Empresa",
+              plan: businesDetails?.plan || "gratis",
+              permissions: userRole ? [userRole.role as ("owner" | "manager" | "staff")] : ["owner"],
             }
             unsubscribe()
             resolve(businessUser)
             return
           }
 
-          if (userData.role === "admin" || userData.permission?.includes("admin")) {
+          if (userData.role === "admin" || userData.user_type === "admin") {
             const adminUser: AdminUser = {
               id: firebaseUser.uid,
               email: firebaseUser.email!,
               role: "admin",
-              permissions: userData.permission || ["super_admin"],
+              permissions: Array.isArray(userData.permission) ? userData.permission : ["super_admin"],
             }
             unsubscribe()
             resolve(adminUser)
@@ -340,11 +401,20 @@ export const updateUserProfile = async (userId: string, data: any): Promise<void
 export const createAdminUser = async (userId: string, email: string): Promise<void> => {
   try {
     const adminUserData = {
+      uid: userId,
       email: email,
-      role: "admin",
+
+      // V1 field (keep for backward compatibility)
       permission: ["admin", "super_admin"],
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      role: "admin",
+
+      // V2 schema
+      user_type: "admin",
+
+      status: "active",
+      verified: true,
+      created_at: new Date(),
+      updated_at: new Date(),
     }
 
     await setDoc(doc(db, "users", userId), adminUserData)

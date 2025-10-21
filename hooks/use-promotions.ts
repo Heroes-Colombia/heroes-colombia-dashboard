@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { firebaseService } from "@/lib/firebase-service"
-import type { Advertisement } from "@/lib/types"
+import { PromotionService } from "@/lib/services/promotion-service"
+import type { Promotion } from "@/lib/types"
 
 interface UsePromotionsFilters {
   businessId?: string
@@ -11,7 +11,7 @@ interface UsePromotionsFilters {
 }
 
 export function usePromotions(filters?: UsePromotionsFilters) {
-  const [promotions, setPromotions] = useState<Advertisement[]>([])
+  const [promotions, setPromotions] = useState<Promotion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isClient, setIsClient] = useState(false)
@@ -28,7 +28,7 @@ export function usePromotions(filters?: UsePromotionsFilters) {
         setIsLoading(true)
         setError(null)
 
-        const fetchedPromotions = await firebaseService.getAdvertisements(filters)
+        const fetchedPromotions = await PromotionService.getPromotions(filters)
         setPromotions(fetchedPromotions)
       } catch (err) {
         console.error("Error fetching promotions:", err)
@@ -48,7 +48,7 @@ export function usePromotions(filters?: UsePromotionsFilters) {
     try {
       setIsLoading(true)
       setError(null)
-      const fetchedPromotions = await firebaseService.getAdvertisements(filters)
+      const fetchedPromotions = await PromotionService.getPromotions(filters)
       setPromotions(fetchedPromotions)
     } catch (err) {
       console.error("Error refreshing promotions:", err)
@@ -60,7 +60,7 @@ export function usePromotions(filters?: UsePromotionsFilters) {
 
   const updatePromotionStatus = async (promotionId: string, status: "active" | "inactive") => {
     try {
-      const success = await firebaseService.updateAdvertisementStatus(promotionId, status)
+      const success = await PromotionService.updatePromotion(promotionId, status)
       if (success) {
         // Update local state
         setPromotions((prev) =>
@@ -82,7 +82,7 @@ export function usePromotions(filters?: UsePromotionsFilters) {
 
   const deletePromotion = async (promotionId: string) => {
     try {
-      const success = await firebaseService.deleteAdvertisement(promotionId)
+      const success = await PromotionService.deletePromotion(promotionId)
       if (success) {
         // Remove from local state
         setPromotions((prev) => prev.filter((promotion) => promotion.id !== promotionId))
@@ -96,15 +96,15 @@ export function usePromotions(filters?: UsePromotionsFilters) {
     }
   }
 
-  const getPromotionById = (promotionId: string): Advertisement | undefined => {
+  const getPromotionById = (promotionId: string): Promotion | undefined => {
     return promotions.find((promotion) => promotion.id === promotionId)
   }
 
-  const getActivePromotions = (): Advertisement[] => {
+  const getActivePromotions = (): Promotion[] => {
     return promotions.filter((promotion) => promotion.status === "active")
   }
 
-  const getExpiredPromotions = (): Advertisement[] => {
+  const getExpiredPromotions = (): Promotion[] => {
     const now = new Date()
     return promotions.filter((promotion) => {
       const expiredAt = promotion.expired_at
@@ -115,7 +115,7 @@ export function usePromotions(filters?: UsePromotionsFilters) {
     })
   }
 
-  const getPromotionsByBusiness = (businessId: string): Advertisement[] => {
+  const getPromotionsByBusiness = (businessId: string): Promotion[] => {
     return promotions.filter((promotion) => promotion.business_id === businessId)
   }
 
@@ -134,7 +134,7 @@ export function usePromotions(filters?: UsePromotionsFilters) {
 }
 
 export function usePromotion(promotionId: string | null) {
-  const [promotion, setPromotion] = useState<Advertisement | null>(null)
+  const [promotion, setPromotion] = useState<Promotion | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isClient, setIsClient] = useState(false)
@@ -151,7 +151,7 @@ export function usePromotion(promotionId: string | null) {
         setIsLoading(true)
         setError(null)
 
-        const fetchedPromotion = await firebaseService.getAdvertisement(promotionId)
+        const fetchedPromotion = await PromotionService.getPromotion(promotionId)
         setPromotion(fetchedPromotion)
       } catch (err) {
         console.error("Error fetching promotion:", err)
@@ -165,11 +165,11 @@ export function usePromotion(promotionId: string | null) {
     fetchPromotion()
   }, [isClient, promotionId])
 
-  const updatePromotion = async (data: Partial<Advertisement>) => {
+  const updatePromotion = async (data: Partial<Promotion>) => {
     if (!promotionId) return false
 
     try {
-      const success = await firebaseService.updateAdvertisement(promotionId, data)
+      const success = await PromotionService.updatePromotion(promotionId, data)
       if (success && promotion) {
         setPromotion({ ...promotion, ...data })
         return true
@@ -188,7 +188,7 @@ export function usePromotion(promotionId: string | null) {
     try {
       setIsLoading(true)
       setError(null)
-      const fetchedPromotion = await firebaseService.getAdvertisement(promotionId)
+      const fetchedPromotion = await PromotionService.getPromotion(promotionId)
       setPromotion(fetchedPromotion)
     } catch (err) {
       console.error("Error refreshing promotion:", err)
@@ -207,8 +207,8 @@ export function usePromotion(promotionId: string | null) {
   }
 }
 
-export function useBusinessPromotions(businessId: string | null) {
-  const [promotions, setPromotions] = useState<Advertisement[]>([])
+export function useBusinessPromotions(businessId: string) {
+  const [promotions, setPromotions] = useState<Promotion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isClient, setIsClient] = useState(false)
@@ -225,7 +225,7 @@ export function useBusinessPromotions(businessId: string | null) {
         setIsLoading(true)
         setError(null)
 
-        const fetchedPromotions = await firebaseService.getAdvertisementsByBusiness(businessId)
+        const fetchedPromotions = await PromotionService.getPromotions({businessId})
         setPromotions(fetchedPromotions)
       } catch (err) {
         console.error("Error fetching business promotions:", err)
@@ -239,12 +239,12 @@ export function useBusinessPromotions(businessId: string | null) {
     fetchPromotions()
   }, [isClient, businessId])
 
-  const createPromotion = async (promotionData: Omit<Advertisement, "id">) => {
+  const createPromotion = async (promotionData: Omit<Promotion, "id">) => {
     try {
-      const promotionId = await firebaseService.createAdvertisement(promotionData)
+      const promotionId = await PromotionService.createPromotion(promotionData)
       if (promotionId) {
         // Refresh the list to include the new promotion
-        const fetchedPromotions = await firebaseService.getAdvertisementsByBusiness(businessId!)
+        const fetchedPromotions = await PromotionService.getPromotions({businessId})
         setPromotions(fetchedPromotions)
         return promotionId
       }

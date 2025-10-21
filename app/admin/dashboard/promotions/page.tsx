@@ -80,10 +80,10 @@ export default function AdminPromotionsPage() {
     const csvContent = [
       "Título,ID Empresa,Porcentaje,Estado,Fecha Creación,Fecha Expiración",
       ...filteredPromotions.map(promo => {
-        const createdDate = promo.createdAt
-          ? (promo.createdAt as any).seconds
-            ? new Date((promo.createdAt as any).seconds * 1000).toLocaleDateString()
-            : new Date(promo.createdAt as Date).toLocaleDateString()
+        const createdDate = promo.created_at
+          ? (promo.created_at as any).seconds
+            ? new Date((promo.created_at as any).seconds * 1000).toLocaleDateString()
+            : new Date(promo.created_at as Date).toLocaleDateString()
           : "N/A"
         const expiredDate = promo.expired_at
           ? (promo.expired_at as any).seconds
@@ -213,7 +213,7 @@ export default function AdminPromotionsPage() {
                   <div className="flex items-center gap-4 mt-3 text-sm">
                     <span className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />
-                      Creada: {promotion.createdAt ? ((promotion.createdAt as any).seconds ? new Date((promotion.createdAt as any).seconds * 1000).toLocaleDateString() : new Date(promotion.createdAt as Date).toLocaleDateString()) : "N/A"}
+                      Creada: {promotion.created_at ? ((promotion.created_at as any).seconds ? new Date((promotion.created_at as any).seconds * 1000).toLocaleDateString() : new Date(promotion.created_at as Date).toLocaleDateString()) : "N/A"}
                     </span>
                     <Badge variant="outline" className="text-xs">ID: {promotion.id}</Badge>
                   </div>

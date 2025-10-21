@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,8 +15,6 @@ import {
   Search,
   Filter,
   Mail,
-  UserCheck,
-  UserX,
   Crown,
   Shield,
   User,
@@ -26,80 +24,50 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Send
+  Send,
+  AlertCircle,
+  Loader2
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { seedTeamMembers } from "@/lib/seed-data"
-import type { TeamMember, TeamPermissions, BusinessPermission } from "@/lib/types"
+import { getPlanLimits } from "@/lib/plan-limits"
+import { PlanLimitBadge, PlanLimitProgress } from "@/components/plan-limit-badge"
+import { UpgradePlanButton } from "@/components/upgrade-plan-button"
+import { LockedFeature } from "@/components/locked-feature"
+import { TeamMemberService } from "@/lib/services/team-member-service"
+import type { PlanType, BusinessPermission } from "@/lib/types"
 
-// Mock data with proper typing
-const mockTeamMembers: TeamMember[] = [
-  {
-    id: "team_001",
-    businessId: "current_business",
-    userId: "user_002",
-    email: "maria.gonzalez@mitienda.com",
-    name: "María González",
-    role: "manager",
-    invitationStatus: "accepted",
-    invitedBy: "user_001",
-    invitedAt: new Date("2024-05-16"),
-    acceptedAt: new Date("2024-05-16"),
-    isActive: true,
-    permissions: {
-      canManagePromotions: true,
-      canViewAnalytics: true,
-      canManageRedemptions: true,
-      canManageTeam: false,
-      canManageLocations: true,
-      canViewBilling: false,
-    },
-    createdAt: new Date("2024-05-16"),
-    updatedAt: new Date("2024-05-16"),
-  },
-  {
-    id: "team_002",
-    businessId: "current_business",
-    email: "carlos.rodriguez@mitienda.com",
-    name: "Carlos Rodríguez",
-    role: "staff",
-    invitationStatus: "pending",
-    invitedBy: "user_001",
-    invitedAt: new Date("2024-06-10"),
-    isActive: true,
-    permissions: {
-      canManagePromotions: false,
-      canViewAnalytics: false,
-      canManageRedemptions: true,
-      canManageTeam: false,
-      canManageLocations: false,
-      canViewBilling: false,
-    },
-    createdAt: new Date("2024-06-10"),
-    updatedAt: new Date("2024-06-10"),
-  },
-  {
-    id: "team_003",
-    businessId: "current_business",
-    email: "ana.martinez@mitienda.com",
-    name: "Ana Martínez",
-    role: "manager",
-    invitationStatus: "rejected",
-    invitedBy: "user_001",
-    invitedAt: new Date("2024-06-05"),
-    isActive: false,
-    permissions: {
-      canManagePromotions: true,
-      canViewAnalytics: true,
-      canManageRedemptions: true,
-      canManageTeam: false,
-      canManageLocations: false,
-      canViewBilling: false,
-    },
-    createdAt: new Date("2024-06-05"),
-    updatedAt: new Date("2024-06-06"),
-  },
-]
+// Firebase Schema V2 - Team member structure
+interface TeamMember {
+  id: string
+  businessId: string
+  userId?: string // null if invitation pending
+  email: string
+  name?: string
+  role: BusinessPermission
+
+  // Invitation Status
+  invitationStatus: "pending" | "accepted" | "rejected"
+  invitedBy: string
+  invitedAt: Date
+  acceptedAt?: Date
+
+  // Access Control
+  isActive: boolean
+  permissions: TeamPermissions
+
+  // Metadata
+  createdAt: Date
+  updatedAt: Date
+}
+
+interface TeamPermissions {
+  canManagePromotions: boolean
+  canViewAnalytics: boolean
+  canManageRedemptions: boolean
+  canManageTeam: boolean
+  canManageLocations: boolean
+  canViewBilling: boolean
+}
 
 const roleConfig = {
   owner: {
@@ -153,7 +121,8 @@ const defaultPermissionsByRole: Record<BusinessPermission, Partial<TeamPermissio
 }
 
 export default function TeamPage() {
-  const [teamMembers, setTeamMembers] = useState(mockTeamMembers)
+  const [teamMembers, setTeamMembers] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
@@ -166,7 +135,29 @@ export default function TeamPage() {
 
   const { user } = useAuth()
   const businessUser = user as any
-  const plan = businessUser?.plan || "gratis"
+  const plan: PlanType = businessUser?.plan || "gratis"
+  const limits = getPlanLimits(plan)
+  const businessId = businessUser?.businessId || businessUser?.id
+
+  // Fetch team members from Firebase
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      if (!businessId) return
+
+      setIsLoading(true)
+      try {
+        const members = await TeamMemberService.getBusinessTeamMembers(businessId)
+        setTeamMembers(members)
+      } catch (error) {
+        console.error("Error fetching team members:", error)
+        alert("Error: No se pudieron cargar los miembros del equipo")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchTeamMembers()
+  }, [businessId])
 
   const filteredMembers = teamMembers.filter((member) => {
     const matchesSearch =
@@ -176,23 +167,10 @@ export default function TeamPage() {
     return matchesSearch && matchesStatus
   })
 
-  const getTeamLimits = () => {
-    switch (plan) {
-      case "gratis":
-        return 1
-      case "basico":
-        return 3
-      case "pro":
-        return 10
-      case "enterprise":
-        return Number.POSITIVE_INFINITY
-      default:
-        return 1
-    }
-  }
-
-  const teamLimit = getTeamLimits()
-  const canInviteMore = teamMembers.filter(m => m.invitationStatus !== "rejected").length < teamLimit
+  const teamLimit = limits.maxUsers === Infinity ? Infinity : limits.maxUsers
+  // Count only accepted and pending members (not rejected)
+  const activeTeamCount = teamMembers.filter(m => m.invitationStatus !== "rejected").length + 1 // +1 for owner
+  const canInviteMore = activeTeamCount < teamLimit
 
   const getStatusBadge = (status: string, isActive: boolean) => {
     if (!isActive) {
@@ -246,32 +224,43 @@ export default function TeamPage() {
     }))
   }
 
-  const handleInviteTeamMember = () => {
-    const newMember: TeamMember = {
-      id: `team_${Date.now()}`,
-      businessId: businessUser?.businessId || "current_business",
-      email: newInvitation.email,
-      name: newInvitation.name || undefined,
-      role: newInvitation.role,
-      invitationStatus: "pending",
-      invitedBy: businessUser?.id || "current_user",
-      invitedAt: new Date(),
-      isActive: true,
-      permissions: newInvitation.permissions,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+  const handleInviteTeamMember = async () => {
+    if (!businessId) return
+
+    try {
+      // Note: In Schema V2, team members are users with business_roles array
+      // This is a placeholder - production would:
+      // 1. Check if user exists by email
+      // 2. Add business role to their business_roles array
+      // 3. Send invitation email if user doesn't exist
+
+      console.log("Inviting team member:", {
+        email: newInvitation.email,
+        role: newInvitation.role,
+        permissions: Object.keys(newInvitation.permissions).filter(
+          key => newInvitation.permissions[key as keyof TeamPermissions]
+        )
+      })
+
+      alert(`Invitación enviada a ${newInvitation.email}. Esta funcionalidad se completará con el flujo de registro de usuarios.`)
+
+      setIsInviteDialogOpen(false)
+
+      // Reset form
+      setNewInvitation({
+        email: "",
+        name: "",
+        role: "staff",
+        permissions: { ...defaultPermissionsByRole.staff } as TeamPermissions,
+      })
+
+      // Refresh team members
+      const members = await TeamMemberService.getBusinessTeamMembers(businessId)
+      setTeamMembers(members)
+    } catch (error) {
+      console.error("Error inviting team member:", error)
+      alert("Error: No se pudo enviar la invitación")
     }
-
-    setTeamMembers(prev => [...prev, newMember])
-    setIsInviteDialogOpen(false)
-
-    // Reset form
-    setNewInvitation({
-      email: "",
-      name: "",
-      role: "staff",
-      permissions: { ...defaultPermissionsByRole.staff } as TeamPermissions,
-    })
   }
 
   const getInitials = (name?: string, email?: string) => {
@@ -297,6 +286,16 @@ export default function TeamPage() {
     return `${activePermissions}/${totalPermissions} permisos`
   }
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-3 text-muted-foreground">Cargando equipo...</span>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -306,10 +305,12 @@ export default function TeamPage() {
           <p className="text-muted-foreground">Invita y gestiona miembros de tu equipo</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-sm text-muted-foreground">
-            {teamMembers.filter(m => m.invitationStatus !== "rejected").length}/
-            {teamLimit === Number.POSITIVE_INFINITY ? "∞" : teamLimit} miembros
-          </div>
+          <PlanLimitBadge
+            plan={plan}
+            resourceType="users"
+            currentCount={activeTeamCount}
+            showIcon
+          />
           <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
             <DialogTrigger asChild>
               <Button disabled={!canInviteMore}>
@@ -317,11 +318,24 @@ export default function TeamPage() {
                 Invitar Miembro
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Invitar Nuevo Miembro</DialogTitle>
               </DialogHeader>
               <div className="space-y-6">
+                {/* Notice about team management */}
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-5 w-5 text-blue-600" />
+                    <div>
+                      <p className="font-medium text-blue-900">Gestión de equipo</p>
+                      <p className="text-sm text-blue-700">
+                        Los miembros del equipo podrán acceder al dashboard según los permisos asignados.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Basic Information */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -381,11 +395,11 @@ export default function TeamPage() {
                 {/* Permissions */}
                 <div className="space-y-4">
                   <Label>Permisos Específicos</Label>
-                  <div className="space-y-3">
+                  <div className="space-y-3 rounded-lg border p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">Gestionar Promociones</div>
-                        <div className="text-sm text-muted-foreground">Crear, editar y eliminar promociones</div>
+                        <div className="font-medium text-sm">Gestionar Promociones</div>
+                        <div className="text-xs text-muted-foreground">Crear, editar y eliminar promociones</div>
                       </div>
                       <Switch
                         checked={newInvitation.permissions.canManagePromotions}
@@ -394,8 +408,8 @@ export default function TeamPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">Ver Analíticas</div>
-                        <div className="text-sm text-muted-foreground">Acceder a métricas y reportes</div>
+                        <div className="font-medium text-sm">Ver Analíticas</div>
+                        <div className="text-xs text-muted-foreground">Acceder a métricas y reportes</div>
                       </div>
                       <Switch
                         checked={newInvitation.permissions.canViewAnalytics}
@@ -404,8 +418,8 @@ export default function TeamPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">Gestionar Redenciones</div>
-                        <div className="text-sm text-muted-foreground">Procesar redenciones de promociones</div>
+                        <div className="font-medium text-sm">Gestionar Redenciones</div>
+                        <div className="text-xs text-muted-foreground">Procesar redenciones de promociones</div>
                       </div>
                       <Switch
                         checked={newInvitation.permissions.canManageRedemptions}
@@ -414,8 +428,8 @@ export default function TeamPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">Gestionar Ubicaciones</div>
-                        <div className="text-sm text-muted-foreground">Administrar ubicaciones del negocio</div>
+                        <div className="font-medium text-sm">Gestionar Ubicaciones</div>
+                        <div className="text-xs text-muted-foreground">Administrar ubicaciones del negocio</div>
                       </div>
                       <Switch
                         checked={newInvitation.permissions.canManageLocations}
@@ -424,8 +438,18 @@ export default function TeamPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">Ver Facturación</div>
-                        <div className="text-sm text-muted-foreground">Acceder a información de billing</div>
+                        <div className="font-medium text-sm">Gestionar Equipo</div>
+                        <div className="text-xs text-muted-foreground">Invitar y administrar miembros</div>
+                      </div>
+                      <Switch
+                        checked={newInvitation.permissions.canManageTeam}
+                        onCheckedChange={(checked) => handlePermissionChange("canManageTeam", checked)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-sm">Ver Facturación</div>
+                        <div className="text-xs text-muted-foreground">Acceder a información de billing</div>
                       </div>
                       <Switch
                         checked={newInvitation.permissions.canViewBilling}
@@ -439,7 +463,7 @@ export default function TeamPage() {
                   <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={handleInviteTeamMember}>
+                  <Button onClick={handleInviteTeamMember} disabled={!newInvitation.email}>
                     <Send className="h-4 w-4 mr-1" />
                     Enviar Invitación
                   </Button>
@@ -450,22 +474,24 @@ export default function TeamPage() {
         </div>
       </div>
 
+      {/* Plan Limits Progress */}
+      {teamLimit !== Infinity && (
+        <PlanLimitProgress
+          plan={plan}
+          resourceType="users"
+          currentCount={activeTeamCount}
+        />
+      )}
+
       {/* Plan Limits Warning */}
       {!canInviteMore && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Crown className="h-5 w-5 text-yellow-600" />
-              <div>
-                <p className="font-medium text-yellow-800">Límite de miembros alcanzado</p>
-                <p className="text-sm text-yellow-700">
-                  Tu plan {plan} permite hasta {teamLimit} miembro{teamLimit > 1 ? "s" : ""} del equipo.
-                  <span className="underline cursor-pointer ml-1">Actualizar plan</span>
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <LockedFeature
+          currentPlan={plan}
+          featureName="Miembros adicionales de equipo"
+          requiredPlan={plan === "gratis" ? "basico" : plan === "basico" ? "pro" : "enterprise"}
+          description={`Tu plan actual permite hasta ${teamLimit} miembro${teamLimit > 1 ? "s" : ""} del equipo (incluyéndote a ti).`}
+          variant="inline"
+        />
       )}
 
       {/* Current User Card */}
