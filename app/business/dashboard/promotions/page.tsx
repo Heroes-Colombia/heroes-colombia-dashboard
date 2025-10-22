@@ -16,7 +16,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Search, Filter, Eye, Edit, Copy, CalendarIcon, Star, MoreHorizontal, ShoppingCart, AlertCircle, MapPin, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
-import { getCurrentUser } from "@/lib/auth"
 import { getPlanLimits, canAddPromotion, EXTRA_PROMOTION_PRICE } from "@/lib/plan-limits"
 import { PlanLimitBadge, PlanLimitProgress } from "@/components/plan-limit-badge"
 import { UpgradePlanButton } from "@/components/upgrade-plan-button"
@@ -24,11 +23,12 @@ import { LockedFeature } from "@/components/locked-feature"
 import { PromotionService } from "@/lib/services/promotion-service"
 import { LocationService } from "@/lib/services/location-service"
 import type { Promotion, PlanType, BusinessLocation } from "@/lib/types"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function PromotionsPage() {
   const [promotions, setPromotions] = useState<Promotion[]>([])
   const [locations, setLocations] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -43,8 +43,9 @@ export default function PromotionsPage() {
     expiredAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
   })
 
-  const user = getCurrentUser() as any
-  const plan: PlanType = user?.plan || "gratis"
+  const { user } = useAuth()
+  const businessUser = user as any
+  const plan: PlanType = businessUser?.plan || "gratis"
   const limits = getPlanLimits(plan)
   const businessId = user?.businessId
 

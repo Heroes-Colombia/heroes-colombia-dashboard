@@ -11,7 +11,93 @@ import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } fro
 import { auth, db } from "./firebase"
 import { BusinessService } from "./services/business-service"
 import { LocationService } from "./services/location-service"
-import type { FirebaseBusinessUser, FirebaseConsumerUser, BusinessType, BusinessStatus, PlanType, SubscriptionStatus } from "./types"
+import type { BusinessType, BusinessStatus, PlanType, SubscriptionStatus } from "./types"
+
+// Cache configuration
+const USER_CACHE_KEY = 'heroes_user_cache'
+const SESSION_START_KEY = 'heroes_session_start'
+const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000      // 7 days - refresh cache
+const SESSION_DURATION = 30 * 24 * 60 * 60 * 1000   // 30 days - force logout
+
+// Cache utilities
+const getCachedUser = (): User | null => {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const cached = localStorage.getItem(USER_CACHE_KEY)
+    if (!cached) return null
+
+    const { user, timestamp } = JSON.parse(cached)
+
+    // Check if cache has expired (7 days)
+    if (Date.now() - timestamp > CACHE_DURATION) {
+      localStorage.removeItem(USER_CACHE_KEY)
+      return null
+    }
+
+    return user
+  } catch (error) {
+    console.error("Error reading cached user:", error)
+    return null
+  }
+}
+
+const setCachedUser = (user: User | null): void => {
+  if (typeof window === 'undefined') return
+
+  try {
+    if (user) {
+      localStorage.setItem(USER_CACHE_KEY, JSON.stringify({
+        user,
+        timestamp: Date.now()
+      }))
+    } else {
+      localStorage.removeItem(USER_CACHE_KEY)
+    }
+  } catch (error) {
+    console.error("Error caching user:", error)
+  }
+}
+
+const checkSessionExpiry = async (): Promise<boolean> => {
+  if (typeof window === 'undefined') return false
+
+  try {
+    const sessionStart = localStorage.getItem(SESSION_START_KEY)
+
+    if (sessionStart && Date.now() - parseInt(sessionStart) > SESSION_DURATION) {
+      console.log("⏰ Session expired after 30 days - forcing logout")
+      await logout()
+      return true // Session expired
+    }
+
+    return false // Session valid
+  } catch (error) {
+    console.error("Error checking session expiry:", error)
+    return false
+  }
+}
+
+const setSessionStart = (): void => {
+  if (typeof window === 'undefined') return
+
+  try {
+    localStorage.setItem(SESSION_START_KEY, Date.now().toString())
+  } catch (error) {
+    console.error("Error setting session start:", error)
+  }
+}
+
+const clearSession = (): void => {
+  if (typeof window === 'undefined') return
+
+  try {
+    localStorage.removeItem(USER_CACHE_KEY)
+    localStorage.removeItem(SESSION_START_KEY)
+  } catch (error) {
+    console.error("Error clearing session:", error)
+  }
+}
 
 // Helper function to read user document by UID (searches by uid field, not document ID)
 const readUserById = async (userId: string) => {
@@ -62,12 +148,86 @@ export interface AdminUser extends User {
   permissions: ("super_admin")[]
 }
 
+// Shared helper to fetch user from Firestore and construct User object
+const fetchUserFromFirestore = async (firebaseUserId: string, firebaseUserEmail: string): Promise<User | null> => {
+  try {
+    // Retry mechanism for Firestore document retrieval
+    const maxRetries = 3
+    let retryCount = 0
+    let userResult: { exists: boolean; data: any } = { exists: false, data: null }
+
+    while (retryCount < maxRetries && !userResult.exists) {
+      userResult = await readUserById(firebaseUserId)
+
+      if (!userResult.exists) {
+        retryCount++
+        if (retryCount < maxRetries) {
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 500 * retryCount))
+        }
+      }
+    }
+
+    if (!userResult.exists || !userResult.data) {
+      return null
+    }
+
+    const userData = userResult.data
+
+    // Check both V1 (role/permission) and V2 (user_type) fields for backward compatibility
+    if (userData.user_type === "business_team" || userData.role === "business") {
+      // Extract role from business_roles array (V2 schema)
+      const businessRoles = userData.business_roles || []
+      const userRole = businessRoles.find((role: any) =>
+        role.business_id === (userData.businessId || firebaseUserId)
+      )
+
+      let businesDetails = await BusinessService.getBusinessByOwnerId(userData.uid)
+
+      if (!businesDetails) {
+        businesDetails = await BusinessService.getBusiness(userData.owned_businesses?.[0])
+        if (!businesDetails) {
+          throw new Error("El usuario no pertenece a ningún negocio activo en Heroes")
+        }
+      }
+
+      const businessUser: BusinessUser = {
+        id: firebaseUserId,
+        email: firebaseUserEmail,
+        role: "business",
+        businessId: businesDetails.id || firebaseUserId,
+        businessName: businesDetails.name || "Mi Empresa",
+        plan: businesDetails.plan || "gratis",
+        permissions: userRole ? [userRole.role as ("owner" | "manager" | "staff")] : ["owner"],
+      }
+
+      return businessUser
+    }
+
+    if (userData.user_type === "admin" || userData.role === "admin") {
+      const adminUser: AdminUser = {
+        id: firebaseUserId,
+        email: firebaseUserEmail,
+        role: "admin",
+        permissions: Array.isArray(userData.permission) ? userData.permission : ["super_admin"],
+      }
+
+      return adminUser
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error fetching user from Firestore:", error)
+    throw error
+  }
+}
+
 export const loginWithEmail = async (email: string, password: string): Promise<User> => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
     const firebaseUser = userCredential.user
 
-    // Get user profile from Firestore users collection using helper
+    // Quick permission check before full user fetch
     const userResult = await readUserById(firebaseUser.uid)
 
     if (!userResult.exists || !userResult.data) {
@@ -86,33 +246,20 @@ export const loginWithEmail = async (email: string, password: string): Promise<U
 
     console.log("✅ Permission check passed")
 
-    if (userData.user_type == "business_team") {
-      // Extract role from business_roles array (V2 schema)
-      const businessRoles = userData.business_roles || []
-      const userRole = businessRoles.find((role: any) =>
-        role.business_id === (userData.businessId || firebaseUser.uid)
-      )
-      const businesDetails = await BusinessService.getBusinessByOwnerId(userData.uid)
+    // Fetch full user profile using shared helper
+    const user = await fetchUserFromFirestore(firebaseUser.uid, firebaseUser.email!)
 
-      const businessUser: BusinessUser = {
-        id: firebaseUser.uid,
-        email: firebaseUser.email!,
-        role: "business",
-        businessId: businesDetails?.id || firebaseUser.uid,
-        businessName: businesDetails?.name || "Mi Empresa",
-        plan: businesDetails?.plan || "gratis",
-        permissions: userRole ? [userRole.role as ("owner" | "manager" | "staff")] : ["owner"],
-      }
-      return businessUser
-    } else {
-      const adminUser: AdminUser = {
-        id: firebaseUser.uid,
-        email: firebaseUser.email!,
-        role: "admin",
-        permissions: Array.isArray(userData.permission) ? userData.permission : ["super_admin"],
-      }
-      return adminUser
+    if (!user) {
+      throw new Error("Failed to fetch user profile")
     }
+
+    // Cache user and start session tracking
+    setCachedUser(user)
+    setSessionStart()
+
+    console.log("✅ User cached successfully")
+
+    return user
   } catch (error: any) {
     throw new Error(error.message || "Login failed")
   }
@@ -276,7 +423,7 @@ export const registerBusiness = async (
       role: "business",
       businessId: businessId,
       businessName: businessData.businessName,
-      plan: businessData.plan as PlanType || "gratis",
+      plan: businessData.plan as PlanType || "enterprise",
       permissions: ["owner"],
     }
 
@@ -289,15 +436,14 @@ export const registerBusiness = async (
 
 export const logout = async (): Promise<void> => {
   try {
+    // Clear cache and session before signing out
+    clearSession()
+    console.log("✅ Session and cache cleared")
+
     await signOut(auth)
   } catch (error: any) {
     throw new Error(error.message || "Logout failed")
   }
-}
-
-export const mockLogout = async (): Promise<void> => {
-  // Use the Firebase logout function and wait for completion
-  await logout()
 }
 
 export const resetPassword = async (email: string): Promise<void> => {
@@ -318,64 +464,36 @@ export const getCurrentUser = (): Promise<User | null> => {
       }
 
       try {
-        // Retry mechanism for Firestore document retrieval
-        const maxRetries = 3
-        let retryCount = 0
-        let userResult: { exists: boolean; data: any } = { exists: false, data: null }
-
-        while (retryCount < maxRetries && !userResult.exists) {
-          userResult = await readUserById(firebaseUser.uid)
-
-          if (!userResult.exists) {
-            retryCount++
-            if (retryCount < maxRetries) {
-              // Wait before retrying (exponential backoff)
-              await new Promise(resolve => setTimeout(resolve, 500 * retryCount))
-            }
-          }
+        // Check if session has expired (30 days)
+        const sessionExpired = await checkSessionExpiry()
+        if (sessionExpired) {
+          unsubscribe()
+          resolve(null)
+          return
         }
 
-        if (userResult.exists && userResult.data) {
-          const userData = userResult.data
+        // Try cache first (7-day cache)
+        const cachedUser = getCachedUser()
+        if (cachedUser) {
+          console.log("✅ User loaded from cache")
+          unsubscribe()
+          resolve(cachedUser)
+          return
+        }
 
-          // Check both V1 (role/permission) and V2 (user_type) fields for backward compatibility
-          if (userData.role === "business" || userData.user_type === "business_team") {
-            // Extract role from business_roles array (V2 schema)
-            const businessRoles = userData.business_roles || []
-            const userRole = businessRoles.find((role: any) =>
-              role.business_id === (userData.businessId || firebaseUser.uid)
-            )
-            const businesDetails = await BusinessService.getBusinessByOwnerId(userData.uid)
+        console.log("📡 Cache miss - fetching user from Firestore")
 
-            const businessUser: BusinessUser = {
-              id: firebaseUser.uid,
-              email: firebaseUser.email!,
-              role: "business",
-              businessId: businesDetails?.id || firebaseUser.uid,
-              businessName: businesDetails?.name || "Mi Empresa",
-              plan: businesDetails?.plan || "gratis",
-              permissions: userRole ? [userRole.role as ("owner" | "manager" | "staff")] : ["owner"],
-            }
-            unsubscribe()
-            resolve(businessUser)
-            return
-          }
+        // Cache miss or expired - fetch from Firestore
+        const user = await fetchUserFromFirestore(firebaseUser.uid, firebaseUser.email!)
 
-          if (userData.role === "admin" || userData.user_type === "admin") {
-            const adminUser: AdminUser = {
-              id: firebaseUser.uid,
-              email: firebaseUser.email!,
-              role: "admin",
-              permissions: Array.isArray(userData.permission) ? userData.permission : ["super_admin"],
-            }
-            unsubscribe()
-            resolve(adminUser)
-            return
-          }
+        if (user) {
+          // Cache the fresh user data
+          setCachedUser(user)
+          console.log("✅ User fetched and cached")
         }
 
         unsubscribe()
-        resolve(null)
+        resolve(user)
       } catch (error) {
         console.error("Error getting user profile:", error)
         unsubscribe()
@@ -420,5 +538,33 @@ export const createAdminUser = async (userId: string, email: string): Promise<vo
     await setDoc(doc(db, "users", userId), adminUserData)
   } catch (error: any) {
     throw new Error(error.message || "Failed to create admin user")
+  }
+}
+
+// Helper to refresh cached user data after business updates
+export const refreshUserCache = async (): Promise<User | null> => {
+  try {
+    const firebaseUser = auth.currentUser
+
+    if (!firebaseUser) {
+      console.log("⚠️ No authenticated user to refresh")
+      return null
+    }
+
+    console.log("🔄 Refreshing user cache after business data update")
+
+    // Fetch fresh data from Firestore
+    const user = await fetchUserFromFirestore(firebaseUser.uid, firebaseUser.email!)
+
+    if (user) {
+      // Update cache with fresh data
+      setCachedUser(user)
+      console.log("✅ User cache refreshed successfully")
+    }
+
+    return user
+  } catch (error) {
+    console.error("Error refreshing user cache:", error)
+    return null
   }
 }

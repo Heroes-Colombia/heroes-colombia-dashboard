@@ -3,12 +3,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth } from "@/lib/firebase"
-import { type User, getCurrentUser } from "@/lib/auth"
+import { type User, getCurrentUser, refreshUserCache } from "@/lib/auth"
 
 interface AuthContextType {
   user: User | null
   loading: boolean
   refetch: () => Promise<void>
+  refreshCache: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false)
       } else {
         // User logged in or auth state restored, fetch full user profile
+        // getCurrentUser now checks session expiry and cache automatically
         setLoading(true)
         await fetchUser()
       }
@@ -51,7 +53,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await fetchUser()
   }
 
-  return <AuthContext.Provider value={{ user, loading, refetch }}>{children}</AuthContext.Provider>
+  // New method to refresh cache after business data updates
+  const refreshCache = async () => {
+    try {
+      const updatedUser = await refreshUserCache()
+      if (updatedUser) {
+        setUser(updatedUser)
+      }
+    } catch (error) {
+      console.error("Error refreshing cache:", error)
+    }
+  }
+
+  return <AuthContext.Provider value={{ user, loading, refetch, refreshCache }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

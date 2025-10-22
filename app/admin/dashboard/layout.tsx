@@ -24,7 +24,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { mockLogout } from "@/lib/auth"
+import { logout } from "@/lib/auth"
 import { useAuth } from "@/hooks/use-auth"
 
 const navigation = [
@@ -59,7 +59,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   const userEmail = user?.email || "admin@heroescolombia.com"
 
   const handleLogout = async () => {
-    await mockLogout()
+    await logout()
     router.push("/")
   }
 

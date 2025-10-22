@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -30,6 +31,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import Link from "next/link"
+import { Promotion, BusinessAnalytics } from "@/lib/types"
 
 // Mock data
 const impressionsData = [
@@ -42,13 +44,6 @@ const impressionsData = [
   { name: "Dom", impressions: 1600, views: 1100, redemptions: 78 },
 ]
 
-const topPromotions = [
-  { name: "Descuento 20% Almuerzo", views: 2400, redemptions: 134, conversion: 5.6 },
-  { name: "2x1 en Bebidas", views: 1800, redemptions: 89, conversion: 4.9 },
-  { name: "Envío Gratis", views: 1200, redemptions: 67, conversion: 5.6 },
-  { name: "Descuento Estudiantes", views: 800, redemptions: 45, conversion: 5.6 },
-]
-
 const funnelData = [
   { name: "Impresiones", value: 12000, color: "#7A8B5A" },
   { name: "Vistas", value: 8400, color: "#1E3A8A" },
@@ -58,23 +53,27 @@ const funnelData = [
 
 export default function BusinessDashboardPage() {
   const { user } = useAuth()
+  const [topPromotions, setTopPromotions] = useState<Promotion[]>([])
+  const [activePromotions, setActivePromotions] = useState<Promotion[]>([])
+  const [analytics, setAnalytics] = useState<BusinessAnalytics>()
   const businessUser = user as any
   const plan = businessUser?.plan || "gratis"
   const isPremium = plan === "pro" || plan === "enterprise"
 
   const getKPIsByPlan = () => {
     const baseKPIs = [
-      { title: "Promociones Activas", value: "8", icon: ShoppingCart, change: "+2 esta semana" },
-      { title: "Total Impresiones", value: "12,400", icon: Eye, change: "+15% vs mes anterior" },
-      { title: "Total Redenciones", value: "557", icon: MousePointer, change: "+8% vs mes anterior" },
+      { title: "Promociones Activas", value: activePromotions.length, icon: ShoppingCart, change: "+2 esta semana" },
+      { title: "Total Impresiones", value: analytics?.totalImpressions || 0, icon: Eye, change: "+15% vs mes anterior" },
+      { title: "Total vistas", value: analytics?.totalViews || 0, icon: TrendingUp, change: "+8% vs mes anterior" },
+      { title: "Guardado en favoritos", value: analytics?.totalSaves || 0, icon: MousePointer, change: "+8% vs mes anterior" },
     ]
 
-    if (isPremium) {
-      return [
-        ...baseKPIs,
-        { title: "Tasa de Conversión", value: "4.5%", icon: TrendingUp, change: "+0.3% vs mes anterior" },
-      ]
-    }
+    // if (isPremium) {
+    //   return [
+    //     ...baseKPIs,
+    //     { title: "Tasa de Conversión", value: "4.5%", icon: TrendingUp, change: "+0.3% vs mes anterior" },
+    //   ]
+    // }
 
     return baseKPIs
   }
@@ -94,7 +93,7 @@ export default function BusinessDashboardPage() {
           </Badge>
           {!isPremium && (
             <Button asChild>
-              <Link href="/business/dashboard/billing">
+              <Link href="/business/dashboard/plans">
                 <ArrowUpRight className="h-4 w-4 mr-1" />
                 Actualizar Plan
               </Link>
@@ -108,11 +107,10 @@ export default function BusinessDashboardPage() {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Estás en el plan gratuito. Publica promociones por $10,000 COP cada una o{" "}
-            <Link href="/business/dashboard/billing" className="text-primary hover:underline">
-              actualiza tu plan
-            </Link>{" "}
-            para acceso ilimitado.
+            Estás en el plan gratuito. Publica promociones por $11,900 COP cada una o{" "}
+            <Link href="/business/dashboard/plan" className="text-primary hover:underline underline">
+              actualiza tu plan aquí
+            </Link> para acceso ilimitado.
           </AlertDescription>
         </Alert>
       )}
@@ -201,22 +199,24 @@ export default function BusinessDashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {topPromotions.map((promo, index) => (
+            {topPromotions.length ? topPromotions.map((promo, index) => (
               <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex-1">
-                  <h4 className="font-medium">{promo.name}</h4>
+                  <h4 className="font-medium">{promo.title}</h4>
                   <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                    <span>{promo.views} vistas</span>
-                    <span>{promo.redemptions} redenciones</span>
-                    {isPremium && <span>{promo.conversion}% conversión</span>}
+                    <span>{promo.views_count} vistas</span>
+                    <span>{promo.saves_count} guardadas</span>
+                    <span>{promo.redemptions_count} redenciones</span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium text-primary">{promo.redemptions}</div>
+                  <div className="text-sm font-medium text-primary">{promo.redemptions_count}</div>
                   <div className="text-xs text-muted-foreground">redenciones</div>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="text-xs text-muted-foreground">No tienes promociones todavia</div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -246,7 +246,7 @@ export default function BusinessDashboardPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold">8{plan === "gratis" ? "/1" : plan === "basico" ? "/3" : "/∞"}</p>
+                <p className="text-2xl font-bold">{activePromotions.length}{plan === "gratis" ? "/1" : plan === "basico" ? "/3" : plan === "pro" ? "/10" : "/∞"}</p>
                 <p className="text-sm text-muted-foreground">activas este mes</p>
               </div>
               <ShoppingCart className="h-8 w-8 text-muted-foreground" />

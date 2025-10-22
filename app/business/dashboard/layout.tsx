@@ -12,7 +12,7 @@ import { HeroesLogo } from "@/components/heroes-logo"
 import { BarChart3, Building2, CreditCard, MapPin, Menu, Settings, Tag, Users, LogOut, Bell, Crown } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { mockLogout } from "@/lib/auth"
+import { logout } from "@/lib/auth"
 import { useAuth } from "@/hooks/use-auth"
 
 const navigation = [
@@ -48,7 +48,7 @@ export default function BusinessDashboardLayout({ children }: { children: React.
   }
 
   const handleLogout = async () => {
-    await mockLogout()
+    await logout()
     router.push("/")
   }
 

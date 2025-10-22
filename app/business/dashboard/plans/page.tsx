@@ -31,6 +31,7 @@ import {
 import { getPlanLimits, PLAN_LIMITS } from "@/lib/plan-limits"
 import { cn } from "@/lib/utils"
 import type { PlanType, BillingPeriod } from "@/lib/types"
+import { useAuth } from "@/hooks/use-auth"
 
 const PLAN_FEATURES = {
   gratis: {
@@ -103,13 +104,13 @@ const PLAN_FEATURES = {
 }
 
 export default function PlansPage() {
-  const router = useRouter()
+  const { user } = useAuth()
   const searchParams = useSearchParams()
-  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly")
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("annual")
   const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null)
 
-  const user = getCurrentUser("business") as any
-  const currentPlan: PlanType = user?.plan || "gratis"
+  const businessUser = user as any
+  const currentPlan: PlanType = businessUser?.plan || "gratis"
 
   // Get query params for suggested plan
   const fromPlan = searchParams.get("from") as PlanType | null

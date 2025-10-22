@@ -176,19 +176,19 @@ export default function HomePage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div className="text-center">
                   <div className="font-semibold text-primary">Gratis</div>
-                  <div className="text-muted-foreground">$0 + $10k/promoción</div>
+                  <div className="text-muted-foreground">$0 + $11k/promoción</div>
                 </div>
                 <div className="text-center">
                   <div className="font-semibold text-primary">Básico</div>
-                  <div className="text-muted-foreground">$60,000/mes</div>
+                  <div className="text-muted-foreground">$10,000/mes</div>
                 </div>
                 <div className="text-center">
                   <div className="font-semibold text-secondary">Pro</div>
-                  <div className="text-muted-foreground">$230,000/mes</div>
+                  <div className="text-muted-foreground">$270,000/mes</div>
                 </div>
                 <div className="text-center">
                   <div className="font-semibold text-secondary">Enterprise</div>
-                  <div className="text-muted-foreground">Desde $700,000</div>
+                  <div className="text-muted-foreground">Desde $800,000</div>
                 </div>
               </div>
             </CardContent>
