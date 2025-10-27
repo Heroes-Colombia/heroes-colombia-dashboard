@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -30,50 +30,92 @@ import {
   ArrowUpRight,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { usePromotions } from "@/hooks/use-promotions"
+import { AnalyticsEventService } from "@/lib/services/analytics-service"
+import { calculateBasicAnalytics, calculateFunnelData, calculateTimeSeriesData, filterEventsByDateRange } from "@/lib/analytics-utils"
 import Link from "next/link"
-import { Promotion, BusinessAnalytics } from "@/lib/types"
-
-// Mock data
-const impressionsData = [
-  { name: "Lun", impressions: 1200, views: 800, redemptions: 45 },
-  { name: "Mar", impressions: 1900, views: 1200, redemptions: 67 },
-  { name: "Mié", impressions: 800, views: 600, redemptions: 32 },
-  { name: "Jue", impressions: 2400, views: 1800, redemptions: 89 },
-  { name: "Vie", impressions: 3200, views: 2400, redemptions: 134 },
-  { name: "Sáb", impressions: 2800, views: 2100, redemptions: 112 },
-  { name: "Dom", impressions: 1600, views: 1100, redemptions: 78 },
-]
-
-const funnelData = [
-  { name: "Impresiones", value: 12000, color: "#7A8B5A" },
-  { name: "Vistas", value: 8400, color: "#1E3A8A" },
-  { name: "Guardadas", value: 2100, color: "#059669" },
-  { name: "Redenciones", value: 557, color: "#DC2626" },
-]
+import { addDays } from "date-fns"
+import type { Promotion, FirebaseAnalyticsEvent } from "@/lib/types"
 
 export default function BusinessDashboardPage() {
   const { user } = useAuth()
-  const [topPromotions, setTopPromotions] = useState<Promotion[]>([])
-  const [activePromotions, setActivePromotions] = useState<Promotion[]>([])
-  const [analytics, setAnalytics] = useState<BusinessAnalytics>()
+  const [analyticsEvents, setAnalyticsEvents] = useState<FirebaseAnalyticsEvent[]>([])
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+
   const businessUser = user as any
   const plan = businessUser?.plan || "gratis"
+  const { promotions } = usePromotions({ businessId: businessUser?.id })
   const isPremium = plan === "pro" || plan === "enterprise"
+
+  // Fetch last 7 days of analytics events
+  useEffect(() => {
+    async function fetchAnalyticsData() {
+      if (!businessUser?.id) return
+
+      setIsLoadingEvents(true)
+      try {
+        const events = await AnalyticsEventService.getAnalyticsEvents(businessUser.id, {
+          dateRange: {
+            from: addDays(new Date(), -7),
+            to: new Date(),
+          },
+        })
+        setAnalyticsEvents(events)
+      } catch (error) {
+        console.error("Error fetching analytics events:", error)
+      } finally {
+        setIsLoadingEvents(false)
+      }
+    }
+
+    fetchAnalyticsData()
+  }, [businessUser?.id])
+
+  // Calculate analytics from real data
+  const analytics = useMemo(() => {
+    return calculateBasicAnalytics(promotions || [])
+  }, [promotions])
+
+  const funnelData = useMemo(() => {
+    const funnel = calculateFunnelData(promotions || [], analyticsEvents)
+    return funnel.map((item) => ({ ...item, color: item.fill }))
+  }, [promotions, analyticsEvents])
+
+  const impressionsData = useMemo(() => {
+    if (analyticsEvents.length > 0) {
+      const timeSeriesData = calculateTimeSeriesData(analyticsEvents, {
+        from: addDays(new Date(), -7),
+        to: new Date(),
+      })
+      return timeSeriesData.map((item, index) => ({
+        name: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][new Date(new Date().getTime() - (6 - index) * 24 * 60 * 60 * 1000).getDay()],
+        impressions: item.impressions,
+        views: item.views,
+        redemptions: item.redemptions,
+      }))
+    }
+    return []
+  }, [analyticsEvents])
+
+  const activePromotions = useMemo(() => {
+    return promotions && promotions.filter((p) => p.status === "active")
+  }, [promotions])
+
+  const topActivePromotions = useMemo(() => {
+    // Get top 5 promotions sorted by views (most viewed first)
+    return promotions && promotions
+      .filter((p) => p.status === "active")
+      .sort((a, b) => (b.views_count || 0) - (a.views_count || 0))
+      .slice(0, 5)
+  }, [promotions])
 
   const getKPIsByPlan = () => {
     const baseKPIs = [
-      { title: "Promociones Activas", value: activePromotions.length, icon: ShoppingCart, change: "+2 esta semana" },
-      { title: "Total Impresiones", value: analytics?.totalImpressions || 0, icon: Eye, change: "+15% vs mes anterior" },
-      { title: "Total vistas", value: analytics?.totalViews || 0, icon: TrendingUp, change: "+8% vs mes anterior" },
-      { title: "Guardado en favoritos", value: analytics?.totalSaves || 0, icon: MousePointer, change: "+8% vs mes anterior" },
+      { title: "Promociones Activas", value: activePromotions?.length, icon: ShoppingCart, change: `${promotions?.length} total` },
+      { title: "Total Impresiones", value: analytics.impressions, icon: Eye, change: "Últimos 30 días" },
+      { title: "Total Vistas", value: analytics.views, icon: TrendingUp, change: "Últimos 30 días" },
+      { title: "Guardadas", value: analytics.saves, icon: MousePointer, change: "Favoritas" },
     ]
-
-    // if (isPremium) {
-    //   return [
-    //     ...baseKPIs,
-    //     { title: "Tasa de Conversión", value: "4.5%", icon: TrendingUp, change: "+0.3% vs mes anterior" },
-    //   ]
-    // }
 
     return baseKPIs
   }
@@ -199,23 +241,49 @@ export default function BusinessDashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {topPromotions.length ? topPromotions.map((promo, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <h4 className="font-medium">{promo.title}</h4>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                    <span>{promo.views_count} vistas</span>
-                    <span>{promo.saves_count} guardadas</span>
-                    <span>{promo.redemptions_count} redenciones</span>
+            {topActivePromotions && topActivePromotions.length > 0 ? (
+              topActivePromotions.map((promo, index) => (
+                <div key={promo.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                      #{index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-medium">{promo.title}</h4>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Eye className="h-3 w-3" />
+                          {promo.views_count || 0} vistas
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MousePointer className="h-3 w-3" />
+                          {promo.saves_count || 0} guardadas
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <ShoppingCart className="h-3 w-3" />
+                          {promo.redemptions_count || 0} redenciones
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant={promo.status === "active" ? "default" : "secondary"}>
+                      {promo.status}
+                    </Badge>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium text-primary">{promo.redemptions_count}</div>
-                  <div className="text-xs text-muted-foreground">redenciones</div>
-                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <ShoppingCart className="h-12 w-12 text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground mb-4">No tienes promociones activas todavía</p>
+                <Button asChild size="sm">
+                  <Link href="/business/dashboard/promotions">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Crear Primera Promoción
+                  </Link>
+                </Button>
               </div>
-            )) : (
-              <div className="text-xs text-muted-foreground">No tienes promociones todavia</div>
             )}
           </div>
         </CardContent>
@@ -246,7 +314,7 @@ export default function BusinessDashboardPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold">{activePromotions.length}{plan === "gratis" ? "/1" : plan === "basico" ? "/3" : plan === "pro" ? "/10" : "/∞"}</p>
+                <p className="text-2xl font-bold">{activePromotions?.length}{plan === "gratis" ? "/1" : plan === "basico" ? "/3" : plan === "pro" ? "/10" : "/∞"}</p>
                 <p className="text-sm text-muted-foreground">activas este mes</p>
               </div>
               <ShoppingCart className="h-8 w-8 text-muted-foreground" />

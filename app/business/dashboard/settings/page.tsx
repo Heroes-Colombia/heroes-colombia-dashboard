@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,22 +9,25 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Building2, MapPin, Phone, Users, Bell, Shield, Trash2, Plus } from "lucide-react"
-
-const mockBusiness = {
-  name: "Restaurante El Dorado",
-  email: "contacto@eldorado.com",
-  phone: "+57 301 234 5678",
-  website: "https://eldorado.com",
-  description: "Restaurante tradicional colombiano con más de 20 años de experiencia.",
-  category: "Restaurante",
-  nit: "900123456-7",
-  plan: "Básico",
-}
+import { Building2, Bell, Shield, Trash2, Plus, Loader2 } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
+import { BusinessService } from "@/lib/services/business-service"
 
 export default function SettingsPage() {
+  const { user } = useAuth()
+  const businessUser = user as any
+
   const [isLoading, setIsLoading] = useState(false)
+  const [businessData, setBusinessData] = useState({
+    businessId: "",
+    name: "",
+    identification: "",
+    email: "",
+    phone_number: "",
+    website: "",
+    description: "",
+    address: "",
+  })
   const [notifications, setNotifications] = useState({
     email: true,
     push: false,
@@ -32,11 +35,60 @@ export default function SettingsPage() {
     marketing: false,
   })
 
+  // Load business data when available
+  useEffect(() => {
+    if (businessUser) {
+      setBusinessData({
+        businessId: businessUser.businessId || "",
+        name: businessUser.businessName || "",
+        identification: businessUser.businessIdentification || "",
+        email: businessUser.email || "",
+        phone_number: businessUser.businessPhone || "",
+        website: businessUser.website || "",
+        description: businessUser.businessDescription || "",
+        address: businessUser.address || "",
+      })
+    }
+  }, [businessUser])
+
+  const handleInputChange = (field: string, value: string) => {
+    setBusinessData(prev => ({ ...prev, [field]: value }))
+  }
+
   const handleSave = async () => {
+    if (!businessUser?.id) return
+
     setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsLoading(false)
+    try {
+      const success = await BusinessService.updateBusiness(businessUser.businessId, businessData)
+      if (success) {
+        alert("Cambios guardados exitosamente")
+      } else {
+        alert("Error al guardar los cambios")
+      }
+    } catch (error) {
+      console.error("Error saving business settings:", error)
+      alert("Error al guardar los cambios")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-muted-foreground">Cargando configuración...</span>
+      </div>
+    )
+  }
+
+  if (!businessUser) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">No se encontró información del negocio</p>
+      </div>
+    )
   }
 
   return (
@@ -47,11 +99,12 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="business" className="space-y-6">
-        <TabsList>
+        {/* <TabsList>
+          //TODO DO THE IMPLEMENTATION OF NOTIFICATIONS
           <TabsTrigger value="business">Empresa</TabsTrigger>
           <TabsTrigger value="notifications">Notificaciones</TabsTrigger>
           <TabsTrigger value="security">Seguridad</TabsTrigger>
-        </TabsList>
+        </TabsList> */}
 
         <TabsContent value="business" className="space-y-6">
           <Card>
@@ -66,37 +119,69 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="business-name">Nombre de la Empresa</Label>
-                  <Input id="business-name" defaultValue={mockBusiness.name} />
+                  <Input
+                    id="business-name"
+                    value={businessData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="business-nit">NIT</Label>
-                  <Input id="business-nit" defaultValue={mockBusiness.nit} />
+                  <Input
+                    id="business-nit"
+                    value={businessData.identification}
+                    onChange={(e) => handleInputChange("identification", e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="business-email">Email</Label>
-                  <Input id="business-email" type="email" defaultValue={mockBusiness.email} />
+                  <Input
+                    id="business-email"
+                    type="email"
+                    value={businessData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="business-phone">Teléfono</Label>
-                  <Input id="business-phone" defaultValue={mockBusiness.phone} />
+                  <Input
+                    id="business-phone"
+                    value={businessData.phone_number}
+                    onChange={(e) => handleInputChange("phone_number", e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="business-website">Sitio Web</Label>
-                  <Input id="business-website" defaultValue={mockBusiness.website} />
+                  <Input
+                    id="business-website"
+                    value={businessData.website}
+                    onChange={(e) => handleInputChange("website", e.target.value)}
+                    placeholder="https://ejemplo.com"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="business-category">Categoría</Label>
-                  <Input id="business-category" defaultValue={mockBusiness.category} />
+                  <Label htmlFor="business-address">Dirección</Label>
+                  <Input
+                    id="business-address"
+                    value={businessData.address}
+                    onChange={(e) => handleInputChange("address", e.target.value)}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="business-description">Descripción</Label>
-                <Textarea id="business-description" defaultValue={mockBusiness.description} rows={3} />
+                <Textarea
+                  id="business-description"
+                  value={businessData.description}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  rows={3}
+                  placeholder="Describe tu negocio..."
+                />
               </div>
               <div className="flex items-center justify-between pt-4">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Plan actual:</span>
-                  <Badge>{mockBusiness.plan}</Badge>
+                  <Badge>{businessUser.plan || "gratis"}</Badge>
                 </div>
                 <Button onClick={handleSave} disabled={isLoading}>
                   {isLoading ? "Guardando..." : "Guardar Cambios"}

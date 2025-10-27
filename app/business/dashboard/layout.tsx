@@ -20,7 +20,7 @@ const navigation = [
   { name: "Promociones", href: "/business/dashboard/promotions", icon: Tag },
   { name: "Redenciones", href: "/business/dashboard/redemptions", icon: Building2 },
   { name: "Analíticas", href: "/business/dashboard/analytics", icon: BarChart3 },
-  { name: "Planes", href: "/business/dashboard/plans", icon: Crown },
+  // { name: "Planes", href: "/business/dashboard/plans", icon: Crown },
   { name: "Facturación", href: "/business/dashboard/billing", icon: CreditCard },
   { name: "Ubicaciones", href: "/business/dashboard/locations", icon: MapPin },
   { name: "Equipo", href: "/business/dashboard/team", icon: Users },
@@ -83,20 +83,23 @@ export default function BusinessDashboardLayout({ children }: { children: React.
             </ul>
           </li>
           <li className="mt-auto">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Plan Actual</span>
-                  {isPremium && <Crown className="h-4 w-4 text-primary" />}
-                </div>
-                <Badge variant={isPremium ? "default" : "secondary"} className="mb-2">
-                  {(businessUser?.plan || "gratis").toUpperCase()}
-                </Badge>
-                <p className="text-xs text-muted-foreground">
-                  {isPremium ? "Acceso completo a todas las funciones" : "Funciones básicas disponibles"}
-                </p>
-              </CardContent>
-            </Card>
+            <Link 
+              href={'/business/dashboard/plans'}>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Plan Actual</span>
+                    {isPremium && <Crown className="h-4 w-4 text-primary" />}
+                  </div>
+                  <Badge variant={isPremium ? "default" : "secondary"} className="mb-2">
+                    {(businessUser?.plan || "gratis").toUpperCase()}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground">
+                    {isPremium ? "Acceso completo a todas las funciones" : "Funciones básicas disponibles"}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           </li>
         </ul>
       </nav>

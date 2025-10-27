@@ -4,136 +4,21 @@ import { useState, useEffect } from "react"
 import { PromotionService } from "@/lib/services/promotion-service"
 import type { Promotion } from "@/lib/types"
 
-interface UsePromotionsFilters {
-  businessId?: string
+interface UsePromotionsOptions {
+  promotionId?: string | null  // Fetch single promotion by ID
+  businessId?: string          // Filter by business
   status?: "active" | "inactive"
   limit?: number
 }
 
-export function usePromotions(filters?: UsePromotionsFilters) {
+/**
+ * Unified hook for fetching and managing promotions
+ * Supports both single promotion and multiple promotions modes
+ */
+export function usePromotions(options?: UsePromotionsOptions) {
+  const isSingleMode = !!options?.promotionId
+
   const [promotions, setPromotions] = useState<Promotion[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isClient, setIsClient] = useState(false)
-
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  useEffect(() => {
-    if (!isClient) return
-
-    const fetchPromotions = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        const fetchedPromotions = await PromotionService.getPromotions(filters)
-        setPromotions(fetchedPromotions)
-      } catch (err) {
-        console.error("Error fetching promotions:", err)
-        setError("Failed to load promotions")
-        setPromotions([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchPromotions()
-  }, [isClient, filters?.businessId, filters?.status, filters?.limit])
-
-  const refreshPromotions = async () => {
-    if (!isClient) return
-
-    try {
-      setIsLoading(true)
-      setError(null)
-      const fetchedPromotions = await PromotionService.getPromotions(filters)
-      setPromotions(fetchedPromotions)
-    } catch (err) {
-      console.error("Error refreshing promotions:", err)
-      setError("Failed to refresh promotions")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const updatePromotionStatus = async (promotionId: string, status: "active" | "inactive") => {
-    try {
-      const success = await PromotionService.updatePromotion(promotionId, status)
-      if (success) {
-        // Update local state
-        setPromotions((prev) =>
-          prev.map((promotion) =>
-            promotion.id === promotionId
-              ? { ...promotion, status }
-              : promotion
-          )
-        )
-        return true
-      }
-      return false
-    } catch (err) {
-      console.error("Error updating promotion status:", err)
-      setError("Failed to update promotion status")
-      return false
-    }
-  }
-
-  const deletePromotion = async (promotionId: string) => {
-    try {
-      const success = await PromotionService.deletePromotion(promotionId)
-      if (success) {
-        // Remove from local state
-        setPromotions((prev) => prev.filter((promotion) => promotion.id !== promotionId))
-        return true
-      }
-      return false
-    } catch (err) {
-      console.error("Error deleting promotion:", err)
-      setError("Failed to delete promotion")
-      return false
-    }
-  }
-
-  const getPromotionById = (promotionId: string): Promotion | undefined => {
-    return promotions.find((promotion) => promotion.id === promotionId)
-  }
-
-  const getActivePromotions = (): Promotion[] => {
-    return promotions.filter((promotion) => promotion.status === "active")
-  }
-
-  const getExpiredPromotions = (): Promotion[] => {
-    const now = new Date()
-    return promotions.filter((promotion) => {
-      const expiredAt = promotion.expired_at
-      if (expiredAt && typeof expiredAt === "object" && "seconds" in expiredAt) {
-        return new Date(expiredAt.seconds * 1000) < now
-      }
-      return new Date(expiredAt) < now
-    })
-  }
-
-  const getPromotionsByBusiness = (businessId: string): Promotion[] => {
-    return promotions.filter((promotion) => promotion.business_id === businessId)
-  }
-
-  return {
-    promotions,
-    isLoading,
-    error,
-    refreshPromotions,
-    updatePromotionStatus,
-    deletePromotion,
-    getPromotionById,
-    getActivePromotions,
-    getExpiredPromotions,
-    getPromotionsByBusiness,
-  }
-}
-
-export function usePromotion(promotionId: string | null) {
   const [promotion, setPromotion] = useState<Promotion | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -144,34 +29,87 @@ export function usePromotion(promotionId: string | null) {
   }, [])
 
   useEffect(() => {
-    if (!isClient || !promotionId) return
+    if (!isClient) return
+    if (isSingleMode && !options?.promotionId) return
 
-    const fetchPromotion = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true)
         setError(null)
 
-        const fetchedPromotion = await PromotionService.getPromotion(promotionId)
-        setPromotion(fetchedPromotion)
+        if (isSingleMode && options.promotionId) {
+          // Single promotion mode
+          const fetchedPromotion = await PromotionService.getPromotion(options.promotionId)
+          setPromotion(fetchedPromotion)
+        } else {
+          // Multiple promotions mode
+          const filters = {
+            businessId: options?.businessId,
+            status: options?.status,
+            limit: options?.limit,
+          }
+          const fetchedPromotions = await PromotionService.getPromotions(filters)
+          setPromotions(fetchedPromotions)
+        }
       } catch (err) {
-        console.error("Error fetching promotion:", err)
-        setError("Failed to load promotion")
-        setPromotion(null)
+        console.error(`Error fetching ${isSingleMode ? 'promotion' : 'promotions'}:`, err)
+        setError(`Failed to load ${isSingleMode ? 'promotion' : 'promotions'}`)
+        if (isSingleMode) {
+          setPromotion(null)
+        } else {
+          setPromotions([])
+        }
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchPromotion()
-  }, [isClient, promotionId])
+    fetchData()
+  }, [isClient, isSingleMode, options?.promotionId, options?.businessId, options?.status, options?.limit])
 
-  const updatePromotion = async (data: Partial<Promotion>) => {
-    if (!promotionId) return false
+  const refresh = async () => {
+    if (!isClient) return
+    if (isSingleMode && !options?.promotionId) return
 
     try {
-      const success = await PromotionService.updatePromotion(promotionId, data)
-      if (success && promotion) {
-        setPromotion({ ...promotion, ...data })
+      setIsLoading(true)
+      setError(null)
+
+      if (isSingleMode && options.promotionId) {
+        const fetchedPromotion = await PromotionService.getPromotion(options.promotionId)
+        setPromotion(fetchedPromotion)
+      } else {
+        const filters = {
+          businessId: options?.businessId,
+          status: options?.status,
+          limit: options?.limit,
+        }
+        const fetchedPromotions = await PromotionService.getPromotions(filters)
+        setPromotions(fetchedPromotions)
+      }
+    } catch (err) {
+      console.error(`Error refreshing ${isSingleMode ? 'promotion' : 'promotions'}:`, err)
+      setError(`Failed to refresh ${isSingleMode ? 'promotion' : 'promotions'}`)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const updatePromotionData = async (promotionId: string, data: Partial<Promotion> | "active" | "inactive") => {
+    try {
+      const updateData = typeof data === "string" ? { status: data } : data
+      const success = await PromotionService.updatePromotion(promotionId, updateData)
+
+      if (success) {
+        if (isSingleMode && promotion) {
+          // Update single promotion state
+          setPromotion({ ...promotion, ...updateData })
+        } else {
+          // Update in promotions list
+          setPromotions((prev) =>
+            prev.map((p) => (p.id === promotionId ? { ...p, ...updateData } : p))
+          )
+        }
         return true
       }
       return false
@@ -182,70 +120,27 @@ export function usePromotion(promotionId: string | null) {
     }
   }
 
-  const refreshPromotion = async () => {
-    if (!isClient || !promotionId) return
-
+  const deletePromotion = async (promotionId: string) => {
     try {
-      setIsLoading(true)
-      setError(null)
-      const fetchedPromotion = await PromotionService.getPromotion(promotionId)
-      setPromotion(fetchedPromotion)
-    } catch (err) {
-      console.error("Error refreshing promotion:", err)
-      setError("Failed to refresh promotion")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  return {
-    promotion,
-    isLoading,
-    error,
-    updatePromotion,
-    refreshPromotion,
-  }
-}
-
-export function useBusinessPromotions(businessId: string) {
-  const [promotions, setPromotions] = useState<Promotion[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [isClient, setIsClient] = useState(false)
-
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  useEffect(() => {
-    if (!isClient || !businessId) return
-
-    const fetchPromotions = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        const fetchedPromotions = await PromotionService.getPromotions({businessId})
-        setPromotions(fetchedPromotions)
-      } catch (err) {
-        console.error("Error fetching business promotions:", err)
-        setError("Failed to load promotions")
-        setPromotions([])
-      } finally {
-        setIsLoading(false)
+      const success = await PromotionService.deletePromotion(promotionId)
+      if (success) {
+        setPromotions((prev) => prev.filter((p) => p.id !== promotionId))
+        return true
       }
+      return false
+    } catch (err) {
+      console.error("Error deleting promotion:", err)
+      setError("Failed to delete promotion")
+      return false
     }
-
-    fetchPromotions()
-  }, [isClient, businessId])
+  }
 
   const createPromotion = async (promotionData: Omit<Promotion, "id">) => {
     try {
       const promotionId = await PromotionService.createPromotion(promotionData)
       if (promotionId) {
         // Refresh the list to include the new promotion
-        const fetchedPromotions = await PromotionService.getPromotions({businessId})
-        setPromotions(fetchedPromotions)
+        await refresh()
         return promotionId
       }
       return null
@@ -256,10 +151,63 @@ export function useBusinessPromotions(businessId: string) {
     }
   }
 
+  // Utility functions for filtering promotions
+  const getPromotionById = (id: string): Promotion | undefined => {
+    return promotions.find((p) => p.id === id)
+  }
+
+  const getActivePromotions = (): Promotion[] => {
+    return promotions.filter((p) => p.status === "active")
+  }
+
+  const getExpiredPromotions = (): Promotion[] => {
+    const now = new Date()
+    return promotions.filter((p) => {
+      const expiredAt = p.expired_at
+      if (expiredAt && typeof expiredAt === "object" && "seconds" in expiredAt) {
+        return new Date(expiredAt.seconds * 1000) < now
+      }
+      return new Date(expiredAt) < now
+    })
+  }
+
+  const getPromotionsByBusiness = (businessId: string): Promotion[] => {
+    return promotions.filter((p) => p.business_id === businessId)
+  }
+
+  // Return appropriate data based on mode
+  if (isSingleMode) {
+    return {
+      promotion,
+      isLoading,
+      error,
+      refresh,
+      updatePromotion: updatePromotionData,
+    }
+  }
+
   return {
     promotions,
     isLoading,
     error,
+    refresh,
+    updatePromotionStatus: updatePromotionData,
+    updatePromotion: updatePromotionData,
+    deletePromotion,
     createPromotion,
+    getPromotionById,
+    getActivePromotions,
+    getExpiredPromotions,
+    getPromotionsByBusiness,
   }
+}
+
+// Backwards-compatible wrapper for single promotion fetching
+export function usePromotion(promotionId: string | null) {
+  return usePromotions({ promotionId })
+}
+
+// Backwards-compatible wrapper for business promotions
+export function useBusinessPromotions(businessId: string) {
+  return usePromotions({ businessId })
 }

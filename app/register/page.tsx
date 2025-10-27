@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { HeroesLogo } from "@/components/heroes-logo"
-import { Building2, Mail, Lock, Phone, MapPin, AlertCircle } from "lucide-react"
+import { Building2, Mail, Lock, Phone, MapPin, AlertCircle, UserRound } from "lucide-react"
 import Link from "next/link"
 import { registerBusiness } from "@/lib/auth"
 import { useCategories } from "@/hooks/use-categories"
@@ -25,11 +25,14 @@ export default function BusinessRegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    ownerName: "",
     phone: "",
     nit: "",
     address: "",
     category: "",
     description: "",
+    plan: "enterprise",
+    type: "physical" as "physical" | "online",
     acceptTerms: false,
   })
   const [isLoading, setIsLoading] = useState(false)
@@ -60,6 +63,10 @@ export default function BusinessRegisterPage() {
         phone: formData.phone,
         category: formData.category,
         description: formData.description,
+        address: formData.address,
+        ownerName: formData.ownerName,
+        plan: formData.plan,
+        type: formData.type,
       })
 
       // Redirect to verification or dashboard
@@ -100,13 +107,17 @@ export default function BusinessRegisterPage() {
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="businessName">Nombre de la empresa *</Label>
-                <Input
-                  id="businessName"
-                  placeholder="Como lo verán los usuarios"
-                  value={formData.businessName}
-                  onChange={(e) => handleInputChange("businessName", e.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="businessName"
+                    placeholder="Como lo verán los usuarios"
+                    value={formData.businessName}
+                    className="pl-10"
+                    onChange={(e) => handleInputChange("businessName", e.target.value)}
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -139,7 +150,7 @@ export default function BusinessRegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono *</Label>
+                <Label htmlFor="phone">Teléfono de la sede principal*</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -155,34 +166,39 @@ export default function BusinessRegisterPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo electrónico *</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="nombre@empresa.com"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="pl-10"
-                  required
-                />
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="location-type">Ubicación del negocio *</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value: "physical" | "online") =>
+                    handleInputChange("type", value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="physical">Ubicación Física</SelectItem>
+                    <SelectItem value="online">Tienda Online</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Dirección</Label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="address"
-                  placeholder="Calle 123 #45-67, Bogotá"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              {formData.type == 'physical' &&
+                <div className="space-y-2">
+                  <Label htmlFor="address">Dirección</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="address"
+                      placeholder="Calle 123 #45-67, Bogotá"
+                      value={formData.address}
+                      onChange={(e) => handleInputChange("address", e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              }
             </div>
 
             <div className="space-y-2">
@@ -194,6 +210,39 @@ export default function BusinessRegisterPage() {
                 onChange={(e) => handleInputChange("description", e.target.value)}
                 rows={3}
               />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Correo electrónico *</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="nombre@empresa.com"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ownerName">Tu nombre personal*</Label>
+                <div className="relative">
+                  <UserRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="ownerName"
+                    type="text"
+                    placeholder="Juan Gonzalez"
+                    value={formData.ownerName}
+                    onChange={(e) => handleInputChange("ownerName", e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">

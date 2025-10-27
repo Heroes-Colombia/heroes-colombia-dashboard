@@ -180,7 +180,7 @@ export default function HomePage() {
                 </div>
                 <div className="text-center">
                   <div className="font-semibold text-primary">Básico</div>
-                  <div className="text-muted-foreground">$10,000/mes</div>
+                  <div className="text-muted-foreground">$70,000/mes</div>
                 </div>
                 <div className="text-center">
                   <div className="font-semibold text-secondary">Pro</div>

@@ -26,21 +26,6 @@ import {
 import { Building2, Users, Tag, DollarSign, Download, MapPin, Activity } from "lucide-react"
 import { addDays } from "date-fns"
 
-
-
-
-const userActivity = [
-  { day: "Lun", dau: 12000, mau: 35000 },
-  { day: "Mar", dau: 15000, mau: 36000 },
-  { day: "Mié", dau: 11000, mau: 35500 },
-  { day: "Jue", dau: 18000, mau: 37000 },
-  { day: "Vie", dau: 22000, mau: 38000 },
-  { day: "Sáb", dau: 19000, mau: 37500 },
-  { day: "Dom", dau: 14000, mau: 36500 },
-]
-
-
-
 export default function AdminAnalyticsPage() {
   const { businesses, isLoading: businessesLoading } = useBusinesses()
   const { promotions, isLoading: promotionsLoading } = usePromotions()
@@ -55,7 +40,7 @@ export default function AdminAnalyticsPage() {
   // Calculate real analytics data
   const globalKPIs = {
     totalBusinesses: businesses.length,
-    activePromotions: promotions.filter(p => p.status === "active").length,
+    activePromotions: promotions && promotions.filter(p => p.status === "active").length,
     totalUsers: 0, // Would need to implement users fetching
     totalRedemptions: 0, // Would need to implement redemptions fetching
     platformRevenue: businesses.filter(b => b.plan === "basico").length * 50000 +

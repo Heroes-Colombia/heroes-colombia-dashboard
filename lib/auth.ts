@@ -139,6 +139,11 @@ export interface BusinessUser extends User {
   role: "business"
   businessId: string
   businessName: string
+  businessIdentification?: string
+  businessPhone?: string
+  businessWebsite?: string
+  businessDescription?: string
+  businessAddress?: string
   plan: "gratis" | "basico" | "pro" | "enterprise"
   permissions: ("owner" | "manager" | "staff")[]
 }
@@ -197,6 +202,11 @@ const fetchUserFromFirestore = async (firebaseUserId: string, firebaseUserEmail:
         role: "business",
         businessId: businesDetails.id || firebaseUserId,
         businessName: businesDetails.name || "Mi Empresa",
+        businessIdentification: businesDetails.identification || "",
+        businessPhone: businesDetails.phone_number || "",
+        businessWebsite: businesDetails.website || "",
+        businessDescription: businesDetails.description || "",
+        businessAddress: businesDetails.address || "",
         plan: businesDetails.plan || "gratis",
         permissions: userRole ? [userRole.role as ("owner" | "manager" | "staff")] : ["owner"],
       }
@@ -321,27 +331,26 @@ export const registerBusiness = async (
     address?: string
     ownerName?: string
     plan?: string
+    type?: string
   },
 ): Promise<BusinessUser> => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const firebaseUser = userCredential.user
 
-    // Create business document in businesses collection
-    // Use snake_case fields to match Firebase schema
     const businessDataFirebase = {
       name: businessData.businessName,
       identification: businessData.nit,
       email: firebaseUser.email!,
       phone_number: businessData.phone,
-      categories: [businessData.category], // String array of category IDs
+      categories: [businessData.category],
       description: businessData.description,
       address: businessData.address || "",
-      owner_name: businessData.ownerName || firebaseUser.email?.split("@")[0] || "Business Owner",
+      owner_name: businessData.ownerName || "Business Owner",
       owner_uid: firebaseUser.uid,
 
       // Type & Categories
-      type: (businessData.address ? "physical" : "online") as BusinessType,
+      type: businessData.type as BusinessType,
 
       // Default location (Bogotá center for now - should be updated with real geocoding)
       location: { latitude: 4.6097, longitude: -74.0817 },
@@ -352,7 +361,7 @@ export const registerBusiness = async (
 
       status: "pending" as BusinessStatus,
       featured: false,
-      plan: businessData.plan as PlanType,
+      plan: businessData.plan as PlanType || "enterprise",
       subscription_status: "trial" as SubscriptionStatus,
     }
 
@@ -360,7 +369,7 @@ export const registerBusiness = async (
     const businessId = await BusinessService.createBusiness(businessDataFirebase)
 
     if (!businessId) {
-      throw new Error("Failed to create business profile")
+      throw new Error("Error al registrar la empresa")
     }
 
     // Create user profile in users collection (Schema V2)
@@ -368,10 +377,8 @@ export const registerBusiness = async (
       uid: firebaseUser.uid,
       email: firebaseUser.email!,
 
-      // V1 field (keep for backward compatibility)
       permission: "business",
 
-      // V2 fields (new schema)
       user_type: "business_team",
       business_roles: [
         {
@@ -386,10 +393,8 @@ export const registerBusiness = async (
       owned_businesses: [businessId],
       first_name: businessData.ownerName?.split(" ")[0] || "Business",
       first_last_name: businessData.ownerName?.split(" ")[1] || "Owner",
-      identification_card: businessData.nit,
       verified: false,
       rank: "Business Owner",
-      phone_number: businessData.phone,
       created_at: new Date(),
       updated_at: new Date()
     }
@@ -400,9 +405,9 @@ export const registerBusiness = async (
     await LocationService.createLocation(businessId, {
       name: `${businessData.businessName} - Sede Principal`,
       is_primary: true,
-      type: businessData.address ? "physical" : "online",
+      type: businessData.type,
       phone: businessData.phone || null,
-      email: firebaseUser.email || null,
+      email: null,
       website: null,
       address: businessData.address || null,
       location: businessData.address ? { latitude: 4.6097, longitude: -74.0817 } : null,
@@ -423,6 +428,9 @@ export const registerBusiness = async (
       role: "business",
       businessId: businessId,
       businessName: businessData.businessName,
+      businessIdentification: businessData.nit,
+      businessPhone: businessData.phone,
+      businessDescription: businessData.description,
       plan: businessData.plan as PlanType || "enterprise",
       permissions: ["owner"],
     }
@@ -430,7 +438,7 @@ export const registerBusiness = async (
     return businessUser
   } catch (error: any) {
     console.error("Registration error:", error)
-    throw new Error(error.message || "Registration failed")
+    throw new Error(error.message || "Error al registrar la empresa")
   }
 }
 

@@ -10,7 +10,6 @@ import type { Timestamp } from "firebase/firestore"
 
 export type PlanType = "gratis" | "basico" | "pro" | "enterprise"
 export type UserRole = "business" | "admin"
-export type BusinessPermission = "owner" | "manager" | "staff"
 export type AdminPermission = "super_admin"
 export type LocationType = "physical" | "online"
 export type BusinessType = "physical" | "online" | "hybrid"
@@ -347,6 +346,12 @@ export interface BusinessRole {
   permissions: TeamPermissions
 }
 
+export enum BusinessPermission {
+  owner = "owner",
+  manager = "manager",
+  staff = "employee",
+}
+
 export interface TeamPermissions {
   can_manage_promotions: boolean
   can_view_analytics: boolean
@@ -355,6 +360,35 @@ export interface TeamPermissions {
   can_manage_locations: boolean
   can_view_billing: boolean
 }
+
+export const DEFAULT_PERMISSIONS: Record<BusinessPermission, TeamPermissions> = {
+  [BusinessPermission.owner]: {
+    can_manage_promotions: true,
+    can_view_analytics: true,
+    can_manage_redemptions: true,
+    can_manage_team: true,
+    can_manage_locations: true,
+    can_view_billing: true,
+  },
+  [BusinessPermission.manager]: {
+    can_manage_promotions: true,
+    can_view_analytics: true,
+    can_manage_redemptions: true,
+    can_manage_team: false,
+    can_manage_locations: true,
+    can_view_billing: false,
+  },
+  [BusinessPermission.staff]: {
+    can_manage_promotions: false,
+    can_view_analytics: false,
+    can_manage_redemptions: true,
+    can_manage_team: false,
+    can_manage_locations: false,
+    can_view_billing: false,
+  },
+}
+
+export type DefaultPermissionsType = typeof DEFAULT_PERMISSIONS
 
 export type FirebaseUser = FirebaseConsumerUser | FirebaseBusinessUser
 
@@ -800,10 +834,12 @@ export interface TeamMember {
   email: string
   first_name: string
   last_name: string
-  role: "owner" | "manager" | "staff"
-  permissions: string[]
-  business_roles?: string[]
-  status: "active" | "inactive"
+  role: BusinessPermission
+  permissions: TeamPermissions
+  business_roles?: BusinessRole[]
+  status: "active" | "inactive" | "pending"
+  verified?: boolean
   created_at: Date | any
-  added_by: string
+  updated_at?: Date | any
+  // Add any other fields from FirebaseBusinessUser or BusinessRole that are used
 }

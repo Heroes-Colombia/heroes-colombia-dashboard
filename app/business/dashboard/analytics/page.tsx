@@ -1,11 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
+import { usePromotions } from "@/hooks/use-promotions"
+import { AnalyticsEventService } from "@/lib/services/analytics-service"
+import {
+  calculateBasicAnalytics,
+  calculateAdvancedAnalytics,
+  calculateEnterpriseAnalytics,
+  calculateFunnelData,
+  calculateLocationAnalytics,
+  calculateTimeSeriesData,
+  filterPromotionsByDateRange,
+  filterEventsByDateRange,
+} from "@/lib/analytics-utils"
+import type { FirebaseAnalyticsEvent, BusinessLocation } from "@/lib/types"
 import {
   XAxis,
   YAxis,
@@ -35,93 +48,17 @@ import {
   Users,
   BookmarkCheck,
 } from "lucide-react"
-import { getCurrentUser } from "@/lib/auth"
+import { useAuth } from "@/hooks/use-auth"
 import { addDays } from "date-fns"
 import { getPlanLimits } from "@/lib/plan-limits"
 import { UpgradePlanButton } from "@/components/upgrade-plan-button"
 import { LockedFeature, FeatureGate } from "@/components/locked-feature"
 import type { PlanType } from "@/lib/types"
 
-// Mock analytics data
-const basicAnalytics = {
-  impressions: 45678,
-  views: 23456,
-  saves: 8765,
-  redemptions: 1234,
-}
-
-const advancedAnalytics = {
-  ...basicAnalytics,
-  conversionRate: 5.3,
-  revenue: 2340000,
-  demographics: {
-    age: [
-      { range: "18-25", value: 25 },
-      { range: "26-35", value: 35 },
-      { range: "36-45", value: 28 },
-      { range: "46-55", value: 12 },
-    ],
-    rank: [
-      { rank: "Soldado", value: 40 },
-      { rank: "Cabo", value: 25 },
-      { rank: "Sargento", value: 20 },
-      { rank: "Teniente", value: 10 },
-      { rank: "Capitán", value: 5 },
-    ],
-    cities: [
-      { city: "Bogotá", users: 1234 },
-      { city: "Medellín", users: 876 },
-      { city: "Cali", users: 654 },
-      { city: "Barranquilla", users: 432 },
-    ],
-  },
-}
-
-const enterpriseAnalytics = {
-  ...advancedAnalytics,
-  heatmaps: [
-    { page: "Promoción 1", clicks: 234, time: 45 },
-    { page: "Promoción 2", clicks: 189, time: 38 },
-    { page: "Promoción 3", clicks: 156, time: 42 },
-  ],
-  cohorts: [
-    { month: "Enero", retention: 85 },
-    { month: "Febrero", retention: 78 },
-    { month: "Marzo", retention: 72 },
-    { month: "Abril", retention: 68 },
-  ],
-  benchmarking: {
-    industry: "Restaurantes",
-    myConversion: 5.3,
-    industryAverage: 4.8,
-    topPerformers: 7.2,
-  },
-}
-
-const timeSeriesData = [
-  { date: "01/01", impressions: 1200, views: 800, redemptions: 45, revenue: 180000 },
-  { date: "02/01", impressions: 1900, views: 1200, redemptions: 67, revenue: 268000 },
-  { date: "03/01", impressions: 800, views: 600, redemptions: 32, revenue: 128000 },
-  { date: "04/01", impressions: 2400, views: 1800, redemptions: 89, revenue: 356000 },
-  { date: "05/01", impressions: 3200, views: 2400, redemptions: 134, revenue: 536000 },
-  { date: "06/01", impressions: 2800, views: 2100, redemptions: 112, revenue: 448000 },
-  { date: "07/01", impressions: 1600, views: 1100, redemptions: 78, revenue: 312000 },
-]
-
-const funnelData = [
-  { name: "Impresiones", value: 45678, fill: "#7A8B5A" },
-  { name: "Vistas", value: 23456, fill: "#1E3A8A" },
-  { name: "Guardadas", value: 8765, fill: "#059669" },
-  { name: "Redenciones", value: 1234, fill: "#DC2626" },
-]
-
-// Mock per-location analytics (Pro feature)
-const locationAnalytics = [
-  { location: "Sede Principal - Zona Rosa", impressions: 25000, views: 15000, redemptions: 700 },
-  { location: "Tienda Online", impressions: 20678, views: 8456, redemptions: 534 },
-]
-
 export default function BusinessAnalyticsPage() {
+  const [analyticsEvents, setAnalyticsEvents] = useState<FirebaseAnalyticsEvent[]>([])
+  const [locations, setLocations] = useState<BusinessLocation[]>([])
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false)
   const [dateRange, setDateRange] = useState({
     from: addDays(new Date(), -30),
     to: new Date(),
@@ -130,9 +67,12 @@ export default function BusinessAnalyticsPage() {
   const [selectedLocation, setSelectedLocation] = useState("all")
   const [reportType, setReportType] = useState("overview")
 
-  const user = getCurrentUser("business") as any
-  const plan: PlanType = user?.plan || "gratis"
+  const { user } = useAuth()
+  const businessUser = user as any
+  const { promotions, isLoading: promotionsLoading } = usePromotions({ businessId: businessUser?.id })
+  const plan: PlanType = businessUser?.plan || "gratis"
   const limits = getPlanLimits(plan)
+  
 
   // Analytics tier access
   const analyticsLevel = limits.analyticsLevel
@@ -140,6 +80,72 @@ export default function BusinessAnalyticsPage() {
   const hasAdvanced = analyticsLevel === "advanced" || analyticsLevel === "enterprise"
   const hasEnterprise = analyticsLevel === "enterprise"
   const hasPerLocationAnalytics = limits.perLocationAnalytics
+
+  // Fetch analytics events when business or date range changes
+  useEffect(() => {
+    async function fetchAnalyticsData() {
+      if (!businessUser?.id) return
+
+      setIsLoadingEvents(true)
+      try {
+        const events = await AnalyticsEventService.getAnalyticsEvents(businessUser.id, {
+          dateRange,
+        })
+        setAnalyticsEvents(events)
+      } catch (error) {
+        console.error("Error fetching analytics events:", error)
+      } finally {
+        setIsLoadingEvents(false)
+      }
+    }
+
+    fetchAnalyticsData()
+  }, [businessUser?.id, dateRange])
+
+  // Calculate analytics based on plan level
+  const filteredPromotions = useMemo(() => {
+    return filterPromotionsByDateRange(promotions || [], dateRange)
+  }, [promotions, dateRange])
+
+  const filteredEvents = useMemo(() => {
+    return filterEventsByDateRange(analyticsEvents, dateRange)
+  }, [analyticsEvents, dateRange])
+
+  const basicAnalytics = useMemo(() => {
+    return calculateBasicAnalytics(filteredPromotions)
+  }, [filteredPromotions])
+
+  const advancedAnalytics = useMemo(() => {
+    if (plan === "pro" || plan === "enterprise") {
+      return calculateAdvancedAnalytics(filteredPromotions, filteredEvents)
+    }
+    return null
+  }, [plan, filteredPromotions, filteredEvents])
+
+  const enterpriseAnalytics = useMemo(() => {
+    if (plan === "enterprise") {
+      return calculateEnterpriseAnalytics(filteredPromotions, filteredEvents)
+    }
+    return null
+  }, [plan, filteredPromotions, filteredEvents])
+
+  const funnelData = useMemo(() => {
+    return calculateFunnelData(filteredPromotions, filteredEvents)
+  }, [filteredPromotions, filteredEvents])
+
+  const timeSeriesData = useMemo(() => {
+    if (filteredEvents.length > 0) {
+      return calculateTimeSeriesData(filteredEvents, dateRange)
+    }
+    return []
+  }, [filteredEvents, dateRange])
+
+  const locationAnalyticsData = useMemo(() => {
+    if (hasPerLocationAnalytics && filteredEvents.length > 0 && locations.length > 0) {
+      return calculateLocationAnalytics(filteredEvents, locations)
+    }
+    return []
+  }, [hasPerLocationAnalytics, filteredEvents, locations])
 
   const handleExportReport = (format: "csv" | "pdf") => {
     // TODO: Implement export functionality
@@ -202,9 +208,11 @@ export default function BusinessAnalyticsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas las promociones</SelectItem>
-            <SelectItem value="promo1">Descuento 20% Almuerzo</SelectItem>
-            <SelectItem value="promo2">2x1 Bebidas</SelectItem>
-            <SelectItem value="promo3">Envío Gratis</SelectItem>
+            {promotions && promotions.map((promo) => (
+              <SelectItem key={promo.id} value={promo.id}>
+                {promo.title}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         {hasPerLocationAnalytics && (
@@ -215,8 +223,11 @@ export default function BusinessAnalyticsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas las ubicaciones</SelectItem>
-              <SelectItem value="loc1">Sede Principal</SelectItem>
-              <SelectItem value="loc2">Tienda Online</SelectItem>
+              {locations.map((loc) => (
+                <SelectItem key={loc.id} value={loc.id}>
+                  {loc.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         )}
@@ -348,8 +359,8 @@ export default function BusinessAnalyticsPage() {
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{advancedAnalytics.conversionRate}%</div>
-                <p className="text-xs text-muted-foreground">+0.3% vs período anterior</p>
+                <div className="text-2xl font-bold">{advancedAnalytics?.conversionRate.toFixed(1) || 0}%</div>
+                <p className="text-xs text-muted-foreground">Tasa de conversión</p>
               </CardContent>
             </Card>
 
@@ -359,8 +370,8 @@ export default function BusinessAnalyticsPage() {
                 <ShoppingCart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${advancedAnalytics.revenue.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">+18% vs período anterior</p>
+                <div className="text-2xl font-bold">${advancedAnalytics?.revenue.toLocaleString() || 0}</div>
+                <p className="text-xs text-muted-foreground">Estimado</p>
               </CardContent>
             </Card>
 
@@ -371,7 +382,7 @@ export default function BusinessAnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  ${Math.round(advancedAnalytics.revenue / advancedAnalytics.redemptions).toLocaleString()}
+                  ${advancedAnalytics?.averageRevenuePerRedemption.toLocaleString() || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">Promedio</p>
               </CardContent>
@@ -407,37 +418,49 @@ export default function BusinessAnalyticsPage() {
                 <CardTitle>Demografía por Edad</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={advancedAnalytics.demographics.age}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="range" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="value" fill="#7A8B5A" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {advancedAnalytics?.demographics.age && advancedAnalytics.demographics.age.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={advancedAnalytics.demographics.age}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="range" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="value" fill="#7A8B5A" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
+                    No hay datos de edad disponibles
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Distribución por Rango</CardTitle>
+                <CardTitle>Distribución por Fuerza</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={advancedAnalytics.demographics.rank}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={60}
-                      fill="#1E3A8A"
-                      dataKey="value"
-                      label={({ rank, value }) => `${rank}: ${value}%`}
-                    />
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                {advancedAnalytics?.demographics.rank && advancedAnalytics.demographics.rank.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={advancedAnalytics.demographics.rank}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={60}
+                        fill="#1E3A8A"
+                        dataKey="value"
+                        label={({ rank, value }) => `${rank}: ${value}%`}
+                      />
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
+                    No hay datos de rangos disponibles
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -447,15 +470,19 @@ export default function BusinessAnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {advancedAnalytics.demographics.cities.map((city, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{city.city}</span>
+                  {advancedAnalytics?.demographics.cities && advancedAnalytics.demographics.cities.length > 0 ? (
+                    advancedAnalytics.demographics.cities.map((city, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{city.city}</span>
+                        </div>
+                        <span className="text-sm font-medium">{city.users}</span>
                       </div>
-                      <span className="text-sm font-medium">{city.users}</span>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <div className="text-sm text-muted-foreground">No hay datos de ciudades disponibles</div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -464,7 +491,7 @@ export default function BusinessAnalyticsPage() {
       </FeatureGate>
 
       {/* Per-Location Analytics - Pro+ with perLocationAnalytics flag */}
-      {hasPerLocationAnalytics && (
+      {hasPerLocationAnalytics && locationAnalyticsData.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -475,7 +502,7 @@ export default function BusinessAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {locationAnalytics.map((loc, index) => (
+              {locationAnalyticsData.map((loc, index) => (
                 <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <h4 className="font-medium">{loc.location}</h4>
@@ -487,7 +514,7 @@ export default function BusinessAnalyticsPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold">
-                      {((loc.redemptions / loc.views) * 100).toFixed(1)}%
+                      {loc.views > 0 ? ((loc.redemptions / loc.views) * 100).toFixed(1) : 0}%
                     </div>
                     <div className="text-xs text-muted-foreground">Conversión</div>
                   </div>
@@ -518,19 +545,23 @@ export default function BusinessAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {enterpriseAnalytics.heatmaps.map((page, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{page.page}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {page.clicks} clics, {page.time}s promedio
-                      </p>
+                {enterpriseAnalytics && enterpriseAnalytics.heatmaps && enterpriseAnalytics.heatmaps.length > 0 ? (
+                  enterpriseAnalytics.heatmaps.map((page, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <h4 className="font-medium">{page.page}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {page.clicks} clics
+                        </p>
+                      </div>
+                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: `${Math.min((page.clicks / 250) * 100, 100)}%` }} />
+                      </div>
                     </div>
-                    <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: `${(page.clicks / 250) * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground">No hay datos de mapas de calor disponibles</div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -543,15 +574,21 @@ export default function BusinessAnalyticsPage() {
                 <CardDescription>Retención de usuarios por mes</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={enterpriseAnalytics.cohorts}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="retention" stroke="#1E3A8A" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
+                {enterpriseAnalytics && enterpriseAnalytics.cohorts && enterpriseAnalytics.cohorts.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={enterpriseAnalytics.cohorts}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="retention" stroke="#1E3A8A" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
+                    No hay datos de cohortes disponibles
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -565,19 +602,19 @@ export default function BusinessAnalyticsPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Tu conversión</span>
                     <span className="text-lg font-bold text-primary">
-                      {enterpriseAnalytics.benchmarking.myConversion}%
+                      {enterpriseAnalytics?.benchmarking.myConversion.toFixed(1) || 0}%
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Promedio industria</span>
                     <span className="text-lg font-bold text-muted-foreground">
-                      {enterpriseAnalytics.benchmarking.industryAverage}%
+                      {enterpriseAnalytics?.benchmarking.industryAverage.toFixed(1) || 0}%
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Top performers</span>
                     <span className="text-lg font-bold text-secondary">
-                      {enterpriseAnalytics.benchmarking.topPerformers}%
+                      {enterpriseAnalytics?.benchmarking.topPerformers.toFixed(1) || 0}%
                     </span>
                   </div>
                 </div>

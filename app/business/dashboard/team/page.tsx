@@ -30,61 +30,34 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { getPlanLimits } from "@/lib/plan-limits"
+import { PlanType, BusinessPermission, DEFAULT_PERMISSIONS, TeamMember } from "@/lib/types"
+import type { TeamPermissions } from "@/lib/types"
 import { PlanLimitBadge, PlanLimitProgress } from "@/components/plan-limit-badge"
-import { UpgradePlanButton } from "@/components/upgrade-plan-button"
 import { LockedFeature } from "@/components/locked-feature"
 import { TeamMemberService } from "@/lib/services/team-member-service"
-import type { PlanType, BusinessPermission } from "@/lib/types"
 
-// Firebase Schema V2 - Team member structure
-interface TeamMember {
-  id: string
-  businessId: string
-  userId?: string // null if invitation pending
-  email: string
-  name?: string
-  role: BusinessPermission
-
-  // Invitation Status
-  invitationStatus: "pending" | "accepted" | "rejected"
-  invitedBy: string
-  invitedAt: Date
-  acceptedAt?: Date
-
-  // Access Control
-  isActive: boolean
-  permissions: TeamPermissions
-
-  // Metadata
-  createdAt: Date
-  updatedAt: Date
-}
-
-interface TeamPermissions {
-  canManagePromotions: boolean
-  canViewAnalytics: boolean
-  canManageRedemptions: boolean
-  canManageTeam: boolean
-  canManageLocations: boolean
-  canViewBilling: boolean
-}
-
-const roleConfig = {
-  owner: {
+const roleConfig: Record<BusinessPermission, {
+  label: string;
+  icon: any; // Using 'any' for now to avoid specific LucideIcon typing issues
+  description: string;
+  color: string;
+  variant: "default" | "secondary" | "outline";
+}> = {
+  [BusinessPermission.owner]: {
     label: "Propietario",
     icon: Crown,
     description: "Acceso completo a todas las funciones",
     color: "text-yellow-600",
     variant: "default" as const,
   },
-  manager: {
+  [BusinessPermission.manager]: {
     label: "Gerente",
     icon: Shield,
     description: "Gestión de promociones, analíticas y ubicaciones",
     color: "text-blue-600",
     variant: "secondary" as const,
   },
-  staff: {
+  [BusinessPermission.staff]: {
     label: "Personal",
     icon: User,
     description: "Acceso limitado para operaciones básicas",
@@ -93,35 +66,8 @@ const roleConfig = {
   },
 }
 
-const defaultPermissionsByRole: Record<BusinessPermission, Partial<TeamPermissions>> = {
-  owner: {
-    canManagePromotions: true,
-    canViewAnalytics: true,
-    canManageRedemptions: true,
-    canManageTeam: true,
-    canManageLocations: true,
-    canViewBilling: true,
-  },
-  manager: {
-    canManagePromotions: true,
-    canViewAnalytics: true,
-    canManageRedemptions: true,
-    canManageTeam: false,
-    canManageLocations: true,
-    canViewBilling: false,
-  },
-  staff: {
-    canManagePromotions: false,
-    canViewAnalytics: false,
-    canManageRedemptions: true,
-    canManageTeam: false,
-    canManageLocations: false,
-    canViewBilling: false,
-  },
-}
-
 export default function TeamPage() {
-  const [teamMembers, setTeamMembers] = useState<any[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -129,15 +75,15 @@ export default function TeamPage() {
   const [newInvitation, setNewInvitation] = useState({
     email: "",
     name: "",
-    role: "staff" as BusinessPermission,
-    permissions: defaultPermissionsByRole.staff as TeamPermissions,
+    role: BusinessPermission.staff,
+    permissions: DEFAULT_PERMISSIONS[BusinessPermission.staff],
   })
 
   const { user } = useAuth()
   const businessUser = user as any
   const plan: PlanType = businessUser?.plan || "gratis"
   const limits = getPlanLimits(plan)
-  const businessId = businessUser?.businessId || businessUser?.id
+  const businessId = businessUser?.businessId
 
   // Fetch team members from Firebase
   useEffect(() => {
@@ -161,45 +107,43 @@ export default function TeamPage() {
 
   const filteredMembers = teamMembers.filter((member) => {
     const matchesSearch =
-      member.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || member.invitationStatus === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesStatus = statusFilter === "all" || member.status === statusFilter
+    return matchesSearch && matchesStatus && member.id !== businessUser.id
   })
 
-  const teamLimit = limits.maxUsers === Infinity ? Infinity : limits.maxUsers
+  const teamLimit = limits.maxUsers
   // Count only accepted and pending members (not rejected)
-  const activeTeamCount = teamMembers.filter(m => m.invitationStatus !== "rejected").length + 1 // +1 for owner
+  const activeTeamCount = teamMembers.filter(m => m.status !== "inactive").length // +1 for owner
   const canInviteMore = activeTeamCount < teamLimit
 
-  const getStatusBadge = (status: string, isActive: boolean) => {
-    if (!isActive) {
-      return <Badge variant="destructive">Inactivo</Badge>
+  const getStatusBadge = (status: string, isVerified?: boolean) => {
+    if (!isVerified) {
+      return <Badge variant="destructive">Pendiente</Badge>
     }
 
     switch (status) {
-      case "accepted":
+      case "active":
         return <Badge variant="default" className="gap-1">
           <CheckCircle className="h-3 w-3" />
           Activo
         </Badge>
-      case "pending":
+      case "inactive":
         return <Badge variant="secondary" className="gap-1">
           <Clock className="h-3 w-3" />
-          Pendiente
-        </Badge>
-      case "rejected":
-        return <Badge variant="destructive" className="gap-1">
-          <XCircle className="h-3 w-3" />
-          Rechazado
+          Inactivo
         </Badge>
       default:
-        return <Badge variant="outline">Desconocido</Badge>
+        return <Badge variant="outline">Pendiente</Badge>
     }
   }
 
   const getRoleBadge = (role: BusinessPermission) => {
     const config = roleConfig[role]
+    if (!config) {
+      return <Badge variant="outline">{role}</Badge>
+    }
     const Icon = config.icon
     return (
       <Badge variant={config.variant} className="gap-1">
@@ -213,7 +157,7 @@ export default function TeamPage() {
     setNewInvitation(prev => ({
       ...prev,
       role,
-      permissions: { ...defaultPermissionsByRole[role] } as TeamPermissions
+      permissions: { ...DEFAULT_PERMISSIONS[role] } as TeamPermissions
     }))
   }
 
@@ -225,41 +169,80 @@ export default function TeamPage() {
   }
 
   const handleInviteTeamMember = async () => {
-    if (!businessId) return
+    if (!businessId || !newInvitation.email) return
+
+    if (!canInviteMore) {
+      alert(`Has alcanzado el límite de ${teamLimit} miembros del equipo para tu plan. Actualiza tu plan para invitar más miembros.`)
+      return
+    }
 
     try {
-      // Note: In Schema V2, team members are users with business_roles array
-      // This is a placeholder - production would:
-      // 1. Check if user exists by email
-      // 2. Add business role to their business_roles array
-      // 3. Send invitation email if user doesn't exist
+      // Convert permissions object to array of permission strings
+      const permissionsArray = Object.entries(newInvitation.permissions)
+        .filter(([_, value]) => value)
+        .map(([key]) => key)
 
-      console.log("Inviting team member:", {
+      // For now, this will show a message that user needs to create an account
+      // In a full implementation, you would:
+      // 1. Create a pending_invitations document
+      // 2. Send invitation email with link to register
+      // 3. When user registers, automatically add business_role
+
+      console.log("Team invitation created:", {
         email: newInvitation.email,
         role: newInvitation.role,
-        permissions: Object.keys(newInvitation.permissions).filter(
-          key => newInvitation.permissions[key as keyof TeamPermissions]
-        )
+        permissions: permissionsArray,
+        businessId
       })
 
-      alert(`Invitación enviada a ${newInvitation.email}. Esta funcionalidad se completará con el flujo de registro de usuarios.`)
+      alert(
+        `Invitación lista para ${newInvitation.email}.\n\n` +
+        `Próximos pasos:\n` +
+        `1. Comparte este correo con tu nuevo miembro del equipo\n` +
+        `2. Deben crear una cuenta en Héroes Colombia con ese correo\n` +
+        `3. Una vez registrados, tendrán acceso como ${roleConfig[newInvitation.role].label}\n\n` +
+        `Nota: Sistema de invitaciones automáticas por correo disponible próximamente.`
+      )
 
       setIsInviteDialogOpen(false)
 
       // Reset form
       setNewInvitation({
-        email: "",
-        name: "",
-        role: "staff",
-        permissions: { ...defaultPermissionsByRole.staff } as TeamPermissions,
+        email: newInvitation.email,
+        name: newInvitation.name,
+        role: newInvitation.role,
+        permissions: DEFAULT_PERMISSIONS[newInvitation.role],
       })
-
-      // Refresh team members
-      const members = await TeamMemberService.getBusinessTeamMembers(businessId)
-      setTeamMembers(members)
     } catch (error) {
       console.error("Error inviting team member:", error)
-      alert("Error: No se pudo enviar la invitación")
+      alert("Error: No se pudo crear la invitación")
+    }
+  }
+
+  const handleRemoveTeamMember = async (memberId: string) => {
+    if (!confirm("¿Estás seguro de que deseas remover este miembro del equipo?")) return
+
+    try {
+      const success = await TeamMemberService.removeTeamMember(businessId, memberId)
+      if (success) {
+        const members = await TeamMemberService.getBusinessTeamMembers(businessId)
+        setTeamMembers(members)
+        alert("Miembro removido del equipo exitosamente")
+      } else {
+        alert("Error: No se pudo remover el miembro del equipo")
+      }
+    } catch (error) {
+      console.error("Error removing team member:", error)
+      alert("Error: No se pudo remover el miembro del equipo")
+    }
+  }
+
+  const handleToggleMemberStatus = async (memberId: string, currentStatus: boolean) => {
+    try {
+      // This would update the is_active status in business_roles array
+      alert(`Cambio de estado pendiente de implementación. Estado actual: ${currentStatus ? "Activo" : "Inactivo"}`)
+    } catch (error) {
+      console.error("Error toggling member status:", error)
     }
   }
 
@@ -279,10 +262,10 @@ export default function TeamPage() {
   }
 
   const getPermissionSummary = (permissions: TeamPermissions) => {
-    const activePermissions = Object.entries(permissions)
+    const activePermissions = permissions && Object.entries(permissions)
       .filter(([_, value]) => value)
       .length
-    const totalPermissions = Object.keys(permissions).length
+    const totalPermissions = permissions && Object.keys(permissions).length
     return `${activePermissions}/${totalPermissions} permisos`
   }
 
@@ -370,7 +353,7 @@ export default function TeamPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="staff">
+                      <SelectItem value={BusinessPermission.staff}>
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4" />
                           <div>
@@ -379,12 +362,21 @@ export default function TeamPage() {
                           </div>
                         </div>
                       </SelectItem>
-                      <SelectItem value="manager">
+                      <SelectItem value={BusinessPermission.manager}>
                         <div className="flex items-center gap-2">
                           <Shield className="h-4 w-4" />
                           <div>
                             <div className="font-medium">Gerente</div>
                             <div className="text-xs text-muted-foreground">Gestión de promociones y analíticas</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value={BusinessPermission.owner}>
+                        <div className="flex items-center gap-2">
+                          <Crown className="h-4 w-4" />
+                          <div>
+                            <div className="font-medium">Administrador</div>
+                            <div className="text-xs text-muted-foreground">Gestión de promociones, equipo y analíticas</div>
                           </div>
                         </div>
                       </SelectItem>
@@ -402,8 +394,8 @@ export default function TeamPage() {
                         <div className="text-xs text-muted-foreground">Crear, editar y eliminar promociones</div>
                       </div>
                       <Switch
-                        checked={newInvitation.permissions.canManagePromotions}
-                        onCheckedChange={(checked) => handlePermissionChange("canManagePromotions", checked)}
+                        checked={newInvitation.permissions.can_manage_promotions}
+                        onCheckedChange={(checked) => handlePermissionChange("can_manage_promotions", checked)}
                       />
                     </div>
                     <div className="flex items-center justify-between">
@@ -412,8 +404,8 @@ export default function TeamPage() {
                         <div className="text-xs text-muted-foreground">Acceder a métricas y reportes</div>
                       </div>
                       <Switch
-                        checked={newInvitation.permissions.canViewAnalytics}
-                        onCheckedChange={(checked) => handlePermissionChange("canViewAnalytics", checked)}
+                        checked={newInvitation.permissions.can_view_analytics}
+                        onCheckedChange={(checked) => handlePermissionChange("can_view_analytics", checked)}
                       />
                     </div>
                     <div className="flex items-center justify-between">
@@ -422,8 +414,8 @@ export default function TeamPage() {
                         <div className="text-xs text-muted-foreground">Procesar redenciones de promociones</div>
                       </div>
                       <Switch
-                        checked={newInvitation.permissions.canManageRedemptions}
-                        onCheckedChange={(checked) => handlePermissionChange("canManageRedemptions", checked)}
+                        checked={newInvitation.permissions.can_manage_redemptions}
+                        onCheckedChange={(checked) => handlePermissionChange("can_manage_redemptions", checked)}
                       />
                     </div>
                     <div className="flex items-center justify-between">
@@ -432,8 +424,8 @@ export default function TeamPage() {
                         <div className="text-xs text-muted-foreground">Administrar ubicaciones del negocio</div>
                       </div>
                       <Switch
-                        checked={newInvitation.permissions.canManageLocations}
-                        onCheckedChange={(checked) => handlePermissionChange("canManageLocations", checked)}
+                        checked={newInvitation.permissions.can_manage_locations}
+                        onCheckedChange={(checked) => handlePermissionChange("can_manage_locations", checked)}
                       />
                     </div>
                     <div className="flex items-center justify-between">
@@ -442,8 +434,8 @@ export default function TeamPage() {
                         <div className="text-xs text-muted-foreground">Invitar y administrar miembros</div>
                       </div>
                       <Switch
-                        checked={newInvitation.permissions.canManageTeam}
-                        onCheckedChange={(checked) => handlePermissionChange("canManageTeam", checked)}
+                        checked={newInvitation.permissions.can_manage_team}
+                        onCheckedChange={(checked) => handlePermissionChange("can_manage_team", checked)}
                       />
                     </div>
                     <div className="flex items-center justify-between">
@@ -452,8 +444,8 @@ export default function TeamPage() {
                         <div className="text-xs text-muted-foreground">Acceder a información de billing</div>
                       </div>
                       <Switch
-                        checked={newInvitation.permissions.canViewBilling}
-                        onCheckedChange={(checked) => handlePermissionChange("canViewBilling", checked)}
+                        checked={newInvitation.permissions.can_view_billing}
+                        onCheckedChange={(checked) => handlePermissionChange("can_view_billing", checked)}
                       />
                     </div>
                   </div>
@@ -475,13 +467,11 @@ export default function TeamPage() {
       </div>
 
       {/* Plan Limits Progress */}
-      {teamLimit !== Infinity && (
-        <PlanLimitProgress
-          plan={plan}
-          resourceType="users"
-          currentCount={activeTeamCount}
-        />
-      )}
+      <PlanLimitProgress
+        plan={plan}
+        resourceType="users"
+        currentCount={activeTeamCount}
+      />
 
       {/* Plan Limits Warning */}
       {!canInviteMore && (
@@ -508,7 +498,7 @@ export default function TeamPage() {
               <Avatar className="h-12 w-12">
                 <AvatarImage src="" />
                 <AvatarFallback className="bg-primary text-primary-foreground">
-                  {getInitials(businessUser?.businessName, businessUser?.email)}
+                  {getInitials(businessUser?.name, businessUser?.email)}
                 </AvatarFallback>
               </Avatar>
               <div>
@@ -517,7 +507,7 @@ export default function TeamPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {getRoleBadge("owner")}
+              {getRoleBadge(businessUser?.permissions[0])}
               <Badge variant="default">Activo</Badge>
             </div>
           </div>
@@ -559,46 +549,45 @@ export default function TeamPage() {
                   <Avatar className="h-12 w-12">
                     <AvatarImage src="" />
                     <AvatarFallback>
-                      {getInitials(member.name, member.email)}
+                      {getInitials(member.first_name, member.email)}
                     </AvatarFallback>
                   </Avatar>
 
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold">{member.name || member.email}</h3>
+                      <h3 className="font-semibold">{member.first_name || member.email}</h3>
                       {getRoleBadge(member.role)}
-                      {getStatusBadge(member.invitationStatus, member.isActive)}
+                      {getStatusBadge(member.status, member.verified)}
                     </div>
 
-                    {member.name && (
+                    {member.first_name && (
                       <p className="text-sm text-muted-foreground mb-2">{member.email}</p>
                     )}
 
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span>{getPermissionSummary(member.permissions)}</span>
-                      <span>Invitado: {formatDate(member.invitedAt)}</span>
-                      {member.acceptedAt && (
-                        <span>Aceptado: {formatDate(member.acceptedAt)}</span>
+                      <span>Invitado: {formatDate(member.created_at)}</span>
+                      {member.status === "active" && (
+                        <span>Aceptado: {formatDate(member.updated_at)}</span>
                       )}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {member.invitationStatus === "pending" && (
+                  {member.status === "pending" && (
                     <Button variant="ghost" size="sm">
                       <Mail className="h-4 w-4 mr-1" />
                       Reenviar
                     </Button>
                   )}
-                  <Button variant="ghost" size="icon">
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveTeamMember(member.id)}
+                    title="Remover miembro"
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               </div>
