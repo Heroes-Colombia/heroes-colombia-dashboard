@@ -3,10 +3,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth } from "@/lib/firebase"
-import { type User, getCurrentUser, refreshUserCache } from "@/lib/auth"
+import { type CustomerUser, getCurrentUser, refreshUserCache } from "@/lib/auth"
 
 interface AuthContextType {
-  user: User | null
+  user: CustomerUser | null
   loading: boolean
   refetch: () => Promise<void>
   refreshCache: () => Promise<void>
@@ -15,7 +15,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<CustomerUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchUser = async () => {

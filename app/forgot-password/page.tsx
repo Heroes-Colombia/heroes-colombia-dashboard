@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground text-center">
-              Revisa tu bandeja de entrada y sigue las instrucciones para restablecer tu contraseña.
+              Revisa tu bandeja de entrada y tu carpeta de spam y sigue las instrucciones para restablecer tu contraseña.
             </p>
             <Link href="/">
               <Button variant="outline" className="w-full bg-transparent">

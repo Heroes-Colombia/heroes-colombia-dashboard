@@ -6,6 +6,8 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   sendPasswordResetEmail,
+  updatePassword,
+  deleteUser,
 } from "firebase/auth"
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { auth, db } from "./firebase"
@@ -20,7 +22,7 @@ const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000      // 7 days - refresh cache
 const SESSION_DURATION = 30 * 24 * 60 * 60 * 1000   // 30 days - force logout
 
 // Cache utilities
-const getCachedUser = (): User | null => {
+const getCachedUser = (): CustomerUser | null => {
   if (typeof window === 'undefined') return null
 
   try {
@@ -42,7 +44,7 @@ const getCachedUser = (): User | null => {
   }
 }
 
-const setCachedUser = (user: User | null): void => {
+const setCachedUser = (user: CustomerUser | null): void => {
   if (typeof window === 'undefined') return
 
   try {
@@ -127,15 +129,16 @@ const readUserById = async (userId: string) => {
   }
 }
 
-export interface User {
+export interface CustomerUser {
   id: string
   email: string
+  name?: string
   role: "business" | "admin"
   businessId?: string
   permissions?: string[]
 }
 
-export interface BusinessUser extends User {
+export interface BusinessUser extends CustomerUser {
   role: "business"
   businessId: string
   businessName: string
@@ -148,13 +151,13 @@ export interface BusinessUser extends User {
   permissions: ("owner" | "manager" | "staff")[]
 }
 
-export interface AdminUser extends User {
+export interface AdminUser extends CustomerUser {
   role: "admin"
   permissions: ("super_admin")[]
 }
 
 // Shared helper to fetch user from Firestore and construct User object
-const fetchUserFromFirestore = async (firebaseUserId: string, firebaseUserEmail: string): Promise<User | null> => {
+const fetchUserFromFirestore = async (firebaseUserId: string, firebaseUserEmail: string): Promise<CustomerUser | null> => {
   try {
     // Retry mechanism for Firestore document retrieval
     const maxRetries = 3
@@ -200,6 +203,7 @@ const fetchUserFromFirestore = async (firebaseUserId: string, firebaseUserEmail:
         id: firebaseUserId,
         email: firebaseUserEmail,
         role: "business",
+        name: userData.first_last_name,
         businessId: businesDetails.id || firebaseUserId,
         businessName: businesDetails.name || "Mi Empresa",
         businessIdentification: businesDetails.identification || "",
@@ -232,7 +236,7 @@ const fetchUserFromFirestore = async (firebaseUserId: string, firebaseUserEmail:
   }
 }
 
-export const loginWithEmail = async (email: string, password: string): Promise<User> => {
+export const loginWithEmail = async (email: string, password: string): Promise<CustomerUser> => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
     const firebaseUser = userCredential.user
@@ -272,50 +276,6 @@ export const loginWithEmail = async (email: string, password: string): Promise<U
     return user
   } catch (error: any) {
     throw new Error(error.message || "Login failed")
-  }
-}
-
-export const loginWithGoogle = async (role: "business" | "admin"): Promise<User> => {
-  try {
-    const provider = new GoogleAuthProvider()
-    const userCredential = await signInWithPopup(auth, provider)
-    const firebaseUser = userCredential.user
-
-    // Check if user profile exists
-    const userDoc = await getDoc(doc(db, "users", firebaseUser.uid))
-
-    if (!userDoc.exists()) {
-      // Create new user profile for Google sign-in
-      const newUserData = {
-        email: firebaseUser.email,
-        role: role,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-
-      if (role === "business") {
-        await setDoc(doc(db, "users", firebaseUser.uid), {
-          ...newUserData,
-          businessName: firebaseUser.displayName || "Mi Empresa",
-          businessId: firebaseUser.uid,
-          plan: "gratis",
-          permission: "business", // V1 compatibility
-          user_type: "business_team", // V2 schema
-          business_roles: [], // V2 schema - empty until business created
-          status: "pending",
-        })
-      } else {
-        await setDoc(doc(db, "users", firebaseUser.uid), {
-          ...newUserData,
-          permission: "admin", // V1 compatibility
-          user_type: "admin", // V2 schema
-        })
-      }
-    }
-
-    return await loginWithEmail(firebaseUser.email!, "")
-  } catch (error: any) {
-    throw new Error(error.message || "Google login failed")
   }
 }
 
@@ -462,7 +422,36 @@ export const resetPassword = async (email: string): Promise<void> => {
   }
 }
 
-export const getCurrentUser = (): Promise<User | null> => {
+export const deleteUserAccount = async (): Promise<void> => {
+  try {
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      throw new Error("No user is currently signed in")
+    }
+
+    // Delete user from Firebase Auth
+    await deleteUser(currentUser)
+
+    // Clear session and cache
+    clearSession()
+  } catch (error: any) {
+    throw new Error(error.message || "Account deletion failed")
+  }
+}
+
+export const updateUserPassword = async (newPassword: string): Promise<void> => {
+  try {
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      throw new Error("Ningun usuario se encuentra logeado")
+    }
+    await updatePassword(currentUser, newPassword)
+  } catch (error: any) {
+    throw new Error(error.message || "Error al actualizar la contraseña")
+  }
+}
+
+export const getCurrentUser = (): Promise<CustomerUser | null> => {
   return new Promise((resolve) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
@@ -550,7 +539,7 @@ export const createAdminUser = async (userId: string, email: string): Promise<vo
 }
 
 // Helper to refresh cached user data after business updates
-export const refreshUserCache = async (): Promise<User | null> => {
+export const refreshUserCache = async (): Promise<CustomerUser | null> => {
   try {
     const firebaseUser = auth.currentUser
 
