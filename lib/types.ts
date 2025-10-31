@@ -349,7 +349,7 @@ export interface BusinessRole {
 export enum BusinessPermission {
   owner = "owner",
   manager = "manager",
-  staff = "employee",
+  staff = "staff",
 }
 
 export interface TeamPermissions {
@@ -361,7 +361,7 @@ export interface TeamPermissions {
   can_view_billing: boolean
 }
 
-export const DEFAULT_PERMISSIONS: Record<BusinessPermission, TeamPermissions> = {
+export const DEFAULT_PERMISSIONS = {
   [BusinessPermission.owner]: {
     can_manage_promotions: true,
     can_view_analytics: true,
@@ -386,7 +386,7 @@ export const DEFAULT_PERMISSIONS: Record<BusinessPermission, TeamPermissions> = 
     can_manage_locations: false,
     can_view_billing: false,
   },
-}
+} as const
 
 export type DefaultPermissionsType = typeof DEFAULT_PERMISSIONS
 
@@ -533,9 +533,9 @@ export interface Promotion {
   location_ids: string[]
 
   // Dates
-  expired_at: Date | any
-  created_at: Date | any
-  updated_at: Date | any
+  expired_at: Date
+  created_at: Date
+  updated_at: Date
 
   // Status
   status: PromotionStatus

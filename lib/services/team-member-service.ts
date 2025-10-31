@@ -3,6 +3,8 @@ import {
     doc,
     getDocs,
     getDoc,
+    where,
+    query,
     updateDoc,
     Timestamp,
 } from "firebase/firestore"
@@ -17,7 +19,8 @@ export class TeamMemberService {
   // Team member operations (users with business_roles)
   static async getBusinessTeamMembers(businessId: string): Promise<any[]> {
     try {
-      const snapshot = await getDocs(collection(db, "users"))
+      const q = query(collection(db, "users"), where("status", "==", "active"))
+      const snapshot = await getDocs(q)
       const teamMembers = snapshot.docs
         .map((doc) => {
           const userData = doc.data()
@@ -109,14 +112,8 @@ export class TeamMemberService {
 
       if (!userSnap.exists()) return false
 
-      const userData = userSnap.data()
-      const businessRoles = userData.business_roles || []
-
-      // Remove role for this business
-      const updatedRoles = businessRoles.filter((r: any) => r.business_id !== businessId)
-
       await updateDoc(userRef, {
-        business_roles: updatedRoles,
+        status: "inactive",
         updated_at: Timestamp.now(),
       })
 

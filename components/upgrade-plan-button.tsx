@@ -99,7 +99,7 @@ export function UpgradePlanButton({
       ...(feature && { feature }),
     })
 
-    router.push(`/plans?${params.toString()}`)
+    router.push(`/business/dashboard/plans?${params.toString()}`)
   }
 
   // Use sparkles icon for gratis users (highlight upgrade opportunity)

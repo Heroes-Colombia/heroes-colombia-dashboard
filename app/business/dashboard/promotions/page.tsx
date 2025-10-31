@@ -24,6 +24,7 @@ import { PromotionService } from "@/lib/services/promotion-service"
 import { LocationService } from "@/lib/services/location-service"
 import type { Promotion, PlanType, BusinessLocation } from "@/lib/types"
 import { useAuth } from "@/hooks/use-auth"
+import { PermissionGuard } from "@/components/permission-guard"
 
 export default function PromotionsPage() {
   const [promotions, setPromotions] = useState<Promotion[]>([])
@@ -198,13 +199,22 @@ export default function PromotionsPage() {
             extraPurchased={extraPromotionsPurchased}
             showIcon
           />
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button disabled={!addPromotionCheck.canAdd && !addPromotionCheck.requiresPayment}>
+          <PermissionGuard
+            permission="can_manage_promotions"
+            fallback={
+              <Button disabled title="No tienes permiso para crear promociones">
                 <Plus className="h-4 w-4 mr-1" />
                 Nueva Promoción
               </Button>
-            </DialogTrigger>
+            }
+          >
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button disabled={!addPromotionCheck.canAdd && !addPromotionCheck.requiresPayment}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nueva Promoción
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Crear Nueva Promoción</DialogTitle>
@@ -348,6 +358,7 @@ export default function PromotionsPage() {
               </div>
             </DialogContent>
           </Dialog>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -494,9 +505,8 @@ export default function PromotionsPage() {
                       {promo.views_count || 0} vistas
                     </span>
                     <span>{promo.saves_count || 0} guardadas</span>
-                    <span>{promo.redemptions_count || 0} redenciones</span>
                     <span>
-                      Expira: {format(promo.expired_at, "dd/MM/yyyy")}
+                      Expira: {new Date((promo.expired_at as any).seconds * 1000).toLocaleString("es-CO")}
                     </span>
                   </div>
                 </div>

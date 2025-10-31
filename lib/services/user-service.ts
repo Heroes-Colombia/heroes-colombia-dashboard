@@ -10,6 +10,7 @@ import {
     Timestamp,
 } from "firebase/firestore"
 import { db } from "../firebase"
+import { FirebaseConsumerUser } from "../types";
 
 export class UserService {
     // User operations
@@ -24,7 +25,7 @@ export class UserService {
       }
   
       const snapshot = await getDocs(q)
-      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as User)
+      return snapshot.docs.map((doc) => ({ uid: doc.id, ...doc.data() }) as FirebaseConsumerUser)
     }
   
     async verifyUser(userId: string, isVerified: boolean) {

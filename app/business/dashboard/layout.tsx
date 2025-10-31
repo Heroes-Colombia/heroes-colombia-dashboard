@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { AuthGuard } from "@/components/auth-guard"
+import { PermissionProvider } from "@/contexts/permission-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -108,7 +109,8 @@ export default function BusinessDashboardLayout({ children }: { children: React.
 
   return (
     <AuthGuard requiredRole="business">
-      <div className="h-screen flex">
+      <PermissionProvider>
+        <div className="h-screen flex">
         {/* Desktop sidebar */}
         <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
           <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-card">
@@ -156,7 +158,8 @@ export default function BusinessDashboardLayout({ children }: { children: React.
             </main>
           </div>
         </Sheet>
-      </div>
+        </div>
+      </PermissionProvider>
     </AuthGuard>
   )
 }

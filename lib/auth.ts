@@ -129,6 +129,21 @@ const readUserById = async (userId: string) => {
   }
 }
 
+export interface BusinessRole {
+  business_id: string
+  role: "owner" | "manager" | "staff"
+  permissions: {
+    can_manage_promotions: boolean
+    can_view_analytics: boolean
+    can_manage_redemptions: boolean
+    can_manage_team: boolean
+    can_manage_locations: boolean
+    can_view_billing: boolean
+  }
+  added_at?: Date
+  updated_at?: Date
+}
+
 export interface CustomerUser {
   id: string
   email: string
@@ -136,6 +151,7 @@ export interface CustomerUser {
   role: "business" | "admin"
   businessId?: string
   permissions?: string[]
+  business_roles?: BusinessRole[]
 }
 
 export interface BusinessUser extends CustomerUser {
@@ -149,6 +165,7 @@ export interface BusinessUser extends CustomerUser {
   businessAddress?: string
   plan: "gratis" | "basico" | "pro" | "enterprise"
   permissions: ("owner" | "manager" | "staff")[]
+  business_roles?: BusinessRole[]
 }
 
 export interface AdminUser extends CustomerUser {
@@ -193,6 +210,7 @@ const fetchUserFromFirestore = async (firebaseUserId: string, firebaseUserEmail:
       let businesDetails = await BusinessService.getBusinessByOwnerId(userData.uid)
 
       if (!businesDetails) {
+        console.log('user with owned businesses: ', userData.owned_businesses);        
         businesDetails = await BusinessService.getBusiness(userData.owned_businesses?.[0])
         if (!businesDetails) {
           throw new Error("El usuario no pertenece a ningún negocio activo en Heroes")
@@ -203,7 +221,7 @@ const fetchUserFromFirestore = async (firebaseUserId: string, firebaseUserEmail:
         id: firebaseUserId,
         email: firebaseUserEmail,
         role: "business",
-        name: userData.first_last_name,
+        name: userData.first_name,
         businessId: businesDetails.id || firebaseUserId,
         businessName: businesDetails.name || "Mi Empresa",
         businessIdentification: businesDetails.identification || "",
@@ -213,6 +231,7 @@ const fetchUserFromFirestore = async (firebaseUserId: string, firebaseUserEmail:
         businessAddress: businesDetails.address || "",
         plan: businesDetails.plan || "gratis",
         permissions: userRole ? [userRole.role as ("owner" | "manager" | "staff")] : ["owner"],
+        business_roles: businessRoles || [],
       }
 
       return businessUser

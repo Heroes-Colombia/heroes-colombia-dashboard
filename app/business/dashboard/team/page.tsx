@@ -35,6 +35,8 @@ import type { TeamPermissions } from "@/lib/types"
 import { PlanLimitBadge, PlanLimitProgress } from "@/components/plan-limit-badge"
 import { LockedFeature } from "@/components/locked-feature"
 import { TeamMemberService } from "@/lib/services/team-member-service"
+import { InvitationService } from "@/lib/services/invitation-service"
+import { PermissionGuard } from "@/components/permission-guard"
 
 const roleConfig: Record<BusinessPermission, {
   label: string;
@@ -58,7 +60,7 @@ const roleConfig: Record<BusinessPermission, {
     variant: "secondary" as const,
   },
   [BusinessPermission.staff]: {
-    label: "Personal",
+    label: "Empleado",
     icon: User,
     description: "Acceso limitado para operaciones básicas",
     color: "text-gray-600",
@@ -68,6 +70,7 @@ const roleConfig: Record<BusinessPermission, {
 
 export default function TeamPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [pendingInvitations, setPendingInvitations] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -76,7 +79,7 @@ export default function TeamPage() {
     email: "",
     name: "",
     role: BusinessPermission.staff,
-    permissions: DEFAULT_PERMISSIONS[BusinessPermission.staff],
+    permissions: { ...DEFAULT_PERMISSIONS[BusinessPermission.staff] } as TeamPermissions,
   })
 
   const { user } = useAuth()
@@ -105,12 +108,68 @@ export default function TeamPage() {
     fetchTeamMembers()
   }, [businessId])
 
+  // Fetch pending invitations
+  const fetchPendingInvitations = async () => {
+    if (!businessId) return
+
+    try {
+      const invitations = await InvitationService.getPendingBusinessInvitations(businessId)
+      setPendingInvitations(invitations)
+    } catch (error) {
+      console.error("Error fetching pending invitations:", error)
+    }
+  }
+
+  useEffect(() => {
+    fetchPendingInvitations()
+  }, [businessId])
+
+  const handleResendInvitation = async (invitationId: string, invitation: any) => {
+    try {
+      await InvitationService.resendInvitation(invitationId)
+
+      const emailResponse = await fetch("/api/send-invitation-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: invitation.invited_email,
+          inviterName: invitation.sender_name,
+          businessName: invitation.business_name,
+          role: roleConfig[invitation.role as BusinessPermission]?.label || invitation.role,
+          invitationToken: invitation.invitation_token,
+        }),
+      })
+
+      if (!emailResponse.ok) {
+        throw new Error("Failed to send email")
+      }
+
+      alert("Invitación reenviada exitosamente")
+    } catch (error) {
+      console.error("Error resending invitation:", error)
+      alert("Error al reenviar la invitación")
+    }
+  }
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    if (!confirm("¿Estás seguro de cancelar esta invitación?")) return
+
+    try {
+      await InvitationService.cancelInvitation(invitationId)
+      await fetchPendingInvitations()
+      alert("Invitación cancelada")
+    } catch (error) {
+      console.error("Error cancelling invitation:", error)
+      alert("Error al cancelar la invitación")
+    }
+  }
+
   const filteredMembers = teamMembers.filter((member) => {
     const matchesSearch =
       member.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.email.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || member.status === statusFilter
-    return matchesSearch && matchesStatus && member.id !== businessUser.id
+    return matchesSearch && matchesStatus && member.id !== businessUser?.id
   })
 
   const teamLimit = limits.maxUsers
@@ -176,46 +235,63 @@ export default function TeamPage() {
       return
     }
 
+    // Simple email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(newInvitation.email)) {
+      alert("Por favor ingresa un correo electrónico válido")
+      return
+    }
+
+    setIsLoading(true)
     try {
-      // Convert permissions object to array of permission strings
-      const permissionsArray = Object.entries(newInvitation.permissions)
-        .filter(([_, value]) => value)
-        .map(([key]) => key)
-
-      // For now, this will show a message that user needs to create an account
-      // In a full implementation, you would:
-      // 1. Create a pending_invitations document
-      // 2. Send invitation email with link to register
-      // 3. When user registers, automatically add business_role
-
-      console.log("Team invitation created:", {
-        email: newInvitation.email,
+      // Create invitation
+      const invitation = await InvitationService.createBusinessTeamInvitation({
+        businessId,
+        businessName: businessUser?.businessName || "tu negocio",
+        invitedEmail: newInvitation.email.toLowerCase().trim(),
+        inviterUid: user?.id,
+        inviterEmail: user?.email!,
+        inviterName: businessUser?.name || user?.name,
         role: newInvitation.role,
-        permissions: permissionsArray,
-        businessId
+        permissions: newInvitation.permissions,
       })
 
-      alert(
-        `Invitación lista para ${newInvitation.email}.\n\n` +
-        `Próximos pasos:\n` +
-        `1. Comparte este correo con tu nuevo miembro del equipo\n` +
-        `2. Deben crear una cuenta en Héroes Colombia con ese correo\n` +
-        `3. Una vez registrados, tendrán acceso como ${roleConfig[newInvitation.role].label}\n\n` +
-        `Nota: Sistema de invitaciones automáticas por correo disponible próximamente.`
-      )
+      // Send email via API route
+      const emailResponse = await fetch("/api/send-invitation-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: newInvitation.email.toLowerCase().trim(),
+          inviterName: businessUser?.name || businessUser.email!,
+          businessName: businessUser?.businessName || "tu negocio",
+          role: roleConfig[newInvitation.role].label,
+          invitationToken: invitation.invitation_token,
+        }),
+      })
 
+      if (!emailResponse.ok) {
+        console.error("Failed to send email:", await emailResponse.text())
+        throw new Error("Failed to send invitation email")
+      }
+
+      alert(`✅ Invitación enviada exitosamente a ${newInvitation.email}`)
       setIsInviteDialogOpen(false)
 
       // Reset form
       setNewInvitation({
-        email: newInvitation.email,
-        name: newInvitation.name,
-        role: newInvitation.role,
-        permissions: DEFAULT_PERMISSIONS[newInvitation.role],
+        email: "",
+        name: "",
+        role: BusinessPermission.staff,
+        permissions: { ...DEFAULT_PERMISSIONS[BusinessPermission.staff] } as TeamPermissions,
       })
+
+      // Refresh to show pending invitation
+      await fetchPendingInvitations()
     } catch (error) {
       console.error("Error inviting team member:", error)
-      alert("Error: No se pudo crear la invitación")
+      alert("Error: No se pudo enviar la invitación. Por favor intenta de nuevo.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -264,8 +340,8 @@ export default function TeamPage() {
   const getPermissionSummary = (permissions: TeamPermissions) => {
     const activePermissions = permissions && Object.entries(permissions)
       .filter(([_, value]) => value)
-      .length
-    const totalPermissions = permissions && Object.keys(permissions).length
+      .length || 0
+    const totalPermissions = permissions && Object.keys(permissions).length || 0
     return `${activePermissions}/${totalPermissions} permisos`
   }
 
@@ -294,175 +370,185 @@ export default function TeamPage() {
             currentCount={activeTeamCount}
             showIcon
           />
-          <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-            <DialogTrigger asChild>
-              <Button disabled={!canInviteMore}>
+          <PermissionGuard
+            permission="can_manage_team"
+            fallback={
+              <Button disabled title="No tienes permiso para gestionar el equipo">
                 <Plus className="h-4 w-4 mr-1" />
                 Invitar Miembro
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Invitar Nuevo Miembro</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-6">
-                {/* Notice about team management */}
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="mt-0.5 h-5 w-5 text-blue-600" />
-                    <div>
-                      <p className="font-medium text-blue-900">Gestión de equipo</p>
-                      <p className="text-sm text-blue-700">
-                        Los miembros del equipo podrán acceder al dashboard según los permisos asignados.
-                      </p>
+            }
+          >
+            <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+              <DialogTrigger asChild>
+                <Button disabled={!canInviteMore}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Invitar Miembro
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Invitar Nuevo Miembro</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6">
+                  {/* Notice about team management */}
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="mt-0.5 h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-blue-900">Gestión de equipo</p>
+                        <p className="text-sm text-blue-700">
+                          Los miembros del equipo podrán acceder al dashboard según los permisos asignados.
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Basic Information */}
-                <div className="grid grid-cols-2 gap-4">
+                  {/* Basic Information */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="member-email">Email *</Label>
+                      <Input
+                        id="member-email"
+                        type="email"
+                        placeholder="usuario@ejemplo.com"
+                        value={newInvitation.email}
+                        onChange={(e) => setNewInvitation(prev => ({ ...prev, email: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="member-name">Nombre</Label>
+                      <Input
+                        id="member-name"
+                        placeholder="Nombre completo (opcional)"
+                        value={newInvitation.name}
+                        onChange={(e) => setNewInvitation(prev => ({ ...prev, name: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Role Selection */}
                   <div className="space-y-2">
-                    <Label htmlFor="member-email">Email *</Label>
-                    <Input
-                      id="member-email"
-                      type="email"
-                      placeholder="usuario@ejemplo.com"
-                      value={newInvitation.email}
-                      onChange={(e) => setNewInvitation(prev => ({ ...prev, email: e.target.value }))}
-                    />
+                    <Label htmlFor="member-role">Rol</Label>
+                    <Select
+                      value={newInvitation.role}
+                      onValueChange={(value: BusinessPermission) => handleRoleChange(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={BusinessPermission.staff}>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            <div>
+                              <div className="font-medium">Personal</div>
+                              <div className="text-xs text-muted-foreground">Acceso básico para operaciones</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value={BusinessPermission.manager}>
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-4 w-4" />
+                            <div>
+                              <div className="font-medium">Gerente</div>
+                              <div className="text-xs text-muted-foreground">Gestión de promociones y analíticas</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value={BusinessPermission.owner}>
+                          <div className="flex items-center gap-2">
+                            <Crown className="h-4 w-4" />
+                            <div>
+                              <div className="font-medium">Administrador</div>
+                              <div className="text-xs text-muted-foreground">Gestión de promociones, equipo y analíticas</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="member-name">Nombre</Label>
-                    <Input
-                      id="member-name"
-                      placeholder="Nombre completo (opcional)"
-                      value={newInvitation.name}
-                      onChange={(e) => setNewInvitation(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                  </div>
-                </div>
 
-                {/* Role Selection */}
-                <div className="space-y-2">
-                  <Label htmlFor="member-role">Rol</Label>
-                  <Select
-                    value={newInvitation.role}
-                    onValueChange={(value: BusinessPermission) => handleRoleChange(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={BusinessPermission.staff}>
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4" />
-                          <div>
-                            <div className="font-medium">Personal</div>
-                            <div className="text-xs text-muted-foreground">Acceso básico para operaciones</div>
-                          </div>
+                  {/* Permissions */}
+                  <div className="space-y-4">
+                    <Label>Permisos Específicos</Label>
+                    <div className="space-y-3 rounded-lg border p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-sm">Gestionar Promociones</div>
+                          <div className="text-xs text-muted-foreground">Crear, editar y eliminar promociones</div>
                         </div>
-                      </SelectItem>
-                      <SelectItem value={BusinessPermission.manager}>
-                        <div className="flex items-center gap-2">
-                          <Shield className="h-4 w-4" />
-                          <div>
-                            <div className="font-medium">Gerente</div>
-                            <div className="text-xs text-muted-foreground">Gestión de promociones y analíticas</div>
-                          </div>
+                        <Switch
+                          checked={newInvitation.permissions.can_manage_promotions}
+                          onCheckedChange={(checked) => handlePermissionChange("can_manage_promotions", checked)}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-sm">Ver Analíticas</div>
+                          <div className="text-xs text-muted-foreground">Acceder a métricas y reportes</div>
                         </div>
-                      </SelectItem>
-                      <SelectItem value={BusinessPermission.owner}>
-                        <div className="flex items-center gap-2">
-                          <Crown className="h-4 w-4" />
-                          <div>
-                            <div className="font-medium">Administrador</div>
-                            <div className="text-xs text-muted-foreground">Gestión de promociones, equipo y analíticas</div>
-                          </div>
+                        <Switch
+                          checked={newInvitation.permissions.can_view_analytics}
+                          onCheckedChange={(checked) => handlePermissionChange("can_view_analytics", checked)}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-sm">Gestionar Redenciones</div>
+                          <div className="text-xs text-muted-foreground">Procesar redenciones de promociones</div>
                         </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Permissions */}
-                <div className="space-y-4">
-                  <Label>Permisos Específicos</Label>
-                  <div className="space-y-3 rounded-lg border p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-sm">Gestionar Promociones</div>
-                        <div className="text-xs text-muted-foreground">Crear, editar y eliminar promociones</div>
+                        <Switch
+                          checked={newInvitation.permissions.can_manage_redemptions}
+                          onCheckedChange={(checked) => handlePermissionChange("can_manage_redemptions", checked)}
+                        />
                       </div>
-                      <Switch
-                        checked={newInvitation.permissions.can_manage_promotions}
-                        onCheckedChange={(checked) => handlePermissionChange("can_manage_promotions", checked)}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-sm">Ver Analíticas</div>
-                        <div className="text-xs text-muted-foreground">Acceder a métricas y reportes</div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-sm">Gestionar Ubicaciones</div>
+                          <div className="text-xs text-muted-foreground">Administrar ubicaciones del negocio</div>
+                        </div>
+                        <Switch
+                          checked={newInvitation.permissions.can_manage_locations}
+                          onCheckedChange={(checked) => handlePermissionChange("can_manage_locations", checked)}
+                        />
                       </div>
-                      <Switch
-                        checked={newInvitation.permissions.can_view_analytics}
-                        onCheckedChange={(checked) => handlePermissionChange("can_view_analytics", checked)}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-sm">Gestionar Redenciones</div>
-                        <div className="text-xs text-muted-foreground">Procesar redenciones de promociones</div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-sm">Gestionar Equipo</div>
+                          <div className="text-xs text-muted-foreground">Invitar y administrar miembros</div>
+                        </div>
+                        <Switch
+                          checked={newInvitation.permissions.can_manage_team}
+                          onCheckedChange={(checked) => handlePermissionChange("can_manage_team", checked)}
+                        />
                       </div>
-                      <Switch
-                        checked={newInvitation.permissions.can_manage_redemptions}
-                        onCheckedChange={(checked) => handlePermissionChange("can_manage_redemptions", checked)}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-sm">Gestionar Ubicaciones</div>
-                        <div className="text-xs text-muted-foreground">Administrar ubicaciones del negocio</div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-sm">Ver Facturación</div>
+                          <div className="text-xs text-muted-foreground">Acceder a información de billing</div>
+                        </div>
+                        <Switch
+                          checked={newInvitation.permissions.can_view_billing}
+                          onCheckedChange={(checked) => handlePermissionChange("can_view_billing", checked)}
+                        />
                       </div>
-                      <Switch
-                        checked={newInvitation.permissions.can_manage_locations}
-                        onCheckedChange={(checked) => handlePermissionChange("can_manage_locations", checked)}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-sm">Gestionar Equipo</div>
-                        <div className="text-xs text-muted-foreground">Invitar y administrar miembros</div>
-                      </div>
-                      <Switch
-                        checked={newInvitation.permissions.can_manage_team}
-                        onCheckedChange={(checked) => handlePermissionChange("can_manage_team", checked)}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-sm">Ver Facturación</div>
-                        <div className="text-xs text-muted-foreground">Acceder a información de billing</div>
-                      </div>
-                      <Switch
-                        checked={newInvitation.permissions.can_view_billing}
-                        onCheckedChange={(checked) => handlePermissionChange("can_view_billing", checked)}
-                      />
                     </div>
                   </div>
-                </div>
 
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleInviteTeamMember} disabled={!newInvitation.email}>
-                    <Send className="h-4 w-4 mr-1" />
-                    Enviar Invitación
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleInviteTeamMember} disabled={!newInvitation.email}>
+                      <Send className="h-4 w-4 mr-1" />
+                      Enviar Invitación
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </PermissionGuard>
         </div>
       </div>
 
@@ -507,12 +593,69 @@ export default function TeamPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {getRoleBadge(businessUser?.permissions[0])}
+              {getRoleBadge(businessUser?.business_roles[0].role)}
               <Badge variant="default">Activo</Badge>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Pending Invitations */}
+      {pendingInvitations.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-orange-600" />
+              Invitaciones Pendientes
+            </CardTitle>
+            <CardDescription>
+              Miembros invitados que aún no han aceptado
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pendingInvitations.map((invitation) => (
+              <div
+                key={invitation.id}
+                className="flex items-center justify-between p-4 bg-white rounded-lg border"
+              >
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-orange-100 text-orange-700">
+                      <Mail className="h-5 w-5" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{invitation.invited_email}</p>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      {getRoleBadge(invitation.role)}
+                      <span>•</span>
+                      <span>Invitado: {formatDate(invitation.created_at.toDate())}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleResendInvitation(invitation.id, invitation)}
+                  >
+                    <Mail className="h-4 w-4 mr-1" />
+                    Reenviar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCancelInvitation(invitation.id)}
+                  >
+                    <XCircle className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-4">
@@ -556,8 +699,8 @@ export default function TeamPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold">{member.first_name || member.email}</h3>
-                      {getRoleBadge(member.role)}
-                      {getStatusBadge(member.status, member.verified)}
+                      {getRoleBadge(member.business_roles[0].role)}
+                      {getStatusBadge(member.status, member.verified || true)}
                     </div>
 
                     {member.first_name && (
@@ -565,7 +708,7 @@ export default function TeamPage() {
                     )}
 
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>{getPermissionSummary(member.permissions)}</span>
+                      <span>{getPermissionSummary(member.business_roles[0].permissions)}</span>
                       <span>Invitado: {formatDate(member.created_at)}</span>
                       {member.status === "active" && (
                         <span>Aceptado: {formatDate(member.updated_at)}</span>
@@ -575,20 +718,22 @@ export default function TeamPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {member.status === "pending" && (
-                    <Button variant="ghost" size="sm">
-                      <Mail className="h-4 w-4 mr-1" />
-                      Reenviar
+                  <PermissionGuard permission="can_manage_team">
+                    {member.status === "pending" && (
+                      <Button variant="ghost" size="sm">
+                        <Mail className="h-4 w-4 mr-1" />
+                        Reenviar
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveTeamMember(member.id)}
+                      title="Remover miembro"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveTeamMember(member.id)}
-                    title="Remover miembro"
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  </PermissionGuard>
                 </div>
               </div>
             </CardContent>
