@@ -9,6 +9,7 @@ import {
     Timestamp,
   } from "firebase/firestore"
   import { db } from "../firebase"
+  import { deletePromotionFeaturedImage } from "../firebase-storage"
   import type { Promotion } from "@/lib/types"
 
 export class PromotionService {
@@ -99,10 +100,37 @@ export class PromotionService {
     }
   }
 
+  /**
+   * Hard delete promotion - removes both Firestore document AND Firebase Storage image
+   * @param promotionId - Promotion ID to delete
+   * @returns Promise<boolean> - true if successful
+   */
   static async deletePromotion(promotionId: string): Promise<boolean> {
     try {
+      // Step 1: Fetch the promotion to get the image URL
+      const promotion = await this.getPromotion(promotionId)
+
+      if (!promotion) {
+        console.warn(`Promotion ${promotionId} not found`)
+        return false
+      }
+
+      // Step 2: Delete the featured image from Firebase Storage (if exists)
+      if (promotion.featured_image) {
+        try {
+          await deletePromotionFeaturedImage(promotion.featured_image, promotionId)
+          console.log(`Deleted image for promotion ${promotionId}`)
+        } catch (imageError) {
+          console.error("Error deleting promotion image:", imageError)
+          // Continue with document deletion even if image deletion fails
+        }
+      }
+
+      // Step 3: Delete the Firestore document
       const docRef = doc(db, "promotions", promotionId)
       await deleteDoc(docRef)
+
+      console.log(`Deleted promotion ${promotionId}`)
       return true
     } catch (error) {
       console.error("Error deleting promotion:", error)
