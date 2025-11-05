@@ -139,7 +139,7 @@ export default function PromotionsPage() {
       featured_image: "", // TODO: Add image upload
       location_ids: newPromotion.locationIds,
       expired_at: newPromotion.expiredAt,
-      status: "draft",
+      status: "active",
       is_featured: false,
       views_count: 0,
       saves_count: 0,
