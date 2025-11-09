@@ -286,10 +286,6 @@ export default function AdminPlansPage() {
                           {limits.analyticsLevel === "enterprise" ? <Check className="h-3 w-3 text-green-600" /> : <X className="h-3 w-3 text-red-600" />}
                           <span className="text-xs">Mapas de calor</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {planId === "enterprise" ? <Check className="h-3 w-3 text-green-600" /> : <X className="h-3 w-3 text-red-600" />}
-                          <span className="text-xs">Gerente de cuenta dedicado</span>
-                        </div>
                       </div>
                     </div>
 

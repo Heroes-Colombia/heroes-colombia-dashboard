@@ -14,6 +14,9 @@ import { useAuth } from "@/hooks/use-auth"
 import { updateUserPassword, deleteUserAccount } from "@/lib/auth"
 import { BusinessService } from "@/lib/services/business-service"
 import { useRouter } from "next/navigation"
+import { ImageUpload } from "@/components/ui/image-upload"
+import { uploadBusinessFeaturedImage, deleteBusinessFeaturedImage, uploadWithRetry } from "@/lib/firebase-storage"
+import { toast } from "sonner"
 
 export default function SettingsPage() {
   const { user } = useAuth()
@@ -24,6 +27,7 @@ export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
   const [businessData, setBusinessData] = useState({
     businessId: "",
     name: "",
@@ -33,6 +37,7 @@ export default function SettingsPage() {
     website: "",
     description: "",
     address: "",
+    featured_image: "",
   })
   const [notifications, setNotifications] = useState({
     email: true,
@@ -53,6 +58,7 @@ export default function SettingsPage() {
         website: businessUser.website || "",
         description: businessUser.businessDescription || "",
         address: businessUser.address || "",
+        featured_image: businessUser.businessFeaturedImage || "",
       })
     }
   }, [businessUser])
@@ -113,19 +119,66 @@ export default function SettingsPage() {
   }
 
   const handleSave = async () => {
-    if (!businessUser?.id) return
+    if (!businessUser?.id || !businessUser?.businessId) return
 
     setIsLoading(true)
+    let imageUploadFailed = false
+
     try {
-      const success = await BusinessService.updateBusiness(businessUser.businessId, businessData)
+      let featuredImageUrl = businessData.featured_image || ""
+
+      // Handle image upload if a new file was selected
+      if (selectedImageFile) {
+        // Delete old image first if exists
+        if (businessData.featured_image) {
+          try {
+            await deleteBusinessFeaturedImage(businessData.featured_image, businessUser.businessId)
+          } catch (error) {
+            console.error("Error deleting old image:", error)
+            // Continue anyway - not critical
+          }
+        }
+
+        // Upload new image with retry
+        const uploadedUrl = await uploadWithRetry(
+          () => uploadBusinessFeaturedImage(selectedImageFile, businessUser.businessId),
+          2
+        )
+
+        if (uploadedUrl) {
+          featuredImageUrl = uploadedUrl
+        } else {
+          imageUploadFailed = true
+          console.error("Image upload failed after retries")
+        }
+      }
+
+      // Update business data with new image URL
+      const updatedData = {
+        ...businessData,
+        featured_image: featuredImageUrl,
+      }
+
+      const success = await BusinessService.updateBusiness(businessUser.businessId, updatedData)
+
       if (success) {
-        alert("Cambios guardados exitosamente")
+        // Update local state
+        setBusinessData((prev) => ({ ...prev, featured_image: featuredImageUrl }))
+        setSelectedImageFile(null)
+
+        if (imageUploadFailed) {
+          toast.success("Cambios guardados", {
+            description: "Nota: La imagen no se pudo subir. Puedes intentar subirla nuevamente.",
+          })
+        } else {
+          toast.success("Cambios guardados exitosamente")
+        }
       } else {
-        alert("Error al guardar los cambios")
+        toast.error("Error al guardar los cambios")
       }
     } catch (error) {
       console.error("Error saving business settings:", error)
-      alert("Error al guardar los cambios")
+      toast.error("Error al guardar los cambios")
     } finally {
       setIsLoading(false)
     }
@@ -233,6 +286,22 @@ export default function SettingsPage() {
                   rows={3}
                   placeholder="Describe tu negocio..."
                 />
+              </div>
+              {/* Logo Upload */}
+              <div className="space-y-2">
+                <Label>Logo de la Empresa *</Label>
+                <div className="max-w-sm">
+                  <ImageUpload
+                    value={businessData.featured_image}
+                    onChange={setSelectedImageFile}
+                    disabled={isLoading}
+                    recommendedDimensions="512x512px (cuadrado)"
+                    className="[&>div]:aspect-square [&>div]:max-h-64"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  El logo será visible en la app móvil para que los usuarios reconozcan tu negocio fácilmente
+                </p>
               </div>
               <div className="flex items-center justify-between pt-4">
                 <div className="flex items-center gap-2">

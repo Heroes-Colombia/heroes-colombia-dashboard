@@ -8,20 +8,17 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search, Filter, MapPin, Globe, Clock, Edit, Trash2, MoreHorizontal, Star, AlertCircle, Loader2 } from "lucide-react"
+import { Plus, Search, Filter, MapPin, Globe, Edit, Trash2, MoreHorizontal, Star, AlertCircle, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { colombianCities } from "@/lib/seed-data"
 import { getPlanLimits } from "@/lib/plan-limits"
 import { PlanLimitBadge, PlanLimitProgress } from "@/components/plan-limit-badge"
 import { UpgradePlanButton } from "@/components/upgrade-plan-button"
 import { LockedFeature } from "@/components/locked-feature"
 import { LocationService } from "@/lib/services/location-service"
+import { LocationPickerModal } from "@/components/location-picker-modal"
 import type { BusinessLocation, BusinessHours, PlanType } from "@/lib/types"
-
-const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
 
 export default function LocationsPage() {
   const [locations, setLocations] = useState<any[]>([])
@@ -37,20 +34,12 @@ export default function LocationsPage() {
     phone: "",
     email: "",
     website: "",
-    // Physical fields
+    // Physical fields only
     address: "",
-    city: "",
-    zipCode: "",
-    // Online fields
-    deliveryZones: [] as string[],
-    shippingInfo: "",
-    businessHours: Array.from({ length: 7 }, (_, i) => ({
-      day_of_week: i,
-      is_open: i > 0 && i < 6, // Monday to Friday open by default
-      open_time: "09:00",
-      close_time: "18:00",
-    })) as BusinessHours[],
+    coordinates: null as { latitude: number; longitude: number } | null,
+    geoHash: null as { geohash: string; geopoint: any } | null,
   })
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false)
 
   const { user } = useAuth()
   const businessUser = user as any
@@ -105,31 +94,31 @@ export default function LocationsPage() {
   const handleCreateLocation = async () => {
     if (!businessId) return
 
-    // Validation: Must have at least one primary location
+    // Validation
+    if (!newLocation.name.trim()) {
+      alert("El nombre de la ubicación es requerido")
+      return
+    }
+
+    if (newLocation.type === "physical" && !newLocation.coordinates) {
+      alert("Por favor selecciona una ubicación en el mapa")
+      return
+    }
+
     const willBePrimary = locations.length === 0 || newLocation.isPrimary
 
     const newLocationData = {
-      name: newLocation.name,
+      name: newLocation.name.trim(),
       is_primary: willBePrimary,
       type: newLocation.type,
       // Contact fields
       phone: newLocation.phone || null,
       email: newLocation.email || null,
       website: newLocation.website || null,
-      // Physical fields
+      // Physical fields only
       address: newLocation.type === "physical" ? newLocation.address : null,
-      location:
-        newLocation.type === "physical"
-          ? {
-              latitude: 4.6097, // TODO: Get from map picker
-              longitude: -74.0817,
-            }
-          : null,
-      geo_hash: newLocation.type === "physical" ? null : null, // TODO: Generate geohash
-      business_hours: newLocation.type === "physical" ? newLocation.businessHours : null,
-      // Online fields
-      delivery_zones: newLocation.type === "online" ? newLocation.deliveryZones : null,
-      shipping_info: newLocation.type === "online" ? newLocation.shippingInfo : null,
+      location: newLocation.type === "physical" && newLocation.coordinates ? newLocation.coordinates : null,
+      geo_hash: newLocation.type === "physical" ? newLocation.geoHash : null,
       status: "active",
     }
 
@@ -137,17 +126,14 @@ export default function LocationsPage() {
       const locationId = await LocationService.createLocation(businessId, newLocationData)
 
       if (locationId) {
-        // If this is primary, set it as primary (which will handle unsetting others)
         if (willBePrimary) {
           await LocationService.setPrimaryLocation(businessId, locationId)
         }
 
-        // Refresh locations
         const fetchedLocations = await LocationService.getBusinessLocations(businessId)
         setLocations(fetchedLocations)
 
         alert("Ubicación creada exitosamente")
-
         setIsCreateDialogOpen(false)
 
         // Reset form
@@ -159,16 +145,8 @@ export default function LocationsPage() {
           email: "",
           website: "",
           address: "",
-          city: "",
-          zipCode: "",
-          deliveryZones: [],
-          shippingInfo: "",
-          businessHours: Array.from({ length: 7 }, (_, i) => ({
-            day_of_week: i,
-            is_open: i > 0 && i < 6,
-            open_time: "09:00",
-            close_time: "18:00",
-          })),
+          coordinates: null,
+          geoHash: null,
         })
       }
     } catch (error) {
@@ -177,68 +155,6 @@ export default function LocationsPage() {
     }
   }
 
-  const updateBusinessHours = (dayIndex: number, field: keyof BusinessHours, value: any) => {
-    setNewLocation((prev) => ({
-      ...prev,
-      businessHours: prev.businessHours.map((hours, index) =>
-        index === dayIndex ? { ...hours, [field]: value } : hours
-      ),
-    }))
-  }
-
-  const formatBusinessHours = (hours: BusinessHours[] | undefined) => {
-    if (!hours) return "No configurado"
-
-    const openDays = hours.filter((h) => h.is_open)
-    if (openDays.length === 0) return "Cerrado"
-
-    // Group consecutive days with same hours
-    const groups: { days: string; hours: string }[] = []
-    let currentGroup: number[] = []
-    let currentHours = ""
-
-    for (let i = 0; i < 7; i++) {
-      const day = hours.find((h) => h.day_of_week === i)
-      if (day?.is_open) {
-        const dayHours = `${day.open_time} - ${day.close_time}`
-
-        if (currentHours === dayHours) {
-          currentGroup.push(i)
-        } else {
-          if (currentGroup.length > 0) {
-            groups.push({
-              days: formatDayRange(currentGroup),
-              hours: currentHours,
-            })
-          }
-          currentGroup = [i]
-          currentHours = dayHours
-        }
-      }
-    }
-
-    if (currentGroup.length > 0) {
-      groups.push({
-        days: formatDayRange(currentGroup),
-        hours: currentHours,
-      })
-    }
-
-    return groups.map((g) => `${g.days}: ${g.hours}`).join(" • ")
-  }
-
-  const formatDayRange = (days: number[]): string => {
-    if (days.length === 1) return dayNames[days[0]]
-    if (days.length === 2) return `${dayNames[days[0]]} y ${dayNames[days[1]]}`
-
-    // Check if consecutive
-    const isConsecutive = days.every((day, i) => i === 0 || day === days[i - 1] + 1)
-    if (isConsecutive && days.length > 2) {
-      return `${dayNames[days[0]]} - ${dayNames[days[days.length - 1]]}`
-    }
-
-    return days.map((day) => dayNames[day]).join(", ")
-  }
 
   // Show loading state
   if (isLoading) {
@@ -281,50 +197,54 @@ export default function LocationsPage() {
                       <div>
                         <p className="font-medium text-blue-900">Primera ubicación</p>
                         <p className="text-sm text-blue-700">
-                          Esta será tu ubicación principal. Aparecerá en los resultados de búsqueda y mapas.
+                          Esta será tu ubicación principal.
                         </p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Basic Information */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="location-name">Nombre de la ubicación *</Label>
-                    <Input
-                      id="location-name"
-                      placeholder="Ej: Sede Principal, Tienda Online"
-                      value={newLocation.name}
-                      onChange={(e) => setNewLocation((prev) => ({ ...prev, name: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location-type">Tipo de ubicación *</Label>
-                    <Select
-                      value={newLocation.type}
-                      onValueChange={(value: "physical" | "online") =>
-                        setNewLocation((prev) => ({ ...prev, type: value }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="physical">Ubicación Física</SelectItem>
-                        <SelectItem value="online">Tienda Online</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* 1. Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="location-name">Nombre de la ubicación *</Label>
+                  <Input
+                    id="location-name"
+                    placeholder="Ej: Sede Principal, Tienda Online"
+                    value={newLocation.name}
+                    onChange={(e) => setNewLocation((prev) => ({ ...prev, name: e.target.value }))}
+                  />
                 </div>
 
-                {/* Primary Location Toggle (only if not first location) */}
+                {/* 2. Type Selector (Tabs) */}
+                <div className="space-y-2">
+                  <Label>Tipo de ubicación *</Label>
+                  <Tabs
+                    value={newLocation.type}
+                    onValueChange={(value) =>
+                      setNewLocation((prev) => ({ ...prev, type: value as "physical" | "online" }))
+                    }
+                    className="w-full"
+                  >
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="physical" className="gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Ubicación Física
+                      </TabsTrigger>
+                      <TabsTrigger value="online" className="gap-2">
+                        <Globe className="h-4 w-4" />
+                        Tienda Online
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+
+                {/* 3. Primary toggle (only if not first location) */}
                 {locations.length > 0 && (
                   <div className="flex items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
                       <Label className="text-base">Ubicación principal</Label>
                       <p className="text-sm text-muted-foreground">
-                        Aparecerá en búsquedas y mapas. Solo puede haber una ubicación principal.
+                        Solo puede haber una ubicación principal
                       </p>
                     </div>
                     <Switch
@@ -334,7 +254,7 @@ export default function LocationsPage() {
                   </div>
                 )}
 
-                {/* Contact Information (ALL locations have these fields - Schema V2) */}
+                {/* 4. Contact Info (both types) */}
                 <div className="space-y-4">
                   <h3 className="font-medium">Información de Contacto</h3>
                   <div className="grid grid-cols-2 gap-4">
@@ -370,123 +290,53 @@ export default function LocationsPage() {
                   </div>
                 </div>
 
-                <Tabs value={newLocation.type} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="physical">Ubicación Física</TabsTrigger>
-                    <TabsTrigger value="online">Tienda Online</TabsTrigger>
-                  </TabsList>
+                {/* 5. Physical-specific: Location Picker */}
+                {newLocation.type === "physical" && (
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Ubicación en el Mapa</h3>
+                    <div className="space-y-2">
+                      <Label>Dirección *</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={newLocation.address}
+                          placeholder="Selecciona una ubicación en el mapa"
+                          readOnly
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsLocationPickerOpen(true)}
+                        >
+                          <MapPin className="h-4 w-4 mr-2" />
+                          Seleccionar
+                        </Button>
+                      </div>
+                      {newLocation.coordinates && (
+                        <p className="text-xs text-muted-foreground">
+                          📍 Lat: {newLocation.coordinates.latitude.toFixed(6)}, Lng:{" "}
+                          {newLocation.coordinates.longitude.toFixed(6)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-                  <TabsContent value="physical" className="space-y-4">
-                    {/* Address Information */}
-                    <div className="space-y-4">
-                      <h3 className="font-medium">Información de Dirección</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2 space-y-2">
-                          <Label htmlFor="address">Dirección *</Label>
-                          <Input
-                            id="address"
-                            placeholder="Ej: Carrera 13 #85-32"
-                            value={newLocation.address}
-                            onChange={(e) => setNewLocation((prev) => ({ ...prev, address: e.target.value }))}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="city">Ciudad *</Label>
-                          <Select
-                            value={newLocation.city}
-                            onValueChange={(value) => setNewLocation((prev) => ({ ...prev, city: value }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleccionar ciudad" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {colombianCities.map((city) => (
-                                <SelectItem key={city} value={city}>
-                                  {city}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="zipCode">Código Postal</Label>
-                          <Input
-                            id="zipCode"
-                            placeholder="110221"
-                            value={newLocation.zipCode}
-                            onChange={(e) => setNewLocation((prev) => ({ ...prev, zipCode: e.target.value }))}
-                          />
-                        </div>
+                {/* 6. Online-specific: Info message */}
+                {newLocation.type === "online" && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex items-start gap-2">
+                      <Globe className="mt-0.5 h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-blue-900">Tienda Online</p>
+                        <p className="text-sm text-blue-700">
+                          Para tiendas online, solo necesitas la información de contacto. Los clientes se
+                          comunicarán contigo directamente.
+                        </p>
                       </div>
                     </div>
-
-                    {/* Business Hours */}
-                    <div className="space-y-4">
-                      <h3 className="font-medium">Horarios de Atención</h3>
-                      <div className="space-y-3">
-                        {newLocation.businessHours.map((hours, index) => (
-                          <div key={index} className="flex items-center gap-4">
-                            <div className="w-20 text-sm font-medium">{dayNames[hours.day_of_week]}</div>
-                            <Switch
-                              checked={hours.is_open}
-                              onCheckedChange={(checked) => updateBusinessHours(index, "is_open", checked)}
-                            />
-                            {hours.is_open && (
-                              <>
-                                <Input
-                                  type="time"
-                                  value={hours.open_time}
-                                  onChange={(e) => updateBusinessHours(index, "open_time", e.target.value)}
-                                  className="w-32"
-                                />
-                                <span className="text-muted-foreground">a</span>
-                                <Input
-                                  type="time"
-                                  value={hours.close_time}
-                                  onChange={(e) => updateBusinessHours(index, "close_time", e.target.value)}
-                                  className="w-32"
-                                />
-                              </>
-                            )}
-                            {!hours.is_open && <span className="text-sm text-muted-foreground">Cerrado</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="online" className="space-y-4">
-                    <div className="space-y-4">
-                      <h3 className="font-medium">Información de Entrega</h3>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="delivery-zones">Zonas de Entrega</Label>
-                          <Textarea
-                            id="delivery-zones"
-                            placeholder="Ej: Zona Norte, Zona Rosa, Centro (separadas por comas)"
-                            value={newLocation.deliveryZones.join(", ")}
-                            onChange={(e) =>
-                              setNewLocation((prev) => ({
-                                ...prev,
-                                deliveryZones: e.target.value.split(",").map((zone) => zone.trim()),
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="shipping-info">Información de Envío</Label>
-                          <Textarea
-                            id="shipping-info"
-                            placeholder="Ej: Envíos gratis en compras superiores a $50,000"
-                            value={newLocation.shippingInfo}
-                            onChange={(e) => setNewLocation((prev) => ({ ...prev, shippingInfo: e.target.value }))}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
@@ -499,6 +349,21 @@ export default function LocationsPage() {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Location Picker Modal */}
+          <LocationPickerModal
+            open={isLocationPickerOpen}
+            onOpenChange={setIsLocationPickerOpen}
+            initialLocation={newLocation.coordinates}
+            onLocationSelect={(result) => {
+              setNewLocation((prev) => ({
+                ...prev,
+                address: result.formattedAddress,
+                coordinates: result.coordinates,
+                geoHash: result.geoHash,
+              }))
+            }}
+          />
         </div>
       </div>
 
@@ -577,25 +442,6 @@ export default function LocationsPage() {
                         <MapPin className="h-4 w-4" />
                         {location.address}
                       </p>
-                      {location.businessHours && (
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {formatBusinessHours(location.businessHours)}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {location.type === "online" && (
-                    <div className="space-y-1 mb-4">
-                      {location.deliveryZones && location.deliveryZones.length > 0 && (
-                        <p className="text-sm text-muted-foreground">
-                          📦 Zonas de entrega: {location.deliveryZones.join(", ")}
-                        </p>
-                      )}
-                      {location.shippingInfo && (
-                        <p className="text-sm text-muted-foreground">ℹ️ {location.shippingInfo}</p>
-                      )}
                     </div>
                   )}
                 </div>

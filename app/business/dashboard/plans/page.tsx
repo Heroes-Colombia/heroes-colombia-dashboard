@@ -97,7 +97,6 @@ const PLAN_FEATURES = {
       "Mapas de calor",
       "Análisis de cohortes",
       "Benchmarking industria",
-      "Gerente de cuenta dedicado",
       "Soporte 24/7 premium",
     ],
   },
