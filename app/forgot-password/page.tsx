@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <HeroesLogo />
+              <HeroesLogo variant="auth" />
             </div>
             <div className="flex justify-center mb-4">
               <CheckCircle className="h-12 w-12 text-green-500" />
@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <HeroesLogo />
+            <HeroesLogo variant="auth" />
           </div>
           <CardTitle>Recuperar Contraseña</CardTitle>
           <CardDescription>Ingresa tu correo electrónico para recibir un enlace de recuperación</CardDescription>

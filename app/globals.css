@@ -56,117 +56,147 @@
 }
 
 :root {
-  /* Heroes Colombia brand colors - light theme */
-  --background: oklch(0.98 0.005 120);
-  --foreground: oklch(0.15 0.02 120);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0.02 120);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.02 120);
-  --primary: oklch(0.45 0.08 120); /* Heroes green #7A8B5A */
-  --primary-foreground: oklch(0.98 0.005 120);
-  --secondary: oklch(0.25 0.12 240); /* Heroes navy blue #1E3A8A */
-  --secondary-foreground: oklch(0.98 0.005 120);
-  --muted: oklch(0.95 0.01 120);
-  --muted-foreground: oklch(0.5 0.02 120);
-  --accent: oklch(0.45 0.08 120);
-  --accent-foreground: oklch(0.98 0.005 120);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.98 0.005 120);
-  --border: oklch(0.9 0.01 120);
-  --input: oklch(0.95 0.01 120);
-  --ring: oklch(0.45 0.08 120);
-  --chart-1: oklch(0.45 0.08 120);
-  --chart-2: oklch(0.25 0.12 240);
-  --chart-3: oklch(0.6 0.15 60);
-  --chart-4: oklch(0.7 0.1 180);
-  --chart-5: oklch(0.8 0.05 300);
+  /* Heroes Colombia Official Brand Colors - From Brandbook */
+  --background: #fafafa; /* Light neutral background */
+  --foreground: #1a1a1a; /* Dark text */
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+
+  /* Primary: Military Olive Green #5d7a3a */
+  --primary: 93 122 58; /* RGB from brandbook */
+  --primary-foreground: #ffffff;
+
+  /* Secondary: Deep Blue #032291 */
+  --secondary: 3 34 145; /* RGB from brandbook */
+  --secondary-foreground: #ffffff;
+
+  /* Muted/Complementary: Light sage #d6e0d5 */
+  --muted: #f5f7f5;
+  --muted-foreground: #6b7280; /* Neutral gray instead of green */
+
+  /* Accent: Lighter green variation #7fa64e */
+  --accent: 127 166 78; /* RGB from brandbook */
+  --accent-foreground: #ffffff;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  --border: #e5e7e5;
+  --input: #e5e7e5;
+  --ring: 93 122 58; /* Primary green */
+
+  /* Chart colors using brand palette */
+  --chart-1: 93 122 58;   /* Primary green #5d7a3a */
+  --chart-2: 3 34 145;    /* Secondary blue #032291 */
+  --chart-3: 127 166 78;  /* Light green #7fa64e */
+  --chart-4: 35 82 251;   /* Light blue #2352fb */
+  --chart-5: 157 190 116; /* Sage green #9dbe74 */
+
   --radius: 0.5rem;
-  --sidebar: oklch(0.98 0.005 120);
-  --sidebar-foreground: oklch(0.15 0.02 120);
-  --sidebar-primary: oklch(0.45 0.08 120);
-  --sidebar-primary-foreground: oklch(0.98 0.005 120);
-  --sidebar-accent: oklch(0.95 0.01 120);
-  --sidebar-accent-foreground: oklch(0.15 0.02 120);
-  --sidebar-border: oklch(0.9 0.01 120);
-  --sidebar-ring: oklch(0.45 0.08 120);
+
+  /* Sidebar */
+  --sidebar: #fafafa;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-primary: 93 122 58;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f7f5;
+  --sidebar-accent-foreground: #1a1a1a;
+  --sidebar-border: #e5e7e5;
+  --sidebar-ring: 93 122 58;
 }
 
 .dark {
-  /* Heroes Colombia brand colors - dark theme */
-  --background: oklch(0.08 0.01 120);
-  --foreground: oklch(0.95 0.005 120);
-  --card: oklch(0.12 0.01 120);
-  --card-foreground: oklch(0.95 0.005 120);
-  --popover: oklch(0.12 0.01 120);
-  --popover-foreground: oklch(0.95 0.005 120);
-  --primary: oklch(0.55 0.08 120); /* Lighter Heroes green for dark mode */
-  --primary-foreground: oklch(0.08 0.01 120);
-  --secondary: oklch(0.35 0.12 240); /* Lighter Heroes navy for dark mode */
-  --secondary-foreground: oklch(0.95 0.005 120);
-  --muted: oklch(0.18 0.01 120);
-  --muted-foreground: oklch(0.65 0.02 120);
-  --accent: oklch(0.55 0.08 120);
-  --accent-foreground: oklch(0.08 0.01 120);
-  --destructive: oklch(0.6 0.2 25);
-  --destructive-foreground: oklch(0.95 0.005 120);
-  --border: oklch(0.18 0.01 120);
-  --input: oklch(0.18 0.01 120);
-  --ring: oklch(0.55 0.08 120);
-  --chart-1: oklch(0.55 0.08 120);
-  --chart-2: oklch(0.35 0.12 240);
-  --chart-3: oklch(0.7 0.15 60);
-  --chart-4: oklch(0.8 0.1 180);
-  --chart-5: oklch(0.9 0.05 300);
-  --sidebar: oklch(0.08 0.01 120);
-  --sidebar-foreground: oklch(0.95 0.005 120);
-  --sidebar-primary: oklch(0.55 0.08 120);
-  --sidebar-primary-foreground: oklch(0.08 0.01 120);
-  --sidebar-accent: oklch(0.18 0.01 120);
-  --sidebar-accent-foreground: oklch(0.95 0.005 120);
-  --sidebar-border: oklch(0.18 0.01 120);
-  --sidebar-ring: oklch(0.55 0.08 120);
+  /* Heroes Colombia Official Brand Colors - Dark Mode */
+  --background: #0f1410;
+  --foreground: #f5f7f5;
+  --card: #1a1f1c;
+  --card-foreground: #f5f7f5;
+  --popover: #1a1f1c;
+  --popover-foreground: #f5f7f5;
+
+  /* Primary: Lighter green for dark mode #7fa64e */
+  --primary: 127 166 78;
+  --primary-foreground: #0f1410;
+
+  /* Secondary: Brighter blue for dark mode #2352fb */
+  --secondary: 35 82 251;
+  --secondary-foreground: #ffffff;
+
+  --muted: #262b27;
+  --muted-foreground: #9ca3af; /* Neutral gray for dark mode */
+
+  /* Accent: Light sage #9dbe74 */
+  --accent: 157 190 116;
+  --accent-foreground: #0f1410;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #2a312c;
+  --input: #2a312c;
+  --ring: 127 166 78;
+
+  /* Chart colors for dark mode */
+  --chart-1: 127 166 78;  /* Light green #7fa64e */
+  --chart-2: 35 82 251;   /* Light blue #2352fb */
+  --chart-3: 157 190 116; /* Sage #9dbe74 */
+  --chart-4: 95 129 252;  /* Lighter blue #5f81fc */
+  --chart-5: 186 209 158; /* Pale sage #bad19e */
+
+  /* Sidebar dark */
+  --sidebar: #0f1410;
+  --sidebar-foreground: #f5f7f5;
+  --sidebar-primary: 127 166 78;
+  --sidebar-primary-foreground: #0f1410;
+  --sidebar-accent: #262b27;
+  --sidebar-accent-foreground: #f5f7f5;
+  --sidebar-border: #2a312c;
+  --sidebar-ring: 127 166 78;
 }
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Use RGB values for Tailwind */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
+  --color-primary: rgb(var(--primary));
   --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
+  --color-secondary: rgb(var(--secondary));
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
+  --color-accent: rgb(var(--accent));
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
+  --color-ring: rgb(var(--ring));
+  --color-chart-1: rgb(var(--chart-1));
+  --color-chart-2: rgb(var(--chart-2));
+  --color-chart-3: rgb(var(--chart-3));
+  --color-chart-4: rgb(var(--chart-4));
+  --color-chart-5: rgb(var(--chart-5));
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary: rgb(var(--sidebar-primary));
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-ring: rgb(var(--sidebar-ring));
 }
 
 @layer base {

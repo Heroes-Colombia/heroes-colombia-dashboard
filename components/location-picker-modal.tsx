@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react"
 import { GoogleMap, useLoadScript, Marker } from "@react-google-maps/api"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { MapPin, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { MapPin, Loader2, Search, X } from "lucide-react"
 import geohash from "ngeohash"
 
 interface LocationPickerModalProps {
@@ -28,7 +29,7 @@ interface LatLng {
   lng: number
 }
 
-const libraries: readonly ("geocoding")[] = ["geocoding"] as const
+const libraries: readonly ("geocoding" | "places")[] = ["geocoding", "places"] as const
 
 const mapContainerStyle = {
   width: "100%",
@@ -82,9 +83,18 @@ export function LocationPickerModal({
   const [selectedAddress, setSelectedAddress] = useState<string>("")
   const [isGettingAddress, setIsGettingAddress] = useState(false)
 
+  // Search state
+  const [searchValue, setSearchValue] = useState<string>("")
+  const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+
   const mapRef = useRef<google.maps.Map | null>(null)
   const geocoderRef = useRef<google.maps.Geocoder | null>(null)
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null)
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const searchDebounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Memoize map center
   const mapCenter = useMemo(
@@ -92,11 +102,14 @@ export function LocationPickerModal({
     [selectedLocation]
   )
 
-  // Cleanup debounce timer on unmount
+  // Cleanup debounce timers on unmount
   useEffect(() => {
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
+      }
+      if (searchDebounceTimerRef.current) {
+        clearTimeout(searchDebounceTimerRef.current)
       }
     }
   }, [])
@@ -134,6 +147,110 @@ export function LocationPickerModal({
       getAddressFromCoordinates(location)
     }, 500)
   }, [getAddressFromCoordinates])
+
+  // Search for places using autocomplete
+  const searchPlaces = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+
+    setIsSearching(true)
+
+    try {
+      // Lazy initialize autocomplete service
+      if (!autocompleteServiceRef.current) {
+        autocompleteServiceRef.current = new google.maps.places.AutocompleteService()
+      }
+
+      const request: google.maps.places.AutocompletionRequest = {
+        input: query,
+        componentRestrictions: { country: 'co' }, // Bias to Colombia
+        types: ['establishment', 'geocode'], // Include businesses and addresses
+      }
+
+      autocompleteServiceRef.current.getPlacePredictions(request, (predictions, status) => {
+        setIsSearching(false)
+
+        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+          setSuggestions(predictions)
+          setShowSuggestions(true)
+        } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+          setSuggestions([])
+          setShowSuggestions(true)
+        } else {
+          setSuggestions([])
+          setShowSuggestions(false)
+        }
+      })
+    } catch (error) {
+      console.error("Autocomplete error:", error)
+      setIsSearching(false)
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }, [])
+
+  // Debounced search to reduce API calls
+  const debouncedSearch = useCallback((query: string) => {
+    if (searchDebounceTimerRef.current) {
+      clearTimeout(searchDebounceTimerRef.current)
+    }
+    searchDebounceTimerRef.current = setTimeout(() => {
+      searchPlaces(query)
+    }, 300)
+  }, [searchPlaces])
+
+  // Handle search input change
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchValue(value)
+    debouncedSearch(value)
+  }, [debouncedSearch])
+
+  // Handle place selection from suggestions
+  const handlePlaceSelect = useCallback(async (placeId: string) => {
+    try {
+      // Initialize places service if needed (requires map instance)
+      if (!placesServiceRef.current && mapRef.current) {
+        placesServiceRef.current = new google.maps.places.PlacesService(mapRef.current)
+      }
+
+      if (!placesServiceRef.current) {
+        console.error("Places service not initialized")
+        return
+      }
+
+      const request: google.maps.places.PlaceDetailsRequest = {
+        placeId,
+        fields: ['geometry', 'formatted_address'],
+      }
+
+      placesServiceRef.current.getDetails(request, (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
+          const location = {
+            lat: place.geometry.location.lat(),
+            lng: place.geometry.location.lng(),
+          }
+
+          setSelectedLocation(location)
+          setSelectedAddress(place.formatted_address || "")
+          setShowSuggestions(false)
+          setSearchValue("")
+          setSuggestions([])
+
+          // Pan map to selected location
+          if (mapRef.current) {
+            mapRef.current.panTo(location)
+            mapRef.current.setZoom(16)
+          }
+        }
+      })
+    } catch (error) {
+      console.error("Place details error:", error)
+    }
+  }, [])
 
   // Get user's current location when modal opens
   useEffect(() => {
@@ -173,6 +290,9 @@ export function LocationPickerModal({
       )
       setSelectedAddress("")
       setIsGettingAddress(false)
+      setSearchValue("")
+      setSuggestions([])
+      setShowSuggestions(false)
     }
   }, [open, initialLocation])
 
@@ -284,6 +404,69 @@ export function LocationPickerModal({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar dirección o lugar en Colombia..."
+                value={searchValue}
+                onChange={handleSearchChange}
+                className="pl-10 pr-10"
+              />
+              {searchValue && (
+                <button
+                  onClick={() => {
+                    setSearchValue("")
+                    setSuggestions([])
+                    setShowSuggestions(false)
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Suggestions Dropdown */}
+            {showSuggestions && (
+              <div className="absolute z-50 w-full mt-2 bg-background border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {isSearching ? (
+                  <div className="flex items-center justify-center p-4">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-sm text-muted-foreground">Buscando...</span>
+                  </div>
+                ) : suggestions.length > 0 ? (
+                  <ul className="py-2">
+                    {suggestions.map((suggestion) => (
+                      <li key={suggestion.place_id}>
+                        <button
+                          onClick={() => handlePlaceSelect(suggestion.place_id)}
+                          className="w-full text-left px-4 py-2 hover:bg-muted transition-colors flex items-start gap-2"
+                        >
+                          <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">
+                              {suggestion.structured_formatting.main_text}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {suggestion.structured_formatting.secondary_text}
+                            </div>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    No se encontraron resultados
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Map */}
           <div className="rounded-lg overflow-hidden border">
             <GoogleMap

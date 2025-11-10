@@ -8,8 +8,8 @@ import { AuthProvider } from "@/hooks/use-auth"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Panel de Comercios Heroes Colombia",
-  description: "Plataforma de gestión para empresas y administradores de Héroes Colombia",
+  title: "Portal web Heroes Colombia",
+  description: "Portal web para la gestion de promociones y descuentos de las empresas",
   generator: "Heroes Colombia",
   icons: {
     icon: "/images/favicon.ico",

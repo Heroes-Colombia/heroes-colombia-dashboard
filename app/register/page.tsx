@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { HeroesLogo } from "@/components/heroes-logo"
+import { CategoryIcon } from "@/components/category-icon"
+import { LocationPickerModal } from "@/components/location-picker-modal"
 import { Building2, Mail, Lock, Phone, MapPin, AlertCircle, UserRound } from "lucide-react"
 import Link from "next/link"
 import { registerBusiness } from "@/lib/auth"
@@ -28,13 +30,17 @@ export default function BusinessRegisterPage() {
     ownerName: "",
     phone: "",
     nit: "",
-    address: "",
     category: "",
     description: "",
     plan: "enterprise",
     type: "physical" as "physical" | "online",
     acceptTerms: false,
+    // Physical fields only
+    address: "",
+    coordinates: null as { latitude: number; longitude: number } | null,
+    geoHash: null as { geohash: string; geopoint: { latitude: number; longitude: number } } | null,
   })
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
@@ -87,7 +93,7 @@ export default function BusinessRegisterPage() {
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <HeroesLogo />
+            <HeroesLogo variant="auth" />
           </div>
           <CardTitle className="flex items-center justify-center">
             <Building2 className="h-5 w-5 mr-2 text-primary" />
@@ -142,7 +148,10 @@ export default function BusinessRegisterPage() {
                   <SelectContent>
                     {categories.map((category) => (
                       <SelectItem key={category.category_id} value={category.category_id}>
-                        {category.name}
+                        <div className="flex items-center gap-2">
+                          <CategoryIcon categoryId={category.category_id} size="sm" />
+                          <span>{category.name}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -184,21 +193,29 @@ export default function BusinessRegisterPage() {
                   </SelectContent>
                 </Select>
               </div>
-              {formData.type == 'physical' &&
+
+              {/* 5. Physical-specific: Location Picker */}
+              {formData.type == 'physical' && (
                 <div className="space-y-2">
-                  <Label htmlFor="address">Dirección</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Label htmlFor="address">Dirección *</Label>
                     <Input
-                      id="address"
-                      placeholder="Calle 123 #45-67, Bogotá"
                       value={formData.address}
-                      onChange={(e) => handleInputChange("address", e.target.value)}
-                      className="pl-10"
+                      placeholder="Seleccionar ubicación en el mapa"
+                      readOnly
+                      className="flex-1"
                     />
-                  </div>
+                    <Button type="button" variant="outline" onClick={() => setIsLocationPickerOpen(true)}>
+                      <MapPin className="h-4 w-4 mr-2" />
+                      Seleccionar
+                    </Button>
+                    {formData.coordinates && (
+                      <p className="text-xs text-muted-foreground">
+                        📍 Lat: {formData.coordinates.latitude.toFixed(6)}, Lng:{" "}
+                        {formData.coordinates.longitude.toFixed(6)}
+                      </p>
+                    )}
                 </div>
-              }
+              )}
             </div>
 
             <div className="space-y-2">
@@ -310,6 +327,21 @@ export default function BusinessRegisterPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Location Picker Modal */}
+      <LocationPickerModal
+        open={isLocationPickerOpen}
+        onOpenChange={setIsLocationPickerOpen}
+        initialLocation={formData.coordinates}
+        onLocationSelect={(result) => {
+          setFormData((prev) => ({
+            ...prev,
+            address: result.formattedAddress,
+            coordinates: result.coordinates,
+            geoHash: result.geoHash,
+          }))
+        }}
+      />
     </div>
   )
 }

@@ -4,12 +4,12 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, Lock, Building2, AlertCircle, Shield, BarChart3 } from "lucide-react"
+import { Mail, Lock, AlertCircle, BarChart3 } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Separator } from "@/components/ui/separator"
 import { loginWithEmail } from "@/lib/auth"
+import { HeroesLogo } from "@/components/heroes-logo"
 import Link from "next/link"
 
 export default function HomePage() {
@@ -44,8 +44,7 @@ export default function HomePage() {
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-5">
           <div className="flex items-center justify-center mb-6">
-            <Shield className="h-12 w-12 text-primary mr-3" />
-            <h1 className="text-4xl font-bold text-foreground">Héroes Colombia</h1>
+            <HeroesLogo variant="auth" />
           </div>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Plataforma de gestión para conectar personal militar con empresas locales

@@ -45,7 +45,7 @@ export function AuthGuard({ children, requiredRole = "business", redirectTo }: A
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center justify-center p-8">
-            <HeroesLogo className="mb-4" />
+            <HeroesLogo variant="auth" className="mb-4" />
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-muted-foreground mt-2">Verificando acceso...</p>
           </CardContent>

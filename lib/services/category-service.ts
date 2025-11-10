@@ -18,7 +18,7 @@ export class CategoryService {
             sort_order: doc.data().sort_order || 0,
           }))
           .filter((category) => category.status === "active") // Filter in memory
-          .sort((a, b) => a.sort_order - b.sort_order) // Sort by sort_order
+          .sort((a, b) => a.name.localeCompare(b.name)) // Sort alphabetically by name
   
         return categories
       } catch (error) {
