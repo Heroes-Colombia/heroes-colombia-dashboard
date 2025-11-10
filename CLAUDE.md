@@ -799,3 +799,230 @@ The app uses a custom `AuthProvider` (`/hooks/use-auth`) that wraps Firebase Aut
 7. Test end-to-end trial → plan selection → billing cycle
 
 This ensures both systems are perfectly aligned and businesses receive exactly what was promised on the marketing website.
+
+---
+
+## Recent Updates & Implementation Status
+
+### November 2024 - Locations & Promotions Enhancement
+
+#### ✅ Locations Page - Full CRUD Implementation
+**File**: `/app/business/dashboard/locations/page.tsx`
+
+**Features Implemented:**
+1. **Edit Functionality**:
+   - Single dialog for both create and edit modes
+   - Pre-populates form data when editing
+   - Supports changing location type (physical ↔ online)
+   - Google Maps integration for coordinate updates
+   - Primary location switching during edit
+
+2. **Delete Functionality**:
+   - Custom confirmation dialog with safety checks
+   - Prevents deletion of primary location
+   - Prevents deletion of last location
+   - Checks for active promotions before allowing deletion
+   - Blocks deletion if location has active promotions
+
+3. **UI/UX Improvements**:
+   - **Prominent Primary Indicator**: Crown icon (👑) with "SEDE PRINCIPAL" badge
+   - **Visual Highlighting**: Yellow background and border for primary location
+   - **Tooltips**: Hover tooltips on disabled delete button explaining why it's disabled
+   - **Responsive Design**: Mobile-friendly grids (`grid-cols-1 sm:grid-cols-2`)
+
+**Safety Checks**:
+```typescript
+// Cannot delete if:
+1. location.isPrimary === true  // Primary location protection
+2. locations.length === 1       // Last location protection
+3. Has active promotions        // Promotion dependency check
+```
+
+#### ✅ Promotions Page - Location Targeting Bug Fix
+**File**: `/app/business/dashboard/promotions/page.tsx`
+
+**Bug Fixed**:
+- **Issue**: When editing a promotion with "All locations" selected, individual location checkboxes were disabled
+- **Root Cause**: `disabled={formData.locationIds.length === 0 || isSubmitting}`
+- **Solution**: Removed incorrect condition, now only disables during submission
+- **Impact**: Users can now freely switch between "All locations" and specific locations when editing
+
+**Code Change**:
+```typescript
+// Before (BROKEN)
+disabled={formData.locationIds.length === 0 || isSubmitting}
+
+// After (FIXED)
+disabled={isSubmitting}
+```
+
+### Page-by-Page Implementation Status
+
+| Page | Create | Edit | Delete | Filters | Plan Limits | Status |
+|------|--------|------|--------|---------|-------------|--------|
+| **Locations** | ✅ | ✅ | ✅ | ✅ (type, search) | ✅ | **Complete** |
+| **Promotions** | ✅ | ✅ | ✅ | ✅ (status, search) | ✅ | **Complete** |
+| **Team** | ✅ | ✅ | ✅ | ❌ | ✅ | Needs filters |
+| **Redemptions** | ✅ | ❌ | ❌ | ✅ | N/A | View-only |
+| **Analytics** | N/A | N/A | N/A | ✅ | ✅ | View-only |
+| **Billing** | N/A | ✅ | N/A | N/A | N/A | Functional |
+
+### Component Reusability Pattern
+
+**Single Dialog Pattern** (Recommended):
+```typescript
+// State management
+const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
+const [editingId, setEditingId] = useState<string | null>(null)
+const [formData, setFormData] = useState({ /* initial values */ })
+
+// Open create
+const handleOpenCreate = () => {
+  resetForm()
+  setDialogMode('create')
+  setEditingId(null)
+  setIsDialogOpen(true)
+}
+
+// Open edit
+const handleOpenEdit = (item) => {
+  setFormData({ /* populate from item */ })
+  setDialogMode('edit')
+  setEditingId(item.id)
+  setIsDialogOpen(true)
+}
+
+// Save handler
+const handleSave = async () => {
+  if (dialogMode === 'create') {
+    await createItem(formData)
+  } else {
+    await updateItem(editingId, formData)
+  }
+}
+```
+
+**Benefits**:
+- Less code duplication
+- Consistent UX between create/edit
+- Single source of truth for form validation
+- Easier maintenance
+
+### Tooltip Implementation
+
+**Native Browser Tooltips** (Using `title` attribute):
+```typescript
+<Button
+  variant="ghost"
+  size="icon"
+  disabled={location.isPrimary}
+  title={
+    location.isPrimary
+      ? "No puedes eliminar la ubicación principal. Marca otra ubicación como principal primero."
+      : "Eliminar ubicación"
+  }
+>
+  <Trash2 className="h-4 w-4" />
+</Button>
+```
+
+**Why Native Tooltips?**:
+- ✅ No additional dependencies
+- ✅ Accessible by default
+- ✅ Works on mobile (long press)
+- ✅ Consistent across browsers
+- ✅ Zero bundle size impact
+
+### Responsive Design Patterns Used
+
+```typescript
+// Header - stacks on mobile
+className="flex flex-col sm:flex-row sm:items-center gap-4"
+
+// Filters - vertical on mobile, horizontal on desktop
+className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4"
+
+// Contact grid - 1 column mobile, 2 columns tablet+
+className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+
+// Location cards - vertical mobile, horizontal desktop
+className="flex flex-col md:flex-row md:items-start gap-4"
+```
+
+### Firebase Service Best Practices
+
+**Location Service Example**:
+```typescript
+// Always return IDs with data
+const locations = snapshot.docs.map(doc => ({
+  id: doc.id,
+  ...doc.data()
+}))
+
+// Handle errors gracefully
+try {
+  await deleteLocation(businessId, locationId)
+  return true
+} catch (error) {
+  console.error('Error deleting location:', error)
+  return false
+}
+
+// Use optimistic updates
+setLocations(prev => prev.filter(loc => loc.id !== deletingId))
+```
+
+---
+
+## Project Structure Overview (Simplified)
+
+```
+heroes-colombia-dashboard/
+├── app/
+│   ├── business/dashboard/
+│   │   ├── page.tsx                    # Dashboard home
+│   │   ├── locations/page.tsx          # ✅ CRUD + Delete Safety
+│   │   ├── promotions/page.tsx         # ✅ CRUD + Bug Fixed
+│   │   ├── team/page.tsx              # CRUD (needs filters)
+│   │   ├── redemptions/page.tsx       # View + Process
+│   │   ├── analytics/page.tsx         # View + Charts
+│   │   ├── billing/page.tsx           # Subscription mgmt
+│   │   └── settings/page.tsx          # Profile edit
+│   └── admin/dashboard/               # Admin tools
+│
+├── components/
+│   ├── ui/                            # shadcn components
+│   ├── location-picker-modal.tsx      # ✅ Google Maps picker
+│   ├── plan-limit-badge.tsx           # Usage indicators
+│   └── upgrade-plan-button.tsx        # Upgrade CTAs
+│
+├── lib/
+│   ├── services/
+│   │   ├── location-service.ts        # ✅ CRUD complete
+│   │   ├── promotion-service.ts       # ✅ CRUD complete
+│   │   ├── user-service.ts
+│   │   ├── analytics-service.ts
+│   │   └── ...
+│   ├── firebase.ts                    # Config
+│   ├── firebase-storage.ts            # Upload utils
+│   ├── plan-limits.ts                 # Enforcement
+│   └── types.ts                       # TypeScript defs
+│
+└── hooks/
+    └── use-auth.ts                    # Auth context
+```
+
+### Key Files to Reference
+
+When implementing new features, use these as templates:
+
+1. **CRUD Pages**: `/app/business/dashboard/locations/page.tsx`
+2. **Services**: `/lib/services/location-service.ts`
+3. **Dialogs**: Location create/edit dialog (single dialog pattern)
+4. **Delete Confirmations**: Location delete dialog
+5. **Responsive Layouts**: Locations page responsive patterns
+
+---
+
+**Last Updated**: November 10, 2024
+**Major Changes**: Locations CRUD complete, Promotions bug fixed, Tooltips added, Primary location visual enhancement

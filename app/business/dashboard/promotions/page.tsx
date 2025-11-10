@@ -556,7 +556,9 @@ export default function PromotionsPage() {
             {/* Location Targeting */}
             <div className="space-y-3">
               <Label>Ubicaciones donde aplica</Label>
-              <p className="text-xs text-muted-foreground">Deja sin seleccionar para aplicar en todas las ubicaciones</p>
+              <p className="text-xs text-muted-foreground">
+                Selecciona "Todas las ubicaciones" o marca ubicaciones específicas
+              </p>
               <div className="space-y-2 rounded-lg border p-4">
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -569,7 +571,10 @@ export default function PromotionsPage() {
                     }}
                     disabled={isSubmitting}
                   />
-                  <label htmlFor="all-locations" className="text-sm font-medium">
+                  <label
+                    htmlFor="all-locations"
+                    className="text-sm font-medium cursor-pointer"
+                  >
                     Todas las ubicaciones
                   </label>
                 </div>
@@ -591,9 +596,12 @@ export default function PromotionsPage() {
                           }))
                         }
                       }}
-                      disabled={formData.locationIds.length === 0 || isSubmitting}
+                      disabled={isSubmitting}
                     />
-                    <label htmlFor={location.id} className="text-sm">
+                    <label
+                      htmlFor={location.id}
+                      className={`text-sm cursor-pointer ${isSubmitting ? 'opacity-50' : ''}`}
+                    >
                       {location.name}
                       {location.is_primary && <Badge variant="outline" className="ml-2 text-xs">Principal</Badge>}
                     </label>

@@ -382,7 +382,7 @@ export const registerBusiness = async (
 
     // Create primary location in subcollection (Schema V2)
     await LocationService.createLocation(businessId, {
-      name: `${businessData.businessName} - Sede Principal`,
+      name: `${businessData.businessName}`,
       is_primary: true,
       type: businessData.type,
       phone: businessData.phone || null,
