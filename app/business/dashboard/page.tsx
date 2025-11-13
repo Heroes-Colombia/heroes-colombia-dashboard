@@ -44,17 +44,19 @@ export default function BusinessDashboardPage() {
 
   const businessUser = user as any
   const plan = businessUser?.plan || "gratis"
-  const { promotions } = usePromotions({ businessId: businessUser?.id })
+  const { promotions } = usePromotions({ businessId: businessUser?.businessId })
   const isPremium = plan === "pro" || plan === "enterprise"
+
+  const daysUntilRenovation = Math.round((new Date('2026-01-30').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
 
   // Fetch last 7 days of analytics events
   useEffect(() => {
     async function fetchAnalyticsData() {
-      if (!businessUser?.id) return
+      if (!businessUser?.businessId) return
 
       setIsLoadingEvents(true)
       try {
-        const events = await AnalyticsEventService.getAnalyticsEvents(businessUser.id, {
+        const events = await AnalyticsEventService.getAnalyticsEvents(businessUser.businessId, {
           dateRange: {
             from: addDays(new Date(), -7),
             to: new Date(),
@@ -69,7 +71,7 @@ export default function BusinessDashboardPage() {
     }
 
     fetchAnalyticsData()
-  }, [businessUser?.id])
+  }, [businessUser?.businessId])
 
   // Calculate analytics from real data
   const analytics = useMemo(() => {
@@ -298,7 +300,7 @@ export default function BusinessDashboardPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold">15</p>
+                <p className="text-2xl font-bold">{daysUntilRenovation}</p>
                 <p className="text-sm text-muted-foreground">días restantes</p>
               </div>
               <Calendar className="h-8 w-8 text-muted-foreground" />
