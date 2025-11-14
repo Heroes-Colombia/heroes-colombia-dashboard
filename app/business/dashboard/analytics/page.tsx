@@ -624,8 +624,9 @@ export default function BusinessAnalyticsPage() {
         </>
       </FeatureGate>
 
+      // TODO implement this section later on
       {/* Export and Scheduling */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Exportar y Programar Reportes</CardTitle>
           <CardDescription>Descarga reportes o programa envíos automáticos</CardDescription>
@@ -656,7 +657,7 @@ export default function BusinessAnalyticsPage() {
             </Select>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   )
 }

@@ -292,7 +292,7 @@ export default function BusinessDashboardPage() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Próxima Renovación</CardTitle>
@@ -325,7 +325,8 @@ export default function BusinessDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        // TODO implement this section later on
+        {/* <Card>
           <CardHeader>
             <CardTitle className="text-base">Soporte</CardTitle>
           </CardHeader>
@@ -337,7 +338,7 @@ export default function BusinessDashboardPage() {
               {isPremium ? "Abrir Chat" : "Enviar Email"}
             </Button>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   )
