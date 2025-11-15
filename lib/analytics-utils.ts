@@ -27,6 +27,7 @@ export interface BasicAnalytics {
   impressions: number
   views: number
   saves: number
+  promotionSaves: number
   redemptions: number
 }
 
@@ -85,12 +86,10 @@ export interface TimeSeriesDataPoint {
  * Available to: All plans
  * Data source: Denormalized counts in promotions collection
  */
-export function calculateBasicAnalytics(promotions: Promotion[]): BasicAnalytics {
+export function calculatePromotionAnalytics(events: FirebaseAnalyticsEvent[], promotion: Promotion) {
   return {
-    impressions: promotions.reduce((sum, p) => sum + (p.views_count || 0), 0),
-    views: promotions.reduce((sum, p) => sum + (p.views_count || 0), 0),
-    saves: promotions.reduce((sum, p) => sum + (p.saves_count || 0), 0),
-    redemptions: promotions.reduce((sum, p) => sum + (p.redemptions_count || 0), 0),
+    views: events.filter((e) => e.event_type === "view" && e.entity_id === promotion.id && e.entity_type === "promotion").length || 0,
+    promotionSaves: events.filter((e) => e.event_type === "save" && e.entity_id === promotion.id && e.entity_type === "promotion").length || 0,
   }
 }
 
@@ -102,10 +101,11 @@ export function calculateBasicAnalyticsFromEvents(
   events: FirebaseAnalyticsEvent[]
 ): BasicAnalytics {
   return {
-    impressions: events.filter((e) => e.event_type === "impression").length,
-    views: events.filter((e) => e.event_type === "view").length,
-    saves: events.filter((e) => e.event_type === "save").length,
-    redemptions: events.filter((e) => e.event_type === "redemption").length,
+    impressions: events.filter((e) => e.event_type === "impression").length || 0,
+    views: events.filter((e) => e.event_type === "view" && e.entity_type === "business").length || 0,
+    saves: events.filter((e) => e.event_type === "save" && e.entity_type === "business").length || 0,
+    promotionSaves: events.filter((e) => e.event_type === "save" && e.entity_type === "promotion").length || 0,
+    redemptions: events.filter((e) => e.event_type === "redemption").length || 0,
   }
 }
 
@@ -123,22 +123,19 @@ export function calculateBasicAnalyticsFromEvents(
  * @param estimatedRevenue - Estimated revenue from redemptions (optional)
  */
 export function calculateAdvancedAnalytics(
-  promotions: Promotion[],
   events: FirebaseAnalyticsEvent[],
   estimatedRevenue?: number
 ): AdvancedAnalytics {
-  const basic = events.length > 0
-    ? calculateBasicAnalyticsFromEvents(events)
-    : calculateBasicAnalytics(promotions)
+  const analytics = calculateBasicAnalyticsFromEvents(events)
 
-  const conversionRate = basic.views > 0 ? (basic.redemptions / basic.views) * 100 : 0
+  const conversionRate = analytics.views > 0 ? (analytics.redemptions / analytics.views) * 100 : 0
   const revenue = estimatedRevenue || 0
-  const averageRevenuePerRedemption = basic.redemptions > 0 ? revenue / basic.redemptions : 0
+  const averageRevenuePerRedemption = analytics.redemptions > 0 ? revenue / analytics.redemptions : 0
 
   const demographics = calculateDemographics(events)
 
   return {
-    ...basic,
+    ...analytics,
     conversionRate,
     revenue,
     averageRevenuePerRedemption,
@@ -161,7 +158,7 @@ function calculateDemographics(events: FirebaseAnalyticsEvent[]) {
       uniqueUsers.add(event.user_id)
     }
 
-    if (event.user_rank) {
+    if (event.user_rank && event.user_rank != "admin") {
       rankCounts.set(event.user_rank, (rankCounts.get(event.user_rank) || 0) + 1)
     }
     if (event.user_city) {
@@ -223,7 +220,7 @@ export function calculateEnterpriseAnalytics(
     industryName?: string
   }
 ): EnterpriseAnalytics {
-  const advanced = calculateAdvancedAnalytics(promotions, events, estimatedRevenue)
+  const advanced = calculateAdvancedAnalytics(events, estimatedRevenue)
 
   // Calculate heatmaps from events (promotion engagement)
   const heatmaps = calculateHeatmaps(events, promotions)
@@ -260,7 +257,7 @@ function calculateHeatmaps(
 
   // Count views per promotion
   events
-    .filter((e) => (e.event_type === "view" || e.event_type === "click") && e.entity_id)
+    .filter((e) => (e.event_type === "view" && e.entity_type === "promotion") && e.entity_id)
     .forEach((event) => {
       const current = promotionViews.get(event.entity_id) || 0
       promotionViews.set(event.entity_id, current + 1)
@@ -371,8 +368,8 @@ export function calculateLocationAnalytics(
     }
 
     if (event.event_type === "impression") data.impressions++
-    if (event.event_type === "view") data.views++
-    if (event.event_type === "save") data.saves++
+    if (event.event_type === "view" && event.entity_type === "business") data.views++
+    if (event.event_type === "save" && event.entity_type === "business") data.saves++
     if (event.event_type === "redemption") data.redemptions++
 
     locationData.set(event.location_id, data)
@@ -417,8 +414,8 @@ export function calculateTimeSeriesData(
     }
 
     if (event.event_type === "impression") data.impressions++
-    if (event.event_type === "view") data.views++
-    if (event.event_type === "save") data.saves++
+    if (event.event_type === "view" && event.entity_type === "business") data.views++
+    if (event.event_type === "save" && event.entity_type === "business") data.saves++
     if (event.event_type === "redemption") data.redemptions++
 
     dateData.set(dateKey, data)
@@ -460,7 +457,7 @@ export function calculateTimeSeriesData(
 export function getAnalyticsByPlan(
   plan: PlanType,
   promotions: Promotion[],
-  events?: FirebaseAnalyticsEvent[],
+  events: FirebaseAnalyticsEvent[],
   options?: {
     estimatedRevenue?: number
     industryData?: { averageConversion: number; topConversion: number }
@@ -470,25 +467,22 @@ export function getAnalyticsByPlan(
   if (plan === "enterprise" && events && events.length > 0) {
     return calculateEnterpriseAnalytics(promotions, events, options?.estimatedRevenue, options)
   } else if ((plan === "pro" || plan === "basico") && events && events.length > 0) {
-    return calculateAdvancedAnalytics(promotions, events, options?.estimatedRevenue)
+    return calculateAdvancedAnalytics(events, options?.estimatedRevenue)
   } else {
-    return calculateBasicAnalytics(promotions)
+    return calculateBasicAnalyticsFromEvents(events)
   }
 }
 
 /**
  * Calculate funnel conversion data
  */
-export function calculateFunnelData(promotions: Promotion[], events?: FirebaseAnalyticsEvent[]): FunnelData[] {
-  const metrics = events && events.length > 0
-    ? calculateBasicAnalyticsFromEvents(events)
-    : calculateBasicAnalytics(promotions)
+export function calculateFunnelData(events: FirebaseAnalyticsEvent[]): FunnelData[] {
+  const metrics = calculateBasicAnalyticsFromEvents(events)
 
   return [
     { name: "Impresiones", value: metrics.impressions, fill: "#7A8B5A" },
     { name: "Vistas", value: metrics.views, fill: "#1E3A8A" },
     { name: "Guardadas", value: metrics.saves, fill: "#059669" },
-    { name: "Redenciones", value: metrics.redemptions, fill: "#DC2626" },
   ]
 }
 

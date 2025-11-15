@@ -256,6 +256,8 @@ export interface FirebaseTransaction {
  */
 export interface FirebaseAnalyticsEvent {
   // Core
+  entity_id: string
+  entity_type: string
   event_type: "impression" | "view" | "save" | "redemption"
   business_id: string
   promotion_id?: string
@@ -265,6 +267,7 @@ export interface FirebaseAnalyticsEvent {
   user_id?: string
   user_rank?: string // For demographics
   user_city?: string
+  user_type?: string
 
   // Context
   timestamp: Timestamp
@@ -272,7 +275,7 @@ export interface FirebaseAnalyticsEvent {
   device_type?: "ios" | "android" | "web"
 
   // Metadata
-  created_at: Timestamp
+  // created_at: Timestamp
 }
 
 // ============================================================================

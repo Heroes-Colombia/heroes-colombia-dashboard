@@ -32,7 +32,7 @@ import {
 import { useAuth } from "@/hooks/use-auth"
 import { usePromotions } from "@/hooks/use-promotions"
 import { AnalyticsEventService } from "@/lib/services/analytics-service"
-import { calculateBasicAnalytics, calculateFunnelData, calculateTimeSeriesData, filterEventsByDateRange } from "@/lib/analytics-utils"
+import { calculateBasicAnalyticsFromEvents, calculatePromotionAnalytics, calculateFunnelData, calculateTimeSeriesData } from "@/lib/analytics-utils"
 import Link from "next/link"
 import { addDays } from "date-fns"
 import type { Promotion, FirebaseAnalyticsEvent } from "@/lib/types"
@@ -75,25 +75,23 @@ export default function BusinessDashboardPage() {
 
   // Calculate analytics from real data
   const analytics = useMemo(() => {
-    return calculateBasicAnalytics(promotions || [])
+    return calculateBasicAnalyticsFromEvents(analyticsEvents)
   }, [promotions])
 
   const funnelData = useMemo(() => {
-    const funnel = calculateFunnelData(promotions || [], analyticsEvents)
+    const funnel = calculateFunnelData(analyticsEvents)
     return funnel.map((item) => ({ ...item, color: item.fill }))
   }, [promotions, analyticsEvents])
 
   const impressionsData = useMemo(() => {
     if (analyticsEvents.length > 0) {
       const timeSeriesData = calculateTimeSeriesData(analyticsEvents, {
-        from: addDays(new Date(), -7),
-        to: new Date(),
+        from: addDays(new Date(), -5),
+        to: addDays(new Date(), 1),
       })
       return timeSeriesData.map((item, index) => ({
-        name: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][new Date(new Date().getTime() - (6 - index) * 24 * 60 * 60 * 1000).getDay()],
-        impressions: item.impressions,
-        views: item.views,
-        redemptions: item.redemptions,
+        name: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][new Date(new Date().getTime() - (5 - index) * 24 * 60 * 60 * 1000).getDay()],
+        ...item
       }))
     }
     return []
@@ -107,6 +105,12 @@ export default function BusinessDashboardPage() {
     // Get top 5 promotions sorted by views (most viewed first)
     return promotions && promotions
       .filter((p) => p.status === "active")
+      .map((promotion) => {
+        const data = calculatePromotionAnalytics(analyticsEvents, promotion)
+        promotion.views_count = data.views
+        promotion.saves_count = data.promotionSaves
+        return promotion
+      })
       .sort((a, b) => (b.views_count || 0) - (a.views_count || 0))
       .slice(0, 5)
   }, [promotions])
@@ -190,9 +194,9 @@ export default function BusinessDashboardPage() {
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
-                <Line type="monotone" dataKey="impressions" stroke="#7A8B5A" strokeWidth={2} />
-                <Line type="monotone" dataKey="views" stroke="#1E3A8A" strokeWidth={2} />
-                <Line type="monotone" dataKey="redemptions" stroke="#059669" strokeWidth={2} />
+                <Line type="monotone" dataKey="impressions" stroke="#7A8B5A" strokeWidth={2} name="Impresiones" />
+                <Line type="monotone" dataKey="views" stroke="#1E3A8A" strokeWidth={2} name="Vistas" />
+                <Line type="monotone" dataKey="saves" stroke="#059669" strokeWidth={2} name="Guardados" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -261,10 +265,10 @@ export default function BusinessDashboardPage() {
                           <MousePointer className="h-3 w-3" />
                           {promo.saves_count || 0} guardadas
                         </span>
-                        <span className="flex items-center gap-1">
+                        {/* <span className="flex items-center gap-1">
                           <ShoppingCart className="h-3 w-3" />
                           {promo.redemptions_count || 0} redenciones
-                        </span>
+                        </span> */}
                       </div>
                     </div>
                   </div>
@@ -325,7 +329,7 @@ export default function BusinessDashboardPage() {
           </CardContent>
         </Card>
 
-        // TODO implement this section later on
+        {/* TODO implement this section later on */}
         {/* <Card>
           <CardHeader>
             <CardTitle className="text-base">Soporte</CardTitle>

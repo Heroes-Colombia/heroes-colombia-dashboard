@@ -9,7 +9,7 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { usePromotions } from "@/hooks/use-promotions"
 import { AnalyticsEventService } from "@/lib/services/analytics-service"
 import {
-  calculateBasicAnalytics,
+  calculateBasicAnalyticsFromEvents,
   calculateAdvancedAnalytics,
   calculateEnterpriseAnalytics,
   calculateFunnelData,
@@ -69,7 +69,7 @@ export default function BusinessAnalyticsPage() {
 
   const { user } = useAuth()
   const businessUser = user as any
-  const { promotions, isLoading: promotionsLoading } = usePromotions({ businessId: businessUser?.id })
+  const { promotions, isLoading: promotionsLoading } = usePromotions({ businessId: businessUser?.businessId })
   const plan: PlanType = businessUser?.plan || "gratis"
   const limits = getPlanLimits(plan)
   
@@ -84,11 +84,11 @@ export default function BusinessAnalyticsPage() {
   // Fetch analytics events when business or date range changes
   useEffect(() => {
     async function fetchAnalyticsData() {
-      if (!businessUser?.id) return
+      if (!businessUser?.businessId) return
 
       setIsLoadingEvents(true)
       try {
-        const events = await AnalyticsEventService.getAnalyticsEvents(businessUser.id, {
+        const events = await AnalyticsEventService.getAnalyticsEvents(businessUser.businessId, {
           dateRange,
         })
         setAnalyticsEvents(events)
@@ -100,11 +100,11 @@ export default function BusinessAnalyticsPage() {
     }
 
     fetchAnalyticsData()
-  }, [businessUser?.id, dateRange])
+  }, [businessUser?.businessId, dateRange])
 
   // Calculate analytics based on plan level
   const filteredPromotions = useMemo(() => {
-    return filterPromotionsByDateRange(promotions || [], dateRange)
+    return promotions && filterPromotionsByDateRange(promotions || [], dateRange)
   }, [promotions, dateRange])
 
   const filteredEvents = useMemo(() => {
@@ -112,25 +112,25 @@ export default function BusinessAnalyticsPage() {
   }, [analyticsEvents, dateRange])
 
   const basicAnalytics = useMemo(() => {
-    return calculateBasicAnalytics(filteredPromotions)
+    return calculateBasicAnalyticsFromEvents(analyticsEvents)
   }, [filteredPromotions])
 
   const advancedAnalytics = useMemo(() => {
     if (plan === "pro" || plan === "enterprise") {
-      return calculateAdvancedAnalytics(filteredPromotions, filteredEvents)
+      return calculateAdvancedAnalytics(filteredEvents)
     }
     return null
   }, [plan, filteredPromotions, filteredEvents])
 
   const enterpriseAnalytics = useMemo(() => {
     if (plan === "enterprise") {
-      return calculateEnterpriseAnalytics(filteredPromotions, filteredEvents)
+      return filteredPromotions && calculateEnterpriseAnalytics(filteredPromotions, filteredEvents)
     }
     return null
   }, [plan, filteredPromotions, filteredEvents])
 
   const funnelData = useMemo(() => {
-    return calculateFunnelData(filteredPromotions, filteredEvents)
+    return calculateFunnelData(filteredEvents)
   }, [filteredPromotions, filteredEvents])
 
   const timeSeriesData = useMemo(() => {
@@ -269,16 +269,28 @@ export default function BusinessAnalyticsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Guardadas</CardTitle>
+            <CardTitle className="text-sm font-medium">Negocio Favorito</CardTitle>
             <BookmarkCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{basicAnalytics.saves.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+10% vs período anterior</p>
+            <p className="text-xs text-muted-foreground"># veces tu negocio es guardado como favorito</p>
           </CardContent>
         </Card>
 
         <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Promociones favoritas</CardTitle>
+            <BookmarkCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{basicAnalytics.promotionSaves.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground"># veces que las promociones se guardan como favoritos</p>
+          </CardContent>
+        </Card>
+
+        {/* TODO */}
+        {/* <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Redenciones</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
@@ -287,7 +299,7 @@ export default function BusinessAnalyticsPage() {
             <div className="text-2xl font-bold">{basicAnalytics.redemptions.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">+15% vs período anterior</p>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
 
       {/* Charts Section - Basic */}
@@ -307,7 +319,7 @@ export default function BusinessAnalyticsPage() {
                 <Tooltip />
                 <Line type="monotone" dataKey="impressions" stroke="#7A8B5A" strokeWidth={2} name="Impresiones" />
                 <Line type="monotone" dataKey="views" stroke="#1E3A8A" strokeWidth={2} name="Vistas" />
-                <Line type="monotone" dataKey="redemptions" stroke="#059669" strokeWidth={2} name="Redenciones" />
+                <Line type="monotone" dataKey="saves" stroke="#059669" strokeWidth={2} name="Guardados" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -624,7 +636,7 @@ export default function BusinessAnalyticsPage() {
         </>
       </FeatureGate>
 
-      // TODO implement this section later on
+      {/* TODO implement this section later on */}
       {/* Export and Scheduling */}
       {/* <Card>
         <CardHeader>
