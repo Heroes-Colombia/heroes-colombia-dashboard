@@ -307,6 +307,7 @@ export const registerBusiness = async (
     phone: string
     category: string
     description: string
+    website?: string
     address?: string
     ownerName?: string
     plan?: string
@@ -324,6 +325,7 @@ export const registerBusiness = async (
       phone_number: businessData.phone,
       categories: [businessData.category],
       description: businessData.description,
+      website: businessData.website || "",
       address: businessData.address || "",
       owner_name: businessData.ownerName || "Business Owner",
       owner_uid: firebaseUser.uid,

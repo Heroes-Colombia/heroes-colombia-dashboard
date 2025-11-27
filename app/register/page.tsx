@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { HeroesLogo } from "@/components/heroes-logo"
 import { CategoryIcon } from "@/components/category-icon"
 import { LocationPickerModal } from "@/components/location-picker-modal"
-import { Building2, Mail, Lock, Phone, MapPin, AlertCircle, UserRound } from "lucide-react"
+import { Building2, Mail, Lock, Phone, MapPin, AlertCircle, UserRound, Globe } from "lucide-react"
 import Link from "next/link"
 import { registerBusiness } from "@/lib/auth"
 import { useCategories } from "@/hooks/use-categories"
@@ -32,6 +32,7 @@ export default function BusinessRegisterPage() {
     nit: "",
     category: "",
     description: "",
+    website: "",
     plan: "enterprise",
     type: "physical" as "physical" | "online",
     acceptTerms: false,
@@ -69,6 +70,7 @@ export default function BusinessRegisterPage() {
         phone: formData.phone,
         category: formData.category,
         description: formData.description,
+        website: formData.website,
         address: formData.address,
         ownerName: formData.ownerName,
         plan: formData.plan,
@@ -172,6 +174,21 @@ export default function BusinessRegisterPage() {
                     required
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="website">Sitio web</Label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="website"
+                  type="url"
+                  placeholder="https://www.tuempresa.com"
+                  value={formData.website}
+                  onChange={(e) => handleInputChange("website", e.target.value)}
+                  className="pl-10"
+                />
               </div>
             </div>
 
