@@ -492,7 +492,6 @@ export default function PromotionsPage() {
                 value={editingPromotion?.featured_image}
                 onChange={setSelectedImageFile}
                 disabled={isSubmitting}
-                recommendedDimensions="1200x630px"
               />
             </div>
 

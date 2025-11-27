@@ -36,7 +36,8 @@ export interface AdvancedAnalytics extends BasicAnalytics {
   revenue: number
   averageRevenuePerRedemption: number
   demographics: {
-    age: Array<{ range: string; value: number }>
+    age: Array<{ range: string; value: number }> // V3: Age range distribution
+    sex: Array<{ sex: string; value: number }> // V3: Gender distribution
     rank: Array<{ rank: string; value: number }>
     cities: Array<{ city: string; users: number }>
   }
@@ -145,10 +146,12 @@ export function calculateAdvancedAnalytics(
 
 /**
  * Calculate demographics from analytics events
- * Groups users by military rank and city
- * Data source: user_rank and user_city fields in analytics_events
+ * Groups users by age range, sex, military rank, and city
+ * Data source: user_age_range, user_sex, user_rank, and user_city fields in analytics_events (V3)
  */
 function calculateDemographics(events: FirebaseAnalyticsEvent[]) {
+  const ageCounts = new Map<string, number>()
+  const sexCounts = new Map<string, number>()
   const rankCounts = new Map<string, number>()
   const cityCounts = new Map<string, number>()
   const uniqueUsers = new Set<string>()
@@ -158,6 +161,16 @@ function calculateDemographics(events: FirebaseAnalyticsEvent[]) {
       uniqueUsers.add(event.user_id)
     }
 
+    // V3: Age range demographics
+    if (event.user_age_range) {
+      ageCounts.set(event.user_age_range, (ageCounts.get(event.user_age_range) || 0) + 1)
+    }
+
+    // V3: Sex demographics
+    if (event.user_sex) {
+      sexCounts.set(event.user_sex, (sexCounts.get(event.user_sex) || 0) + 1)
+    }
+
     if (event.user_rank && event.user_rank != "admin") {
       rankCounts.set(event.user_rank, (rankCounts.get(event.user_rank) || 0) + 1)
     }
@@ -165,6 +178,28 @@ function calculateDemographics(events: FirebaseAnalyticsEvent[]) {
       cityCounts.set(event.user_city, (cityCounts.get(event.user_city) || 0) + 1)
     }
   })
+
+  // Convert to percentage for age ranges
+  const totalAgeEvents = Array.from(ageCounts.values()).reduce((sum, count) => sum + count, 0)
+  const age = Array.from(ageCounts.entries())
+    .map(([range, count]) => ({
+      range,
+      value: totalAgeEvents > 0 ? Math.round((count / totalAgeEvents) * 100) : 0,
+    }))
+    .sort((a, b) => {
+      // Sort by age range order
+      const ageOrder = ["18-25", "26-35", "36-45", "46-55", "56-65", "66+", "under-18"]
+      return ageOrder.indexOf(a.range) - ageOrder.indexOf(b.range)
+    })
+
+  // Convert to percentage for sex
+  const totalSexEvents = Array.from(sexCounts.values()).reduce((sum, count) => sum + count, 0)
+  const sex = Array.from(sexCounts.entries())
+    .map(([gender, count]) => ({
+      sex: gender === "male" ? "Masculino" : "Femenino",
+      value: totalSexEvents > 0 ? Math.round((count / totalSexEvents) * 100) : 0,
+    }))
+    .sort((a, b) => b.value - a.value)
 
   // Convert to percentage for ranks
   const totalRankEvents = Array.from(rankCounts.values()).reduce((sum, count) => sum + count, 0)
@@ -183,7 +218,8 @@ function calculateDemographics(events: FirebaseAnalyticsEvent[]) {
     .slice(0, 5)
 
   return {
-    age: [], // Age data not in current schema - would need birthdate field in users collection
+    age,
+    sex,
     rank,
     cities,
   }
@@ -589,6 +625,7 @@ function timestampToDate(timestamp: any): Date {
 function getEmptyDemographics() {
   return {
     age: [],
+    sex: [],
     rank: [],
     cities: [],
   }

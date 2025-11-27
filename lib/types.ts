@@ -263,11 +263,13 @@ export interface FirebaseAnalyticsEvent {
   promotion_id?: string
   location_id?: string
 
-  // User Data
+  // User Data (V2 + V3 Demographics)
   user_id?: string
   user_rank?: string // For demographics
   user_city?: string
   user_type?: string
+  user_sex?: "male" | "female" // V3 demographic field
+  user_age_range?: "18-25" | "26-35" | "36-45" | "46-55" | "56-65" | "66+" | "under-18" // V3 demographic field
 
   // Context
   timestamp: Timestamp
@@ -677,7 +679,8 @@ export interface DailyTrend {
 }
 
 export interface UserDemographics {
-  ageGroups: Record<string, number>
+  ageGroups: Record<string, number> // "18-25", "26-35", "36-45", "46-55", "56-65", "66+"
+  sex: Record<"male" | "female", number> // V3: Gender distribution
   militaryRanks: Record<string, number>
   cities: Record<string, number>
 }

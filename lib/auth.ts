@@ -338,8 +338,8 @@ export const registerBusiness = async (
         geopoint: { latitude: 4.6097, longitude: -74.0817 }
       },
 
-      status: "pending" as BusinessStatus,
-      featured: false,
+      status: "active" as BusinessStatus,
+      featured: true,
       plan: businessData.plan as PlanType || "enterprise",
       subscription_status: "trial" as SubscriptionStatus,
     }

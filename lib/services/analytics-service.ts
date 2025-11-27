@@ -28,7 +28,7 @@ export class AnalyticsEventService {
       // Build query
       const eventsRef = collection(db, "analytics_events")
       let q = query(eventsRef, where("business_id", "==", businessId))
-      q = query(q, where("user_rank", "==", "admin"))
+      q = query(q, where("user_rank", "!=", "admin"))
 
       // Add date range filter if provided
       if (options?.dateRange) {
@@ -111,7 +111,21 @@ export class AnalyticsEventService {
       const snapshot = await getDocs(q)
       let events = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data(),
+        event_type: doc.data().event_type,
+        entity_type: doc.data().entity_type,
+        entity_id: doc.data().entity_id,
+        user_id: doc.data().user_id,
+        user_type: doc.data().user_type,
+        user_rank: doc.data().user_rank,
+        user_city: doc.data().user_city,
+        user_sex: doc.data().user_sex,
+        user_age_range: doc.data().user_age_range,
+        business_id: doc.data().business_id,
+        promotion_id: doc.data().promotion_id,
+        location_id: doc.data().location_id,
+        session_id: doc.data().session_id,
+        timestamp: doc.data().timestamp,
+        device_type: doc.data().device_type,
       })) as FirebaseAnalyticsEvent[]
 
       // Filter by event types if provided

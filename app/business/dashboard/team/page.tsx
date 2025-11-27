@@ -398,7 +398,7 @@ export default function TeamPage() {
                       <div>
                         <p className="font-medium text-blue-900">Gestión de equipo</p>
                         <p className="text-sm text-blue-700">
-                          Los miembros del equipo podrán acceder al dashboard según los permisos asignados.
+                          Los miembros del equipo podrán acceder al Portal Web según los permisos asignados.
                         </p>
                       </div>
                     </div>

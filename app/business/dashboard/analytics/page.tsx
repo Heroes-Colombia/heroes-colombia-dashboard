@@ -32,14 +32,10 @@ import {
   PieChart,
   Pie,
   Cell,
-  AreaChart,
-  Area,
 } from "recharts"
 import {
-  TrendingUp,
   Eye,
   MousePointer,
-  ShoppingCart,
   MapPin,
   Download,
   Mail,
@@ -363,81 +359,22 @@ export default function BusinessAnalyticsPage() {
         lockedVariant="card"
       >
         <>
-          {/* Conversion & Revenue Metrics */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Tasa de Conversión</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{advancedAnalytics?.conversionRate.toFixed(1) || 0}%</div>
-                <p className="text-xs text-muted-foreground">Tasa de conversión</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ingresos Atribuidos</CardTitle>
-                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">${advancedAnalytics?.revenue.toLocaleString() || 0}</div>
-                <p className="text-xs text-muted-foreground">Estimado</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ingreso por Redención</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  ${advancedAnalytics?.averageRevenuePerRedemption.toLocaleString() || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">Promedio</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Revenue Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Crown className="h-5 w-5 mr-2 text-primary" />
-                Análisis de Ingresos
-              </CardTitle>
-              <CardDescription>Ingresos atribuidos a promociones</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={timeSeriesData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="revenue" stroke="#7A8B5A" fill="#7A8B5A" fillOpacity={0.3} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
           {/* Demographics */}
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader>
                 <CardTitle>Demografía por Edad</CardTitle>
+                <CardDescription>Distribución de rangos etarios</CardDescription>
               </CardHeader>
               <CardContent>
                 {advancedAnalytics?.demographics.age && advancedAnalytics.demographics.age.length > 0 ? (
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={advancedAnalytics.demographics.age}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="range" />
+                      <XAxis dataKey="range" tick={{ fontSize: 12 }} />
                       <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="value" fill="#7A8B5A" />
+                      <Tooltip formatter={(value) => `${value}%`} />
+                      <Bar dataKey="value" fill="#7A8B5A" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -450,7 +387,42 @@ export default function BusinessAnalyticsPage() {
 
             <Card>
               <CardHeader>
+                <CardTitle>Distribución por Género</CardTitle>
+                <CardDescription>Proporción masculino/femenino</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {advancedAnalytics?.demographics.sex && advancedAnalytics.demographics.sex.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={advancedAnalytics.demographics.sex}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={70}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ sex, value }) => `${sex}: ${value}%`}
+                        labelLine={false}
+                      >
+                        {advancedAnalytics.demographics.sex.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.sex === "Masculino" ? "#1E3A8A" : "#7A8B5A"} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => `${value}%`} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
+                    No hay datos de género disponibles
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle>Distribución por Fuerza</CardTitle>
+                <CardDescription>Top 5 rangos militares</CardDescription>
               </CardHeader>
               <CardContent>
                 {advancedAnalytics?.demographics.rank && advancedAnalytics.demographics.rank.length > 0 ? (
@@ -465,7 +437,7 @@ export default function BusinessAnalyticsPage() {
                         dataKey="value"
                         label={({ rank, value }) => `${rank}: ${value}%`}
                       />
-                      <Tooltip />
+                      <Tooltip formatter={(value) => `${value}%`} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
@@ -479,6 +451,7 @@ export default function BusinessAnalyticsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Usuarios por Ciudad</CardTitle>
+                <CardDescription>Top 5 ciudades</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
