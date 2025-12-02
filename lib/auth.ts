@@ -210,7 +210,7 @@ const fetchUserFromFirestore = async (firebaseUserId: string, firebaseUserEmail:
       let businesDetails = await BusinessService.getBusinessByOwnerId(userData.uid)
 
       if (!businesDetails) {
-        console.log('user with owned businesses: ', userData.owned_businesses);        
+        console.log('user with owned businesses: ', userData.owned_businesses);
         businesDetails = await BusinessService.getBusiness(userData.owned_businesses?.[0])
         if (!businesDetails) {
           throw new Error("El usuario no pertenece a ningún negocio activo en Heroes")
@@ -309,6 +309,11 @@ export const registerBusiness = async (
     description: string
     website?: string
     address?: string
+    coordinates: { latitude: number; longitude: number } | null
+    geoHash: {
+      geohash: string
+      geopoint: { latitude: number; longitude: number }
+    } | null
     ownerName?: string
     plan?: string
     type?: string
@@ -333,12 +338,11 @@ export const registerBusiness = async (
       // Type & Categories
       type: businessData.type as BusinessType,
 
-      // Default location (Bogotá center for now - should be updated with real geocoding)
-      location: { latitude: 4.6097, longitude: -74.0817 },
-      geo_hash: {
-        geohash: "d2cbe0c0b", // Default geohash for Bogotá
-        geopoint: { latitude: 4.6097, longitude: -74.0817 }
-      },
+      location: businessData.coordinates ? { latitude: businessData.coordinates.latitude, longitude: businessData.coordinates.longitude } : null,
+      geo_hash: businessData.geoHash ? {
+        geohash: businessData.geoHash?.geohash,
+        geopoint: { latitude: businessData.geoHash?.geopoint.latitude, longitude: businessData.geoHash?.geopoint.longitude }
+      } : null,
 
       status: "active" as BusinessStatus,
       featured: true,
@@ -374,7 +378,7 @@ export const registerBusiness = async (
       owned_businesses: [businessId],
       first_name: businessData.ownerName?.split(" ")[0] || "Business",
       first_last_name: businessData.ownerName?.split(" ")[1] || "Owner",
-      verified: false,
+      verified: true,
       rank: "Business Owner",
       created_at: new Date(),
       updated_at: new Date()
@@ -387,19 +391,14 @@ export const registerBusiness = async (
       name: `${businessData.businessName}`,
       is_primary: true,
       type: businessData.type,
-      phone: businessData.phone || null,
+      phone_number: businessData.phone || null,
       email: null,
-      website: null,
       address: businessData.address || null,
-      location: businessData.address ? { latitude: 4.6097, longitude: -74.0817 } : null,
-      geo_hash: businessData.address ? {
-        geohash: "d2cbe0c0b",
-        geopoint: { latitude: 4.6097, longitude: -74.0817 }
+      location: businessData.coordinates ? { latitude: businessData.coordinates.latitude, longitude: businessData.coordinates.longitude } : null,
+      geo_hash: businessData.geoHash ? {
+        geohash: businessData.geoHash?.geohash,
+        geopoint: { latitude: businessData.geoHash?.geopoint.latitude, longitude: businessData.geoHash.geopoint.longitude }
       } : null,
-      business_hours: null,
-      delivery_zones: null,
-      delivery_type: null,
-      whatsapp: null,
       status: "active"
     })
 

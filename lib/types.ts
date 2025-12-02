@@ -454,8 +454,11 @@ export interface BusinessProfile {
 
   // Primary Location
   address: string
-  location: GeoPoint | null
-  geo_hash: GeoHash | null
+  location: { latitude: number; longitude: number } | null
+  geo_hash: {
+    geohash: string
+    geopoint: { latitude: number; longitude: number }
+  } | null
 
   // Status
   status: BusinessStatus

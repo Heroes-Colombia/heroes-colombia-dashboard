@@ -72,6 +72,8 @@ export default function BusinessRegisterPage() {
         description: formData.description,
         website: formData.website,
         address: formData.address,
+        coordinates: formData.coordinates,
+        geoHash: formData.geoHash,
         ownerName: formData.ownerName,
         plan: formData.plan,
         type: formData.type,
@@ -214,23 +216,23 @@ export default function BusinessRegisterPage() {
               {/* 5. Physical-specific: Location Picker */}
               {formData.type == 'physical' && (
                 <div className="space-y-2">
-                    <Label htmlFor="address">Dirección *</Label>
-                    <Input
-                      value={formData.address}
-                      placeholder="Seleccionar ubicación en el mapa"
-                      readOnly
-                      className="flex-1"
-                    />
-                    <Button type="button" variant="outline" onClick={() => setIsLocationPickerOpen(true)}>
-                      <MapPin className="h-4 w-4 mr-2" />
-                      Seleccionar
-                    </Button>
-                    {formData.coordinates && (
-                      <p className="text-xs text-muted-foreground">
-                        📍 Lat: {formData.coordinates.latitude.toFixed(6)}, Lng:{" "}
-                        {formData.coordinates.longitude.toFixed(6)}
-                      </p>
-                    )}
+                  <Label htmlFor="address">Dirección *</Label>
+                  <Input
+                    value={formData.address}
+                    placeholder="Seleccionar ubicación en el mapa"
+                    readOnly
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="outline" onClick={() => setIsLocationPickerOpen(true)}>
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Seleccionar
+                  </Button>
+                  {formData.coordinates && (
+                    <p className="text-xs text-muted-foreground">
+                      📍 Lat: {formData.coordinates.latitude.toFixed(6)}, Lng:{" "}
+                      {formData.coordinates.longitude.toFixed(6)}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
