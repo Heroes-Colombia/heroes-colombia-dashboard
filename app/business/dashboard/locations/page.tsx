@@ -38,7 +38,6 @@ export default function LocationsPage() {
     // Contact fields (all locations)
     phone: "",
     email: "",
-    website: "",
     // Physical fields only
     address: "",
     coordinates: null as { latitude: number; longitude: number } | null,
@@ -107,7 +106,6 @@ export default function LocationsPage() {
       isPrimary: false,
       phone: "",
       email: "",
-      website: "",
       address: "",
       coordinates: null,
       geoHash: null,
@@ -130,7 +128,6 @@ export default function LocationsPage() {
       isPrimary: location.isPrimary || location.is_primary || false,
       phone: location.phone || "",
       email: location.email || "",
-      website: location.website || "",
       address: location.address || "",
       coordinates: location.location
         ? { latitude: location.location.latitude, longitude: location.location.longitude }
@@ -166,7 +163,6 @@ export default function LocationsPage() {
       // Contact fields
       phone: locationFormData.phone || null,
       email: locationFormData.email || null,
-      website: locationFormData.website || null,
       // Physical fields only
       address: locationFormData.type === "physical" ? locationFormData.address : null,
       location: locationFormData.type === "physical" && locationFormData.coordinates ? locationFormData.coordinates : null,
@@ -252,7 +248,7 @@ export default function LocationsPage() {
         if (activePromotions.length > 0) {
           alert(
             `No puedes eliminar esta ubicación porque tiene ${activePromotions.length} promoción(es) activa(s). ` +
-              `Por favor, desactiva o edita las promociones primero.`
+            `Por favor, desactiva o edita las promociones primero.`
           )
           setIsDeleting(false)
           return
@@ -369,11 +365,6 @@ export default function LocationsPage() {
                   <div className="mb-3 flex flex-wrap gap-3 text-sm text-muted-foreground">
                     {location.phone && <span>📞 {location.phone}</span>}
                     {location.email && <span>✉️ {location.email}</span>}
-                    {location.website && (
-                      <a href={location.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                        🌐 {location.website}
-                      </a>
-                    )}
                   </div>
 
                   {location.type === "physical" && location.address && (
@@ -493,7 +484,32 @@ export default function LocationsPage() {
               </Tabs>
             </div>
 
-            {/* 3. Primary toggle (only if not first location) */}
+            {/* 3. Physical-specific: Location Picker */}
+            {locationFormData.type === "physical" && (
+              <div className="space-y-2">
+                <Label>Dirección *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={locationFormData.address}
+                    placeholder="Selecciona una ubicación en el mapa"
+                    readOnly
+                    className="flex-1"
+                  />
+                  <Button type="button" variant="outline" onClick={() => setIsLocationPickerOpen(true)}>
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Seleccionar
+                  </Button>
+                </div>
+                {locationFormData.coordinates && (
+                  <p className="text-xs text-muted-foreground">
+                    📍 Lat: {locationFormData.coordinates.latitude.toFixed(6)}, Lng:{" "}
+                    {locationFormData.coordinates.longitude.toFixed(6)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* 4. Primary toggle (only if not first location) */}
             {locations.length > 0 && (
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
@@ -507,7 +523,7 @@ export default function LocationsPage() {
               </div>
             )}
 
-            {/* 4. Contact Info (both types) */}
+            {/* 5. Contact Info (both types) */}
             <div className="space-y-4">
               <h3 className="font-medium">Información de Contacto</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -530,46 +546,8 @@ export default function LocationsPage() {
                     onChange={(e) => setLocationFormData((prev) => ({ ...prev, email: e.target.value }))}
                   />
                 </div>
-                <div className="col-span-1 sm:col-span-2 space-y-2">
-                  <Label htmlFor="website">Sitio Web</Label>
-                  <Input
-                    id="website"
-                    type="url"
-                    placeholder="https://mitienda.com"
-                    value={locationFormData.website}
-                    onChange={(e) => setLocationFormData((prev) => ({ ...prev, website: e.target.value }))}
-                  />
-                </div>
               </div>
             </div>
-
-            {/* 5. Physical-specific: Location Picker */}
-            {locationFormData.type === "physical" && (
-              <div className="space-y-4">
-                <h3 className="font-medium">Ubicación en el Mapa</h3>
-                <div className="space-y-2">
-                  <Label>Dirección *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={locationFormData.address}
-                      placeholder="Selecciona una ubicación en el mapa"
-                      readOnly
-                      className="flex-1"
-                    />
-                    <Button type="button" variant="outline" onClick={() => setIsLocationPickerOpen(true)}>
-                      <MapPin className="h-4 w-4 mr-2" />
-                      Seleccionar
-                    </Button>
-                  </div>
-                  {locationFormData.coordinates && (
-                    <p className="text-xs text-muted-foreground">
-                      📍 Lat: {locationFormData.coordinates.latitude.toFixed(6)}, Lng:{" "}
-                      {locationFormData.coordinates.longitude.toFixed(6)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* 6. Online-specific: Info message */}
             {locationFormData.type === "online" && (

@@ -36,7 +36,6 @@ export default function SettingsPage() {
     phone_number: "",
     website: "",
     description: "",
-    address: "",
     featured_image: "",
   })
   const [notifications, setNotifications] = useState({
@@ -57,7 +56,6 @@ export default function SettingsPage() {
         phone_number: businessUser.businessPhone || "",
         website: businessUser.website || "",
         description: businessUser.businessDescription || "",
-        address: businessUser.address || "",
         featured_image: businessUser.businessFeaturedImage || "",
       })
     }
@@ -244,7 +242,7 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="business-email">Email</Label>
+                  <Label htmlFor="business-email">Correo corporativo</Label>
                   <Input
                     id="business-email"
                     type="email"
@@ -267,14 +265,6 @@ export default function SettingsPage() {
                     value={businessData.website}
                     onChange={(e) => handleInputChange("website", e.target.value)}
                     placeholder="https://ejemplo.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="business-address">Dirección</Label>
-                  <Input
-                    id="business-address"
-                    value={businessData.address}
-                    onChange={(e) => handleInputChange("address", e.target.value)}
                   />
                 </div>
               </div>
