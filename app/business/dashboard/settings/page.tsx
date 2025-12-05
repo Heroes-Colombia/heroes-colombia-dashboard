@@ -129,25 +129,26 @@ export default function SettingsPage() {
 
       // Handle image upload if a new file was selected
       if (selectedImageFile) {
-        // Delete old image first if exists
-        if (businessData.featured_image) {
-          try {
-            await deleteBusinessFeaturedImage(businessData.featured_image, businessUser.businessId)
-          } catch (error) {
-            console.error("Error deleting old image:", error)
-            // Continue anyway - not critical
-          }
-        }
-
-        // Upload new image with retry
+        // Upload new image with retry FIRST
         const uploadedUrl = await uploadWithRetry(
           () => uploadBusinessFeaturedImage(selectedImageFile, businessUser.businessId),
           2
         )
 
         if (uploadedUrl) {
+          // Only after successful upload, delete the old image
+          const oldImageUrl = businessData.featured_image
+          if (oldImageUrl) {
+            try {
+              await deleteBusinessFeaturedImage(oldImageUrl, businessUser.businessId)
+            } catch (error) {
+              console.error("Error deleting old image:", error)
+              // Continue anyway - not critical, new image is already uploaded
+            }
+          }
           featuredImageUrl = uploadedUrl
         } else {
+          // Upload failed - keep the old image URL intact
           imageUploadFailed = true
           console.error("Image upload failed after retries")
         }
