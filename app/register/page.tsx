@@ -19,6 +19,10 @@ import { Building2, Mail, Lock, Phone, MapPin, AlertCircle, UserRound, Globe } f
 import Link from "next/link"
 import { registerBusiness } from "@/lib/auth"
 import { useCategories } from "@/hooks/use-categories"
+import { ImageUpload } from "@/components/ui/image-upload"
+import { uploadBusinessFeaturedImage, uploadWithRetry } from "@/lib/firebase-storage"
+import { BusinessService } from "@/lib/services/business-service"
+import { toast } from "sonner"
 
 export default function BusinessRegisterPage() {
   const { categories, isLoading: categoriesLoading } = useCategories()
@@ -41,6 +45,7 @@ export default function BusinessRegisterPage() {
     coordinates: null as { latitude: number; longitude: number } | null,
     geoHash: null as { geohash: string; geopoint: { latitude: number; longitude: number } } | null,
   })
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null)
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -63,8 +68,15 @@ export default function BusinessRegisterPage() {
       return
     }
 
+    if (!selectedLogoFile) {
+      setError("Debes subir el logo de tu empresa")
+      setIsLoading(false)
+      return
+    }
+
     try {
-      await registerBusiness(formData.email, formData.password, {
+      // Register the business first
+      const businessUser = await registerBusiness(formData.email, formData.password, {
         businessName: formData.businessName,
         nit: formData.nit,
         phone: formData.phone,
@@ -78,6 +90,36 @@ export default function BusinessRegisterPage() {
         plan: formData.plan,
         type: formData.type,
       })
+
+      // Upload logo if selected (optional, non-blocking)
+      if (selectedLogoFile && businessUser.businessId) {
+        try {
+          const logoUrl = await uploadWithRetry(
+            () => uploadBusinessFeaturedImage(selectedLogoFile, businessUser.businessId),
+            2
+          )
+
+          if (logoUrl) {
+            // Update business with logo URL
+            await BusinessService.updateBusiness(businessUser.businessId, {
+              featured_image: logoUrl,
+            })
+            toast.success("Registro exitoso", {
+              description: "Tu empresa y logo se han registrado correctamente.",
+            })
+          } else {
+            toast.success("Registro exitoso", {
+              description: "Tu empresa se ha registrado. Puedes subir el logo desde Configuración.",
+            })
+          }
+        } catch (logoError) {
+          console.error("Error uploading logo:", logoError)
+          // Don't block registration if logo upload fails
+          toast.success("Registro exitoso", {
+            description: "Tu empresa se ha registrado. Puedes subir el logo desde Configuración.",
+          })
+        }
+      }
 
       // Redirect to verification or dashboard
       router.push("/business/dashboard")
@@ -114,203 +156,283 @@ export default function BusinessRegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="businessName">Nombre de la empresa *</Label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="businessName"
-                    placeholder="Como lo verán los usuarios"
-                    value={formData.businessName}
-                    className="pl-10"
-                    onChange={(e) => handleInputChange("businessName", e.target.value)}
-                    required
-                  />
-                </div>
+            {/* Business Information Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <h3 className="text-sm font-medium text-muted-foreground">Información de la Empresa</h3>
+                <div className="h-px flex-1 bg-border" />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="nit">NIT *</Label>
-                <Input
-                  id="nit"
-                  placeholder="900123456-7"
-                  value={formData.nit}
-                  onChange={(e) => handleInputChange("nit", e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="category">Categoría *</Label>
-                <Select onValueChange={(value) => handleInputChange("category", value)} disabled={categoriesLoading}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={categoriesLoading ? "Cargando categorías..." : "Selecciona una categoría"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.category_id} value={category.category_id}>
-                        <div className="flex items-center gap-2">
-                          <CategoryIcon categoryId={category.category_id} size="sm" />
-                          <span>{category.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono de la sede principal*</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+57 300 123 4567"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="website">Sitio web</Label>
-              <div className="relative">
-                <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="website"
-                  type="url"
-                  placeholder="https://www.tuempresa.com"
-                  value={formData.website}
-                  onChange={(e) => handleInputChange("website", e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="location-type">Ubicación del negocio *</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value: "physical" | "online") =>
-                    handleInputChange("type", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="physical">Ubicación Física</SelectItem>
-                    <SelectItem value="online">Tienda Online</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* 5. Physical-specific: Location Picker */}
-              {formData.type == 'physical' && (
+              <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="address">Dirección *</Label>
-                  <Input
-                    value={formData.address}
-                    placeholder="Seleccionar ubicación en el mapa"
-                    readOnly
-                    className="flex-1"
-                  />
-                  <Button type="button" variant="outline" onClick={() => setIsLocationPickerOpen(true)}>
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Seleccionar
-                  </Button>
-                  {formData.coordinates && (
-                    <p className="text-xs text-muted-foreground">
-                      📍 Lat: {formData.coordinates.latitude.toFixed(6)}, Lng:{" "}
-                      {formData.coordinates.longitude.toFixed(6)}
-                    </p>
-                  )}
+                  <Label htmlFor="businessName">Nombre de la empresa *</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="businessName"
+                      placeholder="Como lo verán los usuarios"
+                      value={formData.businessName}
+                      className="pl-10"
+                      onChange={(e) => handleInputChange("businessName", e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Descripción del negocio</Label>
-              <Textarea
-                id="description"
-                placeholder="Describe brevemente tu negocio y los productos/servicios que ofreces..."
-                value={formData.description}
-                onChange={(e) => handleInputChange("description", e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo electrónico *</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <div className="space-y-2">
+                  <Label htmlFor="nit">NIT *</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="nombre@empresa.com"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ownerName">Tu nombre personal*</Label>
-                <div className="relative">
-                  <UserRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="ownerName"
-                    type="text"
-                    placeholder="Juan Gonzalez"
-                    value={formData.ownerName}
-                    onChange={(e) => handleInputChange("ownerName", e.target.value)}
-                    className="pl-10"
+                    id="nit"
+                    placeholder="900123456-7"
+                    value={formData.nit}
+                    onChange={(e) => handleInputChange("nit", e.target.value)}
                     required
                   />
                 </div>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña *</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange("password", e.target.value)}
-                    className="pl-10"
-                    required
-                  />
+            {/* Category and Contact Section */}
+            <div className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="category">Categoría *</Label>
+                  <Select onValueChange={(value) => handleInputChange("category", value)} disabled={categoriesLoading}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={categoriesLoading ? "Cargando categorías..." : "Selecciona una categoría"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category.category_id} value={category.category_id}>
+                          <div className="flex items-center gap-2">
+                            <CategoryIcon categoryId={category.category_id} size="sm" />
+                            <span>{category.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Teléfono de la sede principal *</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+57 300 123 4567"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar contraseña *</Label>
+                <Label htmlFor="website">Sitio web (opcional)</Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                    id="website"
+                    type="url"
+                    placeholder="https://www.tuempresa.com"
+                    value={formData.website}
+                    onChange={(e) => handleInputChange("website", e.target.value)}
                     className="pl-10"
-                    required
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Location Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <h3 className="text-sm font-medium text-muted-foreground">Ubicación del Negocio</h3>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              <div className="space-y-4">
+                {/* Business Type Selection */}
+                <div className="border rounded-lg bg-muted/30 overflow-hidden">
+                  <div className="grid grid-cols-2 gap-0 border-t">
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange("type", 'physical')}
+                      className={`p-4 text-left transition-colors ${formData.type === 'physical'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-background hover:bg-muted/50'
+                        }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Building2 className="h-4 w-4" />
+                        <span className="font-medium text-sm">Ubicación Física</span>
+                      </div>
+                      <p className={`text-xs ${formData.type === 'physical' ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                        }`}>
+                        Tengo una tienda o local
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange("type", 'online')}
+                      className={`p-4 text-left transition-colors border-l ${formData.type === 'online'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-background hover:bg-muted/50'
+                        }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Globe className="h-4 w-4" />
+                        <span className="font-medium text-sm">Tienda Online</span>
+                      </div>
+                      <p className={`text-xs ${formData.type === 'online' ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                        }`}>
+                        Solo vendo por internet
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Physical-specific: Location Picker */}
+                {formData.type === 'physical' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Dirección de tu negocio *</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={formData.address}
+                        placeholder="Seleccionar ubicación en el mapa"
+                        readOnly
+                        className="flex-1"
+                      />
+                      <Button type="button" variant="outline" onClick={() => setIsLocationPickerOpen(true)}>
+                        <MapPin className="h-4 w-4 mr-2" />
+                        Seleccionar
+                      </Button>
+                    </div>
+                    {formData.coordinates && (
+                      <p className="text-xs text-muted-foreground">
+                        📍 Lat: {formData.coordinates.latitude.toFixed(6)}, Lng: {formData.coordinates.longitude.toFixed(6)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Brand Identity Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <h3 className="text-sm font-medium text-muted-foreground">Identidad de Marca</h3>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="description">Descripción del negocio</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Describe brevemente tu negocio y los productos/servicios que ofreces..."
+                    value={formData.description}
+                    onChange={(e) => handleInputChange("description", e.target.value)}
+                    rows={9}
+                    className="resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Ayuda a los usuarios a conocer qué ofreces
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="logo">Logo de tu empresa *</Label>
+                  <ImageUpload
+                    onChange={setSelectedLogoFile}
+                    disabled={isLoading}
+                    recommendedDimensions="512x512px"
+                    className="[&>div]:aspect-square [&>div]:max-h-[200px]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Account Information Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-1 bg-border" />
+                <h3 className="text-sm font-medium text-muted-foreground">Información de la Cuenta</h3>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ownerName">Tu nombre personal *</Label>
+                  <div className="relative">
+                    <UserRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="ownerName"
+                      type="text"
+                      placeholder="Juan González"
+                      value={formData.ownerName}
+                      onChange={(e) => handleInputChange("ownerName", e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Correo electrónico *</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="nombre@empresa.com"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Contraseña *</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Mínimo 6 caracteres"
+                      value={formData.password}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
+                      className="pl-10"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar contraseña *</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      placeholder="Repite tu contraseña"
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                      className="pl-10"
+                      required
+                      minLength={6}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

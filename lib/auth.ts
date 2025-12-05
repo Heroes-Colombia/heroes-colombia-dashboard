@@ -323,6 +323,21 @@ export const registerBusiness = async (
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const firebaseUser = userCredential.user
 
+    // Default Bogotá location for online businesses
+    const defaultBogotaLocation = {
+      latitude: 4.6097,
+      longitude: -74.0817
+    }
+    const defaultBogotaGeoHash = {
+      geohash: "d2cbe0c0b",
+      geopoint: { latitude: 4.6097, longitude: -74.0817 }
+    }
+
+    // Determine location based on business type
+    const isOnline = businessData.type === "online"
+    const businessLocation = isOnline ? defaultBogotaLocation : (businessData.coordinates || defaultBogotaLocation)
+    const businessGeoHash = isOnline ? defaultBogotaGeoHash : (businessData.geoHash || defaultBogotaGeoHash)
+
     const businessDataFirebase = {
       name: businessData.businessName,
       identification: businessData.nit,
@@ -338,11 +353,8 @@ export const registerBusiness = async (
       // Type & Categories
       type: businessData.type as BusinessType,
 
-      location: businessData.coordinates ? { latitude: businessData.coordinates.latitude, longitude: businessData.coordinates.longitude } : null,
-      geo_hash: businessData.geoHash ? {
-        geohash: businessData.geoHash?.geohash,
-        geopoint: { latitude: businessData.geoHash?.geopoint.latitude, longitude: businessData.geoHash?.geopoint.longitude }
-      } : null,
+      location: businessLocation,
+      geo_hash: businessGeoHash,
 
       status: "active" as BusinessStatus,
       featured: true,
@@ -394,11 +406,8 @@ export const registerBusiness = async (
       phone_number: businessData.phone || null,
       email: null,
       address: businessData.address || null,
-      location: businessData.coordinates ? { latitude: businessData.coordinates.latitude, longitude: businessData.coordinates.longitude } : null,
-      geo_hash: businessData.geoHash ? {
-        geohash: businessData.geoHash?.geohash,
-        geopoint: { latitude: businessData.geoHash?.geopoint.latitude, longitude: businessData.geoHash.geopoint.longitude }
-      } : null,
+      location: businessLocation,
+      geo_hash: businessGeoHash,
       status: "active"
     })
 

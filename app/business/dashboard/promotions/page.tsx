@@ -492,7 +492,13 @@ export default function PromotionsPage() {
                 value={editingPromotion?.featured_image}
                 onChange={setSelectedImageFile}
                 disabled={isSubmitting}
+                enableAutoCorrection={true}
+                recommendedDimensions="1600x800px (2:1)"
+                maxSizeMB={2}
               />
+              <p className="text-xs text-muted-foreground">
+                La imagen se ajustará automáticamente para verse perfecta en el carrusel de la app móvil
+              </p>
             </div>
 
             <div className="space-y-2">

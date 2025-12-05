@@ -63,6 +63,13 @@ service cloud.firestore {
                      resource.data.user_type == 'consumer' &&
                      getUserData().user_type == 'business_team';
 
+      // Allow unauthenticated users to validate invite codes during signup
+      // SECURITY: Only allows reading military users (permission: 'user') with an invite_code
+      // This is needed for the signup flow when users enter a referral code
+      allow read: if !isAuthenticated() &&
+                     resource.data.permission == 'user' &&
+                     resource.data.invite_code != null;
+
       // Users can update their own profile (limited fields)
       allow update: if isAuthenticated() &&
                        request.auth.uid == userId &&
@@ -239,6 +246,43 @@ service cloud.firestore {
                        resource.data.user_id == request.auth.uid &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'read_at', 'updated_at']);
 
+      allow delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // Family Relationships Collection (V4 - Family Invitation System)
+    // ============================================================================
+
+    match /family_relationships/{relationshipId} {
+      // Military personnel can read their own family relationships
+      allow read: if isAuthenticated() &&
+                     resource.data.primary_military_uid == request.auth.uid;
+
+      // Beneficiaries can read their own relationship
+      allow read: if isAuthenticated() &&
+                     resource.data.family_member_uid == request.auth.uid;
+
+      // Admins can read all relationships
+      allow read: if isAdmin();
+
+      // Allow creation during signup (beneficiary creates their relationship)
+      allow create: if isAuthenticated() &&
+                       request.resource.data.family_member_uid == request.auth.uid &&
+                       request.resource.data.status == 'active' &&
+                       request.resource.data.primary_military_uid is string &&
+                       request.resource.data.invitation_code is string &&
+                       request.resource.data.relationship in ['spouse', 'child', 'parent', 'sibling'];
+
+      // Military personnel can revoke relationships (set status to 'revoked')
+      allow update: if isAuthenticated() &&
+                       resource.data.primary_military_uid == request.auth.uid &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'revoked_at']) &&
+                       request.resource.data.status == 'revoked';
+
+      // Admins can update any relationship
+      allow update: if isAdmin();
+
+      // Only admins can delete relationships
       allow delete: if isAdmin();
     }
 

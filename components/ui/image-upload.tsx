@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useCallback, useRef } from "react"
-import { Upload, X, Image as ImageIcon, Loader2 } from "lucide-react"
+import { Upload, X, Image as ImageIcon, Loader2, AlertCircle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { softValidatePromotionImage, autoFitToAspectRatio, PROMOTION_IMAGE_REQUIREMENTS } from "@/lib/utils/image-validation"
 
 interface ImageUploadProps {
   value?: string // Current image URL
@@ -14,6 +15,7 @@ interface ImageUploadProps {
   acceptedFormats?: string[] // e.g., ["image/jpeg", "image/png", "image/webp"]
   maxSizeMB?: number
   recommendedDimensions?: string // e.g., "1200x630px"
+  enableAutoCorrection?: boolean // Auto-fit images to 2:1 aspect ratio
 }
 
 export function ImageUpload({
@@ -25,10 +27,13 @@ export function ImageUpload({
   acceptedFormats = ["image/jpeg", "image/jpg", "image/png", "image/webp"],
   maxSizeMB = 5,
   recommendedDimensions,
+  enableAutoCorrection = false,
 }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(value || null)
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [warnings, setWarnings] = useState<string[]>([])
+  const [isProcessing, setIsProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const validateFile = (file: File): string | null => {
@@ -47,27 +52,73 @@ export function ImageUpload({
   }
 
   const handleFile = useCallback(
-    (file: File) => {
+    async (file: File) => {
       setError(null)
+      setWarnings([])
 
-      // Validate file
+      // Basic validation
       const validationError = validateFile(file)
       if (validationError) {
         setError(validationError)
         return
       }
 
-      // Create preview
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+      // Auto-correction for promotions
+      if (enableAutoCorrection) {
+        setIsProcessing(true)
+        try {
+          // Validate and get suggestions
+          const validation = await softValidatePromotionImage(file)
 
-      // Pass file to parent
-      onChange(file)
+          if (validation.suggestions.length > 0) {
+            setWarnings(validation.suggestions)
+          }
+
+          let processedFile: File = file
+
+          // Auto-fit to 2:1 aspect ratio if needed
+          if (validation.needsProcessing) {
+            const blob = await autoFitToAspectRatio(
+              file,
+              PROMOTION_IMAGE_REQUIREMENTS.dimensions.recommended.width,
+              PROMOTION_IMAGE_REQUIREMENTS.dimensions.recommended.height,
+              PROMOTION_IMAGE_REQUIREMENTS.quality.jpeg
+            )
+
+            // Convert blob to file
+            processedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            })
+          }
+
+          // Create preview
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            setPreview(reader.result as string)
+          }
+          reader.readAsDataURL(processedFile)
+
+          // Pass processed file to parent
+          onChange(processedFile)
+        } catch (error) {
+          console.error('Error processing image:', error)
+          setError('No se pudo procesar la imagen. Intenta con otra.')
+        } finally {
+          setIsProcessing(false)
+        }
+      } else {
+        // No auto-correction: just create preview and pass file
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setPreview(reader.result as string)
+        }
+        reader.readAsDataURL(file)
+
+        onChange(file)
+      }
     },
-    [onChange, acceptedFormats, maxSizeMB]
+    [onChange, acceptedFormats, maxSizeMB, enableAutoCorrection]
   )
 
   const handleDrop = useCallback(
@@ -111,6 +162,7 @@ export function ImageUpload({
   const handleRemove = useCallback(() => {
     setPreview(null)
     setError(null)
+    setWarnings([])
     onChange(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
@@ -181,21 +233,39 @@ export function ImageUpload({
         ) : (
           // Drop Zone
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-            <div className={cn(
-              "rounded-full p-4 mb-4",
-              isDragging ? "bg-primary/10" : "bg-muted"
-            )}>
-              <ImageIcon className={cn(
-                "h-8 w-8",
-                isDragging ? "text-primary" : "text-muted-foreground"
-              )} />
-            </div>
-            <p className="text-sm font-medium mb-1">
-              {isDragging ? "Suelta la imagen aquí" : "Arrastra una imagen o haz clic para seleccionar"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {acceptedFormats.map(f => f.split('/')[1].toUpperCase()).join(', ')} • Máximo {maxSizeMB}MB
-            </p>
+            {isProcessing ? (
+              <>
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-sm font-medium mb-1">Procesando imagen...</p>
+                <p className="text-xs text-muted-foreground">
+                  Ajustando a proporción 2:1
+                </p>
+              </>
+            ) : (
+              <>
+                <div className={cn(
+                  "rounded-full p-4 mb-4",
+                  isDragging ? "bg-primary/10" : "bg-muted"
+                )}>
+                  <ImageIcon className={cn(
+                    "h-8 w-8",
+                    isDragging ? "text-primary" : "text-muted-foreground"
+                  )} />
+                </div>
+                <p className="text-sm font-medium mb-1">
+                  {isDragging ? "Suelta la imagen aquí" : "Arrastra una imagen o haz clic para seleccionar"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {acceptedFormats.map(f => f.split('/')[1].toUpperCase()).join(', ')} • Máximo {maxSizeMB}MB
+                </p>
+                {enableAutoCorrection && (
+                  <p className="text-xs text-primary mt-2 flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3" />
+                    Se ajustará automáticamente a 2:1
+                  </p>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
@@ -211,10 +281,26 @@ export function ImageUpload({
       />
 
       {/* Recommended Dimensions */}
-      {recommendedDimensions && !error && (
+      {recommendedDimensions && !error && warnings.length === 0 && (
         <p className="text-xs text-muted-foreground">
           Dimensiones recomendadas: {recommendedDimensions}
         </p>
+      )}
+
+      {/* Warning Messages */}
+      {warnings.length > 0 && !error && (
+        <div className="rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-3">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              {warnings.map((warning, index) => (
+                <p key={index} className="text-xs text-blue-700 dark:text-blue-300">
+                  {warning}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Error Message */}
