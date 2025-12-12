@@ -20,6 +20,7 @@ import Link from "next/link"
 import { registerBusiness } from "@/lib/auth"
 import { useCategories } from "@/hooks/use-categories"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { uploadBusinessFeaturedImage, uploadWithRetry } from "@/lib/firebase-storage"
 import { BusinessService } from "@/lib/services/business-service"
 import { toast } from "sonner"
@@ -49,6 +50,7 @@ export default function BusinessRegisterPage() {
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [countryCode, setCountryCode] = useState("+57")
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -216,19 +218,16 @@ export default function BusinessRegisterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono de la sede principal *</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+57 300 123 4567"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
+                  <Label htmlFor="phone">Whatsapp de la sede principal *</Label>
+                  <PhoneInput
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(value) => handleInputChange("phone", value)}
+                    countryCode={countryCode}
+                    onCountryCodeChange={setCountryCode}
+                    required
+                    size="sm"
+                  />
                 </div>
               </div>
 
@@ -363,7 +362,7 @@ export default function BusinessRegisterPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="h-px flex-1 bg-border" />
-                <h3 className="text-sm font-medium text-muted-foreground">Información de la Cuenta</h3>
+                <h3 className="text-sm font-medium text-muted-foreground">Información para acceder al portal web</h3>
                 <div className="h-px flex-1 bg-border" />
               </div>
 
@@ -437,7 +436,7 @@ export default function BusinessRegisterPage() {
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex space-x-2">
               <Checkbox
                 id="terms"
                 checked={formData.acceptTerms}

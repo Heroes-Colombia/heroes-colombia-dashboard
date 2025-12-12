@@ -14,12 +14,12 @@ import { Plus, Search, Filter, MapPin, Globe, Edit, Trash2, AlertCircle, Loader2
 import { useAuth } from "@/hooks/use-auth"
 import { getPlanLimits } from "@/lib/plan-limits"
 import { PlanLimitBadge, PlanLimitProgress } from "@/components/plan-limit-badge"
-import { UpgradePlanButton } from "@/components/upgrade-plan-button"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { LockedFeature } from "@/components/locked-feature"
 import { LocationService } from "@/lib/services/location-service"
 import { PromotionService } from "@/lib/services/promotion-service"
 import { LocationPickerModal } from "@/components/location-picker-modal"
-import type { BusinessLocation, BusinessHours, PlanType } from "@/lib/types"
+import type { PlanType } from "@/lib/types"
 
 type DialogMode = "create" | "edit"
 
@@ -47,6 +47,7 @@ export default function LocationsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [deletingLocation, setDeletingLocation] = useState<any | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [countryCode, setCountryCode] = useState("+57")
 
   const { user } = useAuth()
   const businessUser = user as any
@@ -526,16 +527,21 @@ export default function LocationsPage() {
             {/* 5. Contact Info (both types) */}
             <div className="space-y-4">
               <h3 className="font-medium">Información de Contacto</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono</Label>
-                  <Input
+                  <Label htmlFor="phone">WhatsApp</Label>
+                  <PhoneInput
                     id="phone"
-                    placeholder="+57 300 123 4567"
                     value={locationFormData.phone}
-                    onChange={(e) => setLocationFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                    onChange={(value) => setLocationFormData((prev) => ({ ...prev, phone: value }))}
+                    countryCode={countryCode}
+                    onCountryCodeChange={setCountryCode}
+                    required
+                    size="sm"
                   />
                 </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
