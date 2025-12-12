@@ -33,7 +33,7 @@ const libraries: readonly ("geocoding" | "places")[] = ["geocoding", "places"] a
 
 const mapContainerStyle = {
   width: "100%",
-  height: "500px",
+  height: "400px",
 } as const
 
 const defaultCenter = {
@@ -116,6 +116,12 @@ export function LocationPickerModal({
 
   // Reverse geocode coordinates to address (cached geocoder to prevent memory leak)
   const getAddressFromCoordinates = useCallback(async (location: LatLng) => {
+    // Safety check: ensure Google Maps is loaded
+    if (typeof google === 'undefined' || !google.maps) {
+      console.warn("Google Maps not loaded yet, skipping geocoding")
+      return
+    }
+
     setIsGettingAddress(true)
     try {
       // Lazy initialize geocoder (reuse instance to prevent memory leak)
@@ -153,6 +159,12 @@ export function LocationPickerModal({
     if (!query.trim()) {
       setSuggestions([])
       setShowSuggestions(false)
+      return
+    }
+
+    // Safety check: ensure Google Maps is loaded
+    if (typeof google === 'undefined' || !google.maps || !google.maps.places) {
+      console.warn("Google Maps Places API not loaded yet")
       return
     }
 
@@ -398,12 +410,12 @@ export function LocationPickerModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Seleccionar Ubicación en el Mapa</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 pb-2">
           {/* Search Bar */}
           <div className="relative">
             <div className="relative">
