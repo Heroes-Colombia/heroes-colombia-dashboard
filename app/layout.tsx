@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { AuthProvider } from "@/hooks/use-auth"
+import Script from "next/script"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -23,8 +24,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <head>
-        <script 
+      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+        <Script
+          id="clarity-script"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(c,l,a,r,i,t,y){
               c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
@@ -33,8 +36,6 @@ export default function RootLayout({
               })(window, document, "clarity", "script", "tv5h13b6ph");`,
           }}
         />
-      </head>
-      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <AuthProvider>
           <Suspense fallback={null}>{children}</Suspense>
         </AuthProvider>
