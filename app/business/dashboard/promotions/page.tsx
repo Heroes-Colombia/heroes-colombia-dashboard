@@ -14,6 +14,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ImageUpload } from "@/components/ui/image-upload"
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog"
 import { Plus, Search, Filter, Eye, Edit, Copy, CalendarIcon, Star, MoreHorizontal, ShoppingCart, AlertCircle, MapPin, Loader2, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -28,7 +29,7 @@ import { uploadPromotionFeaturedImage, deletePromotionFeaturedImage, uploadWithR
 import { timestampToDate, getDefaultExpirationDate } from "@/lib/utils/date-helpers"
 import { validatePromotionForm, clamp } from "@/lib/utils/validation"
 import { PROMOTION_STATUS_CONFIG } from "@/lib/constants/promotion-status"
-import type { Promotion, PlanType, BusinessLocation } from "@/lib/types"
+import type { Promotion, PlanType, BusinessLocation, PromotionStatus } from "@/lib/types"
 import { useAuth } from "@/hooks/use-auth"
 import { PermissionGuard } from "@/components/permission-guard"
 
@@ -47,6 +48,13 @@ export default function PromotionsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [promotionToDelete, setPromotionToDelete] = useState<Promotion | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Crop dialog state (managed at page level to avoid nested dialog issues)
+  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false)
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
+  const [originalFileName, setOriginalFileName] = useState<string>("image.jpg")
+  const [croppedImagePreview, setCroppedImagePreview] = useState<string | null>(null)
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -54,7 +62,7 @@ export default function PromotionsPage() {
     percentage: 1,
     locationIds: [] as string[],
     expiredAt: getDefaultExpirationDate(),
-    status: "active" as const,
+    status: "active" as PromotionStatus,
     isFeatured: false,
   })
 
@@ -157,6 +165,7 @@ export default function PromotionsPage() {
   const handleOpenCreateDialog = useCallback(() => {
     setEditingPromotion(null)
     setSelectedImageFile(null)
+    setCroppedImagePreview(null)
     setFormData({
       title: "",
       description: "",
@@ -174,6 +183,7 @@ export default function PromotionsPage() {
   const handleOpenEditDialog = useCallback((promotion: Promotion) => {
     setEditingPromotion(promotion)
     setSelectedImageFile(null)
+    setCroppedImagePreview(null)
     setFormData({
       title: promotion.title,
       description: promotion.description,
@@ -192,6 +202,28 @@ export default function PromotionsPage() {
     console.log(`Purchasing ${purchaseQuantity} extra promotions for ${purchaseQuantity * EXTRA_PROMOTION_PRICE} COP`)
     setIsPurchaseDialogOpen(false)
   }
+
+  // Handler to open crop dialog
+  const handleOpenCropDialog = useCallback((imageSrc: string, fileName: string) => {
+    setImageToCrop(imageSrc)
+    setOriginalFileName(fileName)
+    setIsCropDialogOpen(true)
+  }, [])
+
+  // Handler for crop completion
+  const handleCropComplete = useCallback((croppedFile: File) => {
+    setSelectedImageFile(croppedFile)
+
+    // Create preview URL for the cropped image
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setCroppedImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(croppedFile)
+
+    setIsCropDialogOpen(false)
+    setImageToCrop(null)
+  }, [])
 
   const handleSubmitPromotion = async () => {
     if (!businessId) return
@@ -370,13 +402,25 @@ export default function PromotionsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Image Crop Dialog - Rendered at page level to avoid nested dialog issues */}
+      {imageToCrop && (
+        <ImageCropDialog
+          open={isCropDialogOpen}
+          onOpenChange={setIsCropDialogOpen}
+          imageSrc={imageToCrop}
+          onCropComplete={handleCropComplete}
+          aspectRatio={2 / 1}
+          fileName={originalFileName}
+        />
+      )}
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Promociones</h1>
-          <p className="text-muted-foreground">Gestiona tus ofertas y descuentos</p>
+          <p className="text-sm sm:text-base text-muted-foreground">Gestiona tus ofertas y descuentos</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
           <PlanLimitBadge
             plan={plan}
             resourceType="promotions"
@@ -387,7 +431,7 @@ export default function PromotionsPage() {
           <PermissionGuard
             permission="can_manage_promotions"
             fallback={
-              <Button disabled title="No tienes permiso para crear promociones">
+              <Button disabled title="No tienes permiso para crear promociones" className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 mr-1" />
                 Nueva Promoción
               </Button>
@@ -396,6 +440,7 @@ export default function PromotionsPage() {
             <Button
               onClick={handleOpenCreateDialog}
               disabled={!addPromotionCheck.canAdd && !addPromotionCheck.requiresPayment}
+              className="w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 mr-1" />
               Nueva Promoción
@@ -406,7 +451,7 @@ export default function PromotionsPage() {
 
       {/* Create/Edit Promotion Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overscroll-contain">
           <DialogHeader>
             <DialogTitle>{editingPromotion ? "Editar Promoción" : "Crear Nueva Promoción"}</DialogTitle>
           </DialogHeader>
@@ -464,40 +509,37 @@ export default function PromotionsPage() {
               <Input
                 id="percentage"
                 type="number"
-                min="1"
+                min="0"
                 max="100"
-                step="1"
                 placeholder="20"
                 value={formData.percentage}
                 onChange={(e) => {
-                  const value = parseInt(e.target.value, 10)
-                  if (!isNaN(value)) {
-                    setFormData((prev) => ({ ...prev, percentage: clamp(value, 1, 100) }))
-                  }
+                  setFormData((prev) => ({ ...prev, percentage: clamp(parseInt(e.target.value, 10), 0, 100) }))
                 }}
                 onBlur={(e) => {
                   if (!e.target.value || parseInt(e.target.value) < 1) {
-                    setFormData((prev) => ({ ...prev, percentage: 1 }))
+                    setFormData((prev) => ({ ...prev, percentage: 0 }))
                   }
                 }}
                 disabled={isSubmitting}
               />
-              <p className="text-xs text-muted-foreground">Valor entre 1 y 100</p>
+              <p className="text-xs text-muted-foreground">Valor entre 0 y 100</p>
             </div>
 
             {/* Image Upload */}
             <div className="space-y-2">
               <Label>Imagen destacada</Label>
               <ImageUpload
-                value={editingPromotion?.featured_image}
+                value={croppedImagePreview || editingPromotion?.featured_image}
                 onChange={setSelectedImageFile}
+                onOpenCropDialog={handleOpenCropDialog}
                 disabled={isSubmitting}
-                enableAutoCorrection={true}
+                enableCrop={true}
                 recommendedDimensions="1600x800px (2:1)"
-                maxSizeMB={2}
+                maxSizeMB={5}
               />
               <p className="text-xs text-muted-foreground">
-                La imagen se ajustará automáticamente para verse perfecta en el carrusel de la app móvil
+                La imagen se visualizará en el carrusel de la app móvil. Podrás ajustarla y posicionarla antes de subirla.
               </p>
             </div>
 
@@ -650,26 +692,27 @@ export default function PromotionsPage() {
       {/* Extra Promotions Purchase CTA */}
       {!addPromotionCheck.canAdd && addPromotionCheck.requiresPayment && (
         <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <ShoppingCart className="h-5 w-5 text-primary" />
+                  <ShoppingCart className="h-5 w-5 text-primary flex-shrink-0" />
                   <h3 className="font-semibold">¿Necesitas más promociones?</h3>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   Has alcanzado el límite de tu plan. Compra promociones adicionales por solo ${EXTRA_PROMOTION_PRICE.toLocaleString()} COP cada una.
                 </p>
-                <div className="flex items-center gap-3">
-                  <Button onClick={() => setIsPurchaseDialogOpen(true)}>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <Button onClick={() => setIsPurchaseDialogOpen(true)} className="w-full sm:w-auto">
                     <ShoppingCart className="h-4 w-4 mr-1" />
                     Comprar Promociones
                   </Button>
-                  <span className="text-sm text-muted-foreground">o</span>
+                  <span className="hidden sm:inline text-sm text-muted-foreground">o</span>
                   <UpgradePlanButton
                     currentPlan={plan}
                     variant="outline"
                     size="default"
+                    className="w-full sm:w-auto"
                   >
                     Mejorar Plan
                   </UpgradePlanButton>
@@ -727,8 +770,8 @@ export default function PromotionsPage() {
       </Dialog>
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar promociones..."
@@ -739,7 +782,7 @@ export default function PromotionsPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40" aria-label="Filtrar promociones por estado">
+          <SelectTrigger className="w-full sm:w-40" aria-label="Filtrar promociones por estado">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue />
           </SelectTrigger>
@@ -756,37 +799,37 @@ export default function PromotionsPage() {
       <div className="space-y-4">
         {filteredPromotions.map((promo) => (
           <Card key={promo.id}>
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-semibold">{promo.title}</h3>
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <h3 className="text-base sm:text-lg font-semibold truncate">{promo.title}</h3>
                     {getStatusBadge(promo.status)}
-                    {promo.is_featured && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
-                    <Badge variant="secondary" className="font-mono">
+                    {promo.is_featured && <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 flex-shrink-0" />}
+                    <Badge variant="secondary" className="font-mono flex-shrink-0">
                       {promo.percentage}% OFF
                     </Badge>
                   </div>
-                  <p className="text-muted-foreground mb-2">{promo.description}</p>
+                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{promo.description}</p>
 
                   {/* Location targeting info */}
-                  <div className="mb-3 flex items-center gap-1 text-sm text-muted-foreground">
-                    <MapPin className="h-3 w-3" />
-                    <span>{getLocationNames(promo.location_ids)}</span>
+                  <div className="mb-3 flex items-start gap-1 text-sm text-muted-foreground">
+                    <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span className="line-clamp-1">{getLocationNames(promo.location_ids)}</span>
                   </div>
 
-                  <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Eye className="h-4 w-4" />
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs sm:text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1 whitespace-nowrap">
+                      <Eye className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                       {promo.views_count || 0} vistas
                     </span>
-                    <span>{promo.saves_count || 0} guardadas</span>
-                    <span>
-                      Expira: {new Date((promo.expired_at as any).seconds * 1000).toLocaleString("es-CO")}
+                    <span className="whitespace-nowrap">{promo.saves_count || 0} guardadas</span>
+                    <span className="whitespace-nowrap">
+                      Expira: {new Date((promo.expired_at as any).seconds * 1000).toLocaleDateString("es-CO")}
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex sm:flex-col items-center gap-2 self-start">
                   <PermissionGuard
                     permission="can_manage_promotions"
                     fallback={

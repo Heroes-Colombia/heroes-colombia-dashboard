@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { Upload, X, Image as ImageIcon, Loader2, AlertCircle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -9,6 +9,7 @@ import { softValidatePromotionImage, autoFitToAspectRatio, PROMOTION_IMAGE_REQUI
 interface ImageUploadProps {
   value?: string // Current image URL
   onChange: (file: File | null) => void
+  onOpenCropDialog?: (imageSrc: string, fileName: string) => void // NEW: Callback to open crop dialog
   onRemove?: () => void
   disabled?: boolean
   className?: string
@@ -16,11 +17,14 @@ interface ImageUploadProps {
   maxSizeMB?: number
   recommendedDimensions?: string // e.g., "1200x630px"
   enableAutoCorrection?: boolean // Auto-fit images to 2:1 aspect ratio
+  enableCrop?: boolean // Enable crop and pan functionality
+  cropAspectRatio?: number // Aspect ratio for crop (default: 2/1) - DEPRECATED when using onOpenCropDialog
 }
 
 export function ImageUpload({
   value,
   onChange,
+  onOpenCropDialog,
   onRemove,
   disabled = false,
   className,
@@ -28,6 +32,8 @@ export function ImageUpload({
   maxSizeMB = 5,
   recommendedDimensions,
   enableAutoCorrection = false,
+  enableCrop = false,
+  cropAspectRatio = 2 / 1,
 }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(value || null)
   const [isDragging, setIsDragging] = useState(false)
@@ -35,6 +41,11 @@ export function ImageUpload({
   const [warnings, setWarnings] = useState<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Sync preview with value prop when it changes
+  useEffect(() => {
+    setPreview(value || null)
+  }, [value])
 
   const validateFile = (file: File): string | null => {
     // Check file type
@@ -63,7 +74,21 @@ export function ImageUpload({
         return
       }
 
-      // Auto-correction for promotions
+      // If crop is enabled, delegate to parent via callback
+      if (enableCrop && onOpenCropDialog) {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          onOpenCropDialog(reader.result as string, file.name)
+        }
+        reader.onerror = () => {
+          setError('No se pudo leer el archivo. Intenta con otra imagen.')
+          console.error('FileReader error:', reader.error)
+        }
+        reader.readAsDataURL(file)
+        return
+      }
+
+      // Auto-correction for promotions (legacy behavior when crop is disabled)
       if (enableAutoCorrection) {
         setIsProcessing(true)
         try {
@@ -118,7 +143,7 @@ export function ImageUpload({
         onChange(file)
       }
     },
-    [onChange, acceptedFormats, maxSizeMB, enableAutoCorrection]
+    [onChange, onOpenCropDialog, acceptedFormats, maxSizeMB, enableAutoCorrection, enableCrop]
   )
 
   const handleDrop = useCallback(
@@ -177,22 +202,24 @@ export function ImageUpload({
   }, [disabled])
 
   return (
-    <div className={cn("space-y-3", className)}>
-      {/* Preview or Drop Zone */}
-      <div
-        className={cn(
-          "relative rounded-lg border-2 border-dashed transition-colors",
-          isDragging && !disabled && "border-primary bg-primary/5",
-          !isDragging && "border-muted-foreground/25 hover:border-muted-foreground/50",
-          disabled && "opacity-50 cursor-not-allowed",
-          !disabled && "cursor-pointer",
-          preview ? "aspect-video" : "aspect-video"
-        )}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onClick={handleClick}
-      >
+    <>
+
+      <div className={cn("space-y-3", className)}>
+        {/* Preview or Drop Zone */}
+        <div
+          className={cn(
+            "relative rounded-lg border-2 border-dashed transition-colors",
+            isDragging && !disabled && "border-primary bg-primary/5",
+            !isDragging && "border-muted-foreground/25 hover:border-muted-foreground/50",
+            disabled && "opacity-50 cursor-not-allowed",
+            !disabled && "cursor-pointer",
+            preview ? "aspect-video" : "aspect-video"
+          )}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={handleClick}
+        >
         {preview ? (
           // Image Preview
           <>
@@ -309,6 +336,7 @@ export function ImageUpload({
           <p className="text-xs text-destructive">{error}</p>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
