@@ -13,8 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ImageUpload } from "@/components/ui/image-upload"
-import { ImageCropDialog } from "@/components/ui/image-crop-dialog"
+import { ImageUploadWithCrop } from "@/components/ui/image-upload-with-crop"
 import { Plus, Search, Filter, Eye, Edit, Copy, CalendarIcon, Star, MoreHorizontal, ShoppingCart, AlertCircle, MapPin, Loader2, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -48,12 +47,6 @@ export default function PromotionsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [promotionToDelete, setPromotionToDelete] = useState<Promotion | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-
-  // Crop dialog state (managed at page level to avoid nested dialog issues)
-  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false)
-  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
-  const [originalFileName, setOriginalFileName] = useState<string>("image.jpg")
-  const [croppedImagePreview, setCroppedImagePreview] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     title: "",
@@ -165,7 +158,6 @@ export default function PromotionsPage() {
   const handleOpenCreateDialog = useCallback(() => {
     setEditingPromotion(null)
     setSelectedImageFile(null)
-    setCroppedImagePreview(null)
     setFormData({
       title: "",
       description: "",
@@ -183,7 +175,6 @@ export default function PromotionsPage() {
   const handleOpenEditDialog = useCallback((promotion: Promotion) => {
     setEditingPromotion(promotion)
     setSelectedImageFile(null)
-    setCroppedImagePreview(null)
     setFormData({
       title: promotion.title,
       description: promotion.description,
@@ -203,26 +194,9 @@ export default function PromotionsPage() {
     setIsPurchaseDialogOpen(false)
   }
 
-  // Handler to open crop dialog
-  const handleOpenCropDialog = useCallback((imageSrc: string, fileName: string) => {
-    setImageToCrop(imageSrc)
-    setOriginalFileName(fileName)
-    setIsCropDialogOpen(true)
-  }, [])
-
-  // Handler for crop completion
-  const handleCropComplete = useCallback((croppedFile: File) => {
-    setSelectedImageFile(croppedFile)
-
-    // Create preview URL for the cropped image
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setCroppedImagePreview(reader.result as string)
-    }
-    reader.readAsDataURL(croppedFile)
-
-    setIsCropDialogOpen(false)
-    setImageToCrop(null)
+  // Handler for image file change from composite component
+  const handleImageChange = useCallback((file: File | null) => {
+    setSelectedImageFile(file)
   }, [])
 
   const handleSubmitPromotion = async () => {
@@ -402,18 +376,6 @@ export default function PromotionsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Image Crop Dialog - Rendered at page level to avoid nested dialog issues */}
-      {imageToCrop && (
-        <ImageCropDialog
-          open={isCropDialogOpen}
-          onOpenChange={setIsCropDialogOpen}
-          imageSrc={imageToCrop}
-          onCropComplete={handleCropComplete}
-          aspectRatio={2 / 1}
-          fileName={originalFileName}
-        />
-      )}
-
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -529,14 +491,15 @@ export default function PromotionsPage() {
             {/* Image Upload */}
             <div className="space-y-2">
               <Label>Imagen destacada</Label>
-              <ImageUpload
-                value={croppedImagePreview || editingPromotion?.featured_image}
-                onChange={setSelectedImageFile}
-                onOpenCropDialog={handleOpenCropDialog}
+              <ImageUploadWithCrop
+                value={editingPromotion?.featured_image}
+                onChange={handleImageChange}
                 disabled={isSubmitting}
-                enableCrop={true}
                 recommendedDimensions="1600x800px (2:1)"
                 maxSizeMB={5}
+                aspectRatio={2 / 1}
+                minCroppedWidth={800}
+                minCroppedHeight={400}
               />
               <p className="text-xs text-muted-foreground">
                 La imagen se visualizará en el carrusel de la app móvil. Podrás ajustarla y posicionarla antes de subirla.

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect } from "react"
-import { Upload, X, Image as ImageIcon, Loader2, AlertCircle, CheckCircle } from "lucide-react"
+import { useState, useCallback, useRef, useEffect, forwardRef } from "react"
+import { Upload, X, Image as ImageIcon, Loader2, AlertCircle, CheckCircle, Crop } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { softValidatePromotionImage, autoFitToAspectRatio, PROMOTION_IMAGE_REQUIREMENTS } from "@/lib/utils/image-validation"
@@ -19,9 +19,10 @@ interface ImageUploadProps {
   enableAutoCorrection?: boolean // Auto-fit images to 2:1 aspect ratio
   enableCrop?: boolean // Enable crop and pan functionality
   cropAspectRatio?: number // Aspect ratio for crop (default: 2/1) - DEPRECATED when using onOpenCropDialog
+  isCropping?: boolean // Indicates if crop dialog is currently open
 }
 
-export function ImageUpload({
+export const ImageUpload = forwardRef<HTMLInputElement, ImageUploadProps>(({
   value,
   onChange,
   onOpenCropDialog,
@@ -34,7 +35,8 @@ export function ImageUpload({
   enableAutoCorrection = false,
   enableCrop = false,
   cropAspectRatio = 2 / 1,
-}: ImageUploadProps) {
+  isCropping = false,
+}, ref) => {
   const [preview, setPreview] = useState<string | null>(value || null)
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -228,7 +230,19 @@ export function ImageUpload({
               alt="Preview"
               className="h-full w-full object-cover rounded-lg"
             />
-            {!disabled && (
+            {/* Cropping overlay */}
+            {isCropping && (
+              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                <div className="text-center">
+                  <Crop className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
+                  <p className="text-sm font-medium">Ajustando imagen...</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Recorta y posiciona tu imagen
+                  </p>
+                </div>
+              </div>
+            )}
+            {!disabled && !isCropping && (
               <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
                 <Button
                   type="button"
@@ -291,6 +305,12 @@ export function ImageUpload({
                     Se ajustará automáticamente a 2:1
                   </p>
                 )}
+                {enableCrop && !enableAutoCorrection && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 flex items-center justify-center gap-1">
+                    <Crop className="h-3 w-3" />
+                    Podrás ajustar la imagen a proporción 2:1
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -339,4 +359,6 @@ export function ImageUpload({
       </div>
     </>
   )
-}
+})
+
+ImageUpload.displayName = "ImageUpload"
