@@ -179,41 +179,8 @@ export interface FirebasePromotion {
 }
 
 // ============================================================================
-// Subscription & Transaction Types (Firebase Schema V2)
+// Transaction Types (Firebase Schema V2)
 // ============================================================================
-
-/**
- * Firebase subscription document
- * Collection: subscriptions/{subscriptionId}
- */
-export interface FirebaseSubscription {
-  business_id: string
-  plan: PlanType
-  billing_period: BillingPeriod
-
-  // Pricing
-  amount: number // COP including IVA
-  currency: "COP"
-
-  // Status
-  status: SubscriptionStatus
-  is_trial: boolean
-  trial_ends_at?: Timestamp
-
-  // Dates
-  current_period_start: Timestamp
-  current_period_end: Timestamp
-  cancelled_at?: Timestamp
-
-  // Payment
-  payment_method?: string
-  last_payment_date?: Timestamp
-  next_billing_date?: Timestamp
-
-  // Metadata
-  created_at: Timestamp
-  updated_at: Timestamp
-}
 
 /**
  * Firebase transaction document
@@ -292,6 +259,7 @@ export interface FirebaseConsumerUser {
   uid: string
   email: string
   user_type: "consumer"
+  permission: string
 
   // Military Personnel Information
   first_name: string
@@ -307,7 +275,7 @@ export interface FirebaseConsumerUser {
   city?: string
 
   // App Data
-  favourite_businesses: string[]
+  favourite_businesses?: string[]
   device_notification_token?: string
 
   // Status
@@ -327,6 +295,7 @@ export interface FirebaseBusinessUser {
   uid: string
   email: string
   user_type: "business_team"
+  permission: string
 
   // Name
   first_name: string
@@ -632,8 +601,8 @@ export interface AdminDashboardUser {
   phone?: string
   city?: string
   registrationDate: Date
+  favouriteBusinesses?: string[]
   status: UserVerificationStatus
-  notes?: string
   lastLogin?: Date
 }
 

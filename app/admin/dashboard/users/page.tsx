@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { UserDetailDialog } from "@/components/users/user-detail-dialog"
 import {
   Search,
   User,
@@ -16,18 +15,16 @@ import {
   Mail,
   Phone,
   Eye,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
   Download,
   MapPin,
   Loader2,
+  AlertTriangle,
+  Activity,
 } from "lucide-react"
 import type { AdminDashboardUser } from "@/lib/types"
-import { fetchAllUsersForAdmin, updateUserStatus, updateUserNotes } from "@/lib/user-mapping"
+import { fetchAllUsersForAdmin, updateUserStatus } from "@/lib/user-mapping"
 import { getAllBranches } from "@/lib/military-ranks"
-
-// No more mock data - using Firebase
+import { toast } from "sonner"
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminDashboardUser[]>([])
@@ -37,6 +34,7 @@ export default function AdminUsersPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [branchFilter, setBranchFilter] = useState("all")
   const [selectedUser, setSelectedUser] = useState<AdminDashboardUser | null>(null)
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   // Fetch users from Firebase on component mount
@@ -50,6 +48,7 @@ export default function AdminUsersPage() {
       } catch (err) {
         setError("Error al cargar usuarios de Firebase")
         console.error(err)
+        toast.error("Error al cargar usuarios")
       } finally {
         setLoading(false)
       }
@@ -84,15 +83,21 @@ export default function AdminUsersPage() {
     return <Badge variant={variants[status as keyof typeof variants]}>{labels[status as keyof typeof labels]}</Badge>
   }
 
+  const handleViewDetails = (user: AdminDashboardUser) => {
+    setSelectedUser(user)
+    setIsDetailDialogOpen(true)
+  }
 
   const handleApprove = async (userId: string) => {
     setActionLoading(userId)
     try {
       await updateUserStatus(userId, "active")
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, status: "active" } : u)))
+      toast.success("Usuario aprobado exitosamente")
+      setIsDetailDialogOpen(false)
     } catch (error) {
       console.error("Error approving user:", error)
-      alert("Error al aprobar usuario")
+      toast.error("Error al aprobar usuario")
     } finally {
       setActionLoading(null)
     }
@@ -103,9 +108,11 @@ export default function AdminUsersPage() {
     try {
       await updateUserStatus(userId, "rejected")
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, status: "rejected" } : u)))
+      toast.success("Usuario rechazado")
+      setIsDetailDialogOpen(false)
     } catch (error) {
       console.error("Error rejecting user:", error)
-      alert("Error al rechazar usuario")
+      toast.error("Error al rechazar usuario")
     } finally {
       setActionLoading(null)
     }
@@ -113,17 +120,19 @@ export default function AdminUsersPage() {
 
   const exportUsers = () => {
     const csvContent = [
-      "Name,Email,Military ID,Rank,Branch,Status,Registration Date,Verification Score",
-      ...filteredUsers.map(user =>
-        `"${user.name}","${user.email}","${user.militaryId}","${user.rank}","${user.branch}","${user.status}","${user.registrationDate.toLocaleDateString()}"`
-      )
+      "Nombre,Email,ID Militar,Rango,Fuerza,Estado,Fecha de Registro,Última Conexión",
+      ...filteredUsers.map(user => {
+        const regDate = user.registrationDate.toLocaleDateString()
+        const lastLogin = user.lastLogin ? user.lastLogin.toLocaleDateString() : "N/A"
+        return `"${user.name}","${user.email}","${user.militaryId}","${user.rank}","${user.branch}","${user.status}","${regDate}","${lastLogin}"`
+      })
     ].join("\n")
 
     const blob = new Blob([csvContent], { type: "text/csv" })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = "usuarios_heroes_colombia.csv"
+    a.download = `usuarios_heroes_colombia_${new Date().toISOString().split('T')[0]}.csv`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -139,6 +148,7 @@ export default function AdminUsersPage() {
           <p className="text-muted-foreground">Administra el proceso de verificación de usuarios militares</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="default">{users.filter((u) => u.status === "active").length} activos</Badge>
           <Badge variant="secondary">{users.filter((u) => u.status === "pending").length} pendientes</Badge>
           <Badge variant="destructive">{users.filter((u) => u.status === "rejected").length} rechazados</Badge>
           <Button onClick={exportUsers} variant="outline" size="sm">
@@ -213,185 +223,86 @@ export default function AdminUsersPage() {
 
       {/* Users List */}
       {!loading && !error && (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {filteredUsers.map((user) => (
-          <Card key={user.id}>
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold">{user.name}</h3>
-                    {getStatusBadge(user.status)}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4" />
-                        {user.email}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4" />
-                        {user.phone}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        {user.city}
-                      </div>
+            <Card
+              key={user.id}
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => handleViewDetails(user)}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between gap-4">
+                  {/* User Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h3 className="text-lg font-semibold truncate">{user.name}</h3>
+                      {getStatusBadge(user.status)}
+                      <Badge variant="outline" className="text-xs">
+                        {user.rank}
+                      </Badge>
                     </div>
-                    <div className="space-y-1">
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-muted-foreground mb-3">
                       <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4" />
-                        {user.rank} - {user.branch}
+                        <Mail className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{user.email}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        ID Militar: {user.militaryId}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        Registrado: {user.registrationDate.toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 mt-3 text-sm">
-                    <span>ID: {user.militaryId}</span>
-                    {user.city && <span>Ciudad: {user.city}</span>}
-                  </div>
-                  {user.notes && (
-                    <div className="mt-2 p-2 bg-muted rounded text-sm">
-                      <strong>Notas:</strong> {user.notes}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedUser(user)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Detalles de {user.name}</DialogTitle>
-                      </DialogHeader>
-                      {selectedUser && (
-                        <Tabs defaultValue="personal" className="w-full">
-                          <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="personal">Personal</TabsTrigger>
-                            <TabsTrigger value="familiares">Familiares</TabsTrigger>
-                            <TabsTrigger value="activity">Actividad</TabsTrigger>
-                          </TabsList>
-                          <TabsContent value="personal" className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <h4 className="font-medium mb-2">Información Personal</h4>
-                                <div className="space-y-2 text-sm">
-                                  <div>
-                                    <span className="font-medium">Nombre completo:</span> {selectedUser.name}
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Teléfono:</span> {selectedUser.phone}
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Ciudad:</span> {selectedUser.city}
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Email:</span> {selectedUser.email}
-                                  </div>
-                                </div>
-                              </div>
-                              <div>
-                                <h4 className="font-medium mb-2">Información Militar</h4>
-                                <div className="space-y-2 text-sm">
-                                  <div>
-                                    <span className="font-medium">ID Militar:</span> {selectedUser.militaryId}
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Rango:</span> {selectedUser.rank}
-                                  </div>
-                                  <div>
-                                    <span className="font-medium">Fuerza:</span> {selectedUser.branch}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </TabsContent>
-                          <TabsContent value="familiares" className="space-y-4">
-                            <div>
-                              <h4 className="font-medium mb-2">Familiares activos</h4>
-                              <div className="space-y-2 text-sm">
-                                <div>
-                                  <span className="font-medium">Nombre completo:</span> {selectedUser.fullName}
-                                </div>
-                                <div>
-                                  <span className="font-medium">ID Militar:</span> {selectedUser.militaryId}
-                                </div>
-                                {selectedUser.phone && (
-                                  <div>
-                                    <span className="font-medium">Teléfono:</span> {selectedUser.phone}
-                                  </div>
-                                )}
-                                {selectedUser.city && (
-                                  <div>
-                                    <span className="font-medium">Ciudad:</span> {selectedUser.city}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </TabsContent>
-                          <TabsContent value="activity" className="space-y-4">
-                            <div>
-                              <h4 className="font-medium mb-2">Actividad Reciente</h4>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-4 w-4" />
-                                  Último acceso: {selectedUser.lastLogin ? selectedUser.lastLogin.toLocaleString() : 'No disponible'}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="h-4 w-4" />
-                                  Registro: {selectedUser.registrationDate.toLocaleString()}
-                                </div>
-                                {selectedUser.notes && (
-                                  <div className="flex items-center gap-2">
-                                    <User className="h-4 w-4" />
-                                    Notas: {selectedUser.notes}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </TabsContent>
-                        </Tabs>
+                      {user.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 flex-shrink-0" />
+                          <span>{user.phone}</span>
+                        </div>
                       )}
-                    </DialogContent>
-                  </Dialog>
+                      {user.city && (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 flex-shrink-0" />
+                          <span>{user.city}</span>
+                        </div>
+                      )}
+                    </div>
 
-                  {user.status === "pending" && actionLoading !== user.id && (
-                    <>
-                      <Button size="sm" onClick={() => handleApprove(user.id)}>
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Aprobar
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleReject(user.id)}>
-                        <XCircle className="h-4 w-4 mr-1" />
-                        Rechazar
-                      </Button>
-                    </>
-                  )}
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Shield className="h-3 w-3" />
+                        {user.branch}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        ID: {user.militaryId}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        Registro: {user.registrationDate.toLocaleDateString("es-CO")}
+                      </div>
+                      {user.lastLogin && (
+                        <div className="flex items-center gap-1">
+                          <Activity className="h-3 w-3" />
+                          Último acceso: {user.lastLogin.toLocaleDateString("es-CO")}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                  {actionLoading === user.id && (
-                    <Button size="sm" disabled>
-                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                      Procesando...
-                    </Button>
-                  )}
+                  {/* Quick Action Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleViewDetails(user)
+                    }}
+                    title="Ver detalles"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
+      {/* Empty State */}
       {!loading && !error && filteredUsers.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -401,6 +312,16 @@ export default function AdminUsersPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Enhanced Detail Dialog */}
+      <UserDetailDialog
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+        user={selectedUser}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        isLoading={actionLoading !== null}
+      />
     </div>
   )
 }

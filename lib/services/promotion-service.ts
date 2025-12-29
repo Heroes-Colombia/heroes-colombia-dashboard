@@ -1,16 +1,16 @@
 import {
-    collection,
-    doc,
-    getDocs,
-    getDoc,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    Timestamp,
-  } from "firebase/firestore"
-  import { db } from "../firebase"
-  import { deletePromotionFeaturedImage } from "../firebase-storage"
-  import type { Promotion } from "@/lib/types"
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  Timestamp,
+} from "firebase/firestore"
+import { db } from "../firebase"
+import { deletePromotionFeaturedImage } from "../firebase-storage"
+import type { Promotion } from "@/lib/types"
 
 export class PromotionService {
   // Promotion operations (NEW - using 'promotions' collection per Schema V2)
@@ -42,11 +42,9 @@ export class PromotionService {
         promotions = promotions.filter((promo) => promo.status === filters.status)
       }
 
-      // Sort by creation date (newest first)
+      // Sort by expiration date (newest first)
       promotions.sort((a, b) => {
-        const aDate = a.created_at ? (a.created_at as any).seconds || 0 : 0
-        const bDate = b.created_at ? (b.created_at as any).seconds || 0 : 0
-        return bDate - aDate
+        return a.expired_at - b.expired_at
       })
 
       // Apply limit

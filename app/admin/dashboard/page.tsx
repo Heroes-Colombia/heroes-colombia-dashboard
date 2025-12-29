@@ -34,28 +34,22 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
-
-
-
-
-
-
 export default function AdminDashboardPage() {
   const { businesses, isLoading: businessesLoading } = useBusinesses()
   const { promotions, isLoading: promotionsLoading } = usePromotions()
 
   // Calculate real-time stats
-  const totalBusinesses = businesses.length
-  const approvedBusinesses = businesses.filter(b => b.status === "approved" || b.status === "active").length
-  const pendingBusinesses = businesses.filter(b => b.status === "pending").length
-  const suspendedBusinesses = businesses.filter(b => b.status === "suspended").length
+  const totalBusinesses = businesses?.length
+  const approvedBusinesses = businesses?.filter(b => b.status === "approved" || b.status === "active").length
+  const pendingBusinesses = businesses?.filter(b => b.status === "pending").length
+  const suspendedBusinesses = businesses?.filter(b => b.status === "suspended").length
 
-  const totalPromotions = promotions.length
-  const activePromotions = promotions.filter(p => p.status === "active").length
-  const inactivePromotions = promotions.filter(p => p.status === "inactive").length
+  const totalPromotions = promotions?.length
+  const activePromotions = promotions?.filter(p => p.status === "active").length
+  const inactivePromotions = promotions?.filter(p => p.status === "inactive").length
 
   // Calculate business distribution by plan
-  const planDistribution = businesses.reduce((acc, business) => {
+  const planDistribution = businesses?.reduce((acc, business) => {
     const plan = business.plan || "gratis"
     acc[plan] = (acc[plan] || 0) + 1
     return acc
@@ -70,15 +64,15 @@ export default function AdminDashboardPage() {
 
   // Calculate platform KPIs with real data
   const platformKPIs = [
-    { title: "Total Empresas", value: totalBusinesses.toString(), change: "+0%", icon: Building2, trend: "up" as const },
-    { title: "Empresas Aprobadas", value: approvedBusinesses.toString(), change: "+0%", icon: CheckCircle, trend: "up" as const },
-    { title: "Promociones Activas", value: activePromotions.toString(), change: "+0%", icon: Tag, trend: "up" as const },
-    { title: "Total Promociones", value: totalPromotions.toString(), change: "+0%", icon: DollarSign, trend: "up" as const },
+    { title: "Total Empresas", value: totalBusinesses?.toString() || "0", change: "+0%", icon: Building2, trend: "up" as const },
+    { title: "Empresas Aprobadas", value: approvedBusinesses?.toString() || "0", change: "+0%", icon: CheckCircle, trend: "up" as const },
+    { title: "Promociones Activas", value: activePromotions?.toString() || "0", change: "+0%", icon: Tag, trend: "up" as const },
+    { title: "Total Promociones", value: totalPromotions?.toString() || "0", change: "+0%", icon: DollarSign, trend: "up" as const },
   ]
 
   // Verification stats with real data
   const verificationStats = [
-    { title: "Empresas Aprobadas", value: approvedBusinesses.toString(), icon: CheckCircle, color: "text-green-600" },
+    { title: "Empresas Aprobadas", value: approvedBusinesses?.toString() || "0", icon: CheckCircle, color: "text-green-600" },
     { title: "Empresas Suspendidas", value: suspendedBusinesses.toString(), icon: XCircle, color: "text-red-600" },
     { title: "Pendientes de Revisión", value: pendingBusinesses.toString(), icon: Clock, color: "text-yellow-600" },
   ]

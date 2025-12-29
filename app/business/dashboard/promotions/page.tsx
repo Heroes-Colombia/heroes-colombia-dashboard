@@ -1,34 +1,22 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Checkbox } from "@/components/ui/checkbox"
-import { ImageUploadWithCrop } from "@/components/ui/image-upload-with-crop"
-import { Plus, Search, Filter, Eye, Edit, Copy, CalendarIcon, Star, MoreHorizontal, ShoppingCart, AlertCircle, MapPin, Loader2, Trash2 } from "lucide-react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Plus, Search, Filter, Eye, Edit, Star, ShoppingCart, AlertCircle, MapPin, Loader2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { getPlanLimits, canAddPromotion, EXTRA_PROMOTION_PRICE } from "@/lib/plan-limits"
 import { PlanLimitBadge, PlanLimitProgress } from "@/components/plan-limit-badge"
 import { UpgradePlanButton } from "@/components/upgrade-plan-button"
-import { LockedFeature } from "@/components/locked-feature"
 import { PromotionService } from "@/lib/services/promotion-service"
 import { LocationService } from "@/lib/services/location-service"
-import { uploadPromotionFeaturedImage, deletePromotionFeaturedImage, uploadWithRetry } from "@/lib/firebase-storage"
-import { timestampToDate, getDefaultExpirationDate } from "@/lib/utils/date-helpers"
-import { validatePromotionForm, clamp } from "@/lib/utils/validation"
 import { PROMOTION_STATUS_CONFIG } from "@/lib/constants/promotion-status"
-import type { Promotion, PlanType, BusinessLocation, PromotionStatus } from "@/lib/types"
+import { PromotionFormDialog } from "@/components/promotions/promotion-form-dialog"
+import type { Promotion, PlanType, BusinessLocation } from "@/lib/types"
 import { useAuth } from "@/hooks/use-auth"
 import { PermissionGuard } from "@/components/permission-guard"
 
@@ -42,22 +30,9 @@ export default function PromotionsPage() {
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false)
   const [purchaseQuantity, setPurchaseQuantity] = useState(1)
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null)
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [promotionToDelete, setPromotionToDelete] = useState<Promotion | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    instructions: "",
-    percentage: 1,
-    locationIds: [] as string[],
-    expiredAt: getDefaultExpirationDate(),
-    status: "active" as PromotionStatus,
-    isFeatured: false,
-  })
 
   const { user } = useAuth()
   const businessId = user?.businessId
@@ -66,7 +41,6 @@ export default function PromotionsPage() {
 
   // TODO: Fetch from business profile
   const extraPromotionsPurchased = 0
-  const extraPromotionsActive = 0
 
   // Early return if no businessId
   if (!businessId) {
@@ -157,34 +131,12 @@ export default function PromotionsPage() {
   // Open dialog for creating a new promotion
   const handleOpenCreateDialog = useCallback(() => {
     setEditingPromotion(null)
-    setSelectedImageFile(null)
-    setFormData({
-      title: "",
-      description: "",
-      instructions: "",
-      percentage: 1,
-      locationIds: [],
-      expiredAt: getDefaultExpirationDate(),
-      status: "active",
-      isFeatured: false,
-    })
     setIsDialogOpen(true)
   }, [])
 
   // Open dialog for editing an existing promotion
   const handleOpenEditDialog = useCallback((promotion: Promotion) => {
     setEditingPromotion(promotion)
-    setSelectedImageFile(null)
-    setFormData({
-      title: promotion.title,
-      description: promotion.description,
-      instructions: promotion.instructions,
-      percentage: promotion.percentage,
-      locationIds: promotion.location_ids,
-      expiredAt: timestampToDate(promotion.expired_at),
-      status: promotion.status,
-      isFeatured: promotion.is_featured,
-    })
     setIsDialogOpen(true)
   }, [])
 
@@ -194,143 +146,8 @@ export default function PromotionsPage() {
     setIsPurchaseDialogOpen(false)
   }
 
-  // Handler for image file change from composite component
-  const handleImageChange = useCallback((file: File | null) => {
-    setSelectedImageFile(file)
-  }, [])
-
-  const handleSubmitPromotion = async () => {
-    if (!businessId) return
-
-    setIsSubmitting(true)
-    let imageUploadFailed = false
-
-    try {
-      if (editingPromotion) {
-        // EDIT MODE: Update promotion with optional new image
-        let featuredImageUrl = editingPromotion.featured_image || ""
-
-        // Handle image upload if a new file was selected
-        if (selectedImageFile) {
-          // Delete old image first
-          if (editingPromotion.featured_image) {
-            try {
-              await deletePromotionFeaturedImage(editingPromotion.featured_image, editingPromotion.id)
-            } catch (error) {
-              console.error("Error deleting old image:", error)
-              // Continue anyway - not critical
-            }
-          }
-
-          // Upload new image with retry
-          const uploadedUrl = await uploadWithRetry(
-            () => uploadPromotionFeaturedImage(selectedImageFile, editingPromotion.id),
-            2
-          )
-
-          if (uploadedUrl) {
-            featuredImageUrl = uploadedUrl
-          } else {
-            imageUploadFailed = true
-            console.error("Image upload failed after retries")
-          }
-        }
-
-        const promotionData = {
-          title: formData.title,
-          description: formData.description,
-          instructions: formData.instructions,
-          percentage: formData.percentage,
-          featured_image: featuredImageUrl,
-          location_ids: formData.locationIds,
-          expired_at: formData.expiredAt,
-          status: formData.status,
-          is_featured: formData.isFeatured,
-        }
-
-        const success = await PromotionService.updatePromotion(editingPromotion.id, promotionData)
-
-        if (success) {
-          // Refresh promotions
-          const fetchedPromotions = await PromotionService.getPromotions({ businessId })
-          setPromotions(fetchedPromotions)
-
-          if (imageUploadFailed) {
-            toast.success("Promoción actualizada exitosamente", {
-              description: "Nota: La imagen no se pudo subir. Puedes intentar editarla nuevamente para agregar la imagen."
-            })
-          } else {
-            toast.success("Promoción actualizada exitosamente")
-          }
-
-          setIsDialogOpen(false)
-        } else {
-          throw new Error("Failed to update promotion")
-        }
-      } else {
-        // Step 1: Create promotion without image
-        const initialPromotionData = {
-          business_id: businessId,
-          title: formData.title,
-          description: formData.description,
-          instructions: formData.instructions,
-          percentage: formData.percentage,
-          featured_image: "",
-          location_ids: formData.locationIds,
-          expired_at: formData.expiredAt,
-          status: formData.status,
-          is_featured: formData.isFeatured,
-          views_count: 0,
-          saves_count: 0,
-          redemptions_count: 0,
-        }
-
-        const promotionId = await PromotionService.createPromotion(initialPromotionData)
-
-        if (!promotionId) {
-          throw new Error("Failed to create promotion")
-        }
-
-        // Step 2: Upload image if provided
-        let featuredImageUrl = ""
-        if (selectedImageFile) {
-          const uploadedUrl = await uploadWithRetry(
-            () => uploadPromotionFeaturedImage(selectedImageFile, promotionId),
-            2
-          )
-
-          if (uploadedUrl) {
-            featuredImageUrl = uploadedUrl
-            // Step 3: Update promotion with image URL
-            await PromotionService.updatePromotion(promotionId, {
-              featured_image: uploadedUrl,
-            })
-          } else {
-            imageUploadFailed = true
-            console.error("Image upload failed after retries")
-          }
-        }
-
-        // Refresh promotions
-        const fetchedPromotions = await PromotionService.getPromotions({ businessId })
-        setPromotions(fetchedPromotions)
-
-        if (imageUploadFailed) {
-          toast.success("Promoción creada exitosamente", {
-            description: "Nota: La imagen no se pudo subir. Puedes editarla para agregar la imagen."
-          })
-        } else {
-          toast.success("Promoción creada exitosamente")
-        }
-
-        setIsDialogOpen(false)
-      }
-    } catch (error) {
-      console.error("Error saving promotion:", error)
-      toast.error(`No se pudo ${editingPromotion ? "actualizar" : "crear"} la promoción`)
-    } finally {
-      setIsSubmitting(false)
-    }
+  const handleFormSuccess = async () => {
+    await refreshPromotions()
   }
 
   const handleOpenDeleteDialog = (promotion: Promotion) => {
@@ -347,8 +164,7 @@ export default function PromotionsPage() {
 
       if (success) {
         // Refresh promotions
-        const fetchedPromotions = await PromotionService.getPromotions({ businessId })
-        setPromotions(fetchedPromotions)
+        await refreshPromotions()
 
         toast.success("Promoción eliminada exitosamente")
         setDeleteDialogOpen(false)
@@ -411,236 +227,17 @@ export default function PromotionsPage() {
         </div>
       </div>
 
-      {/* Create/Edit Promotion Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overscroll-contain">
-          <DialogHeader>
-            <DialogTitle>{editingPromotion ? "Editar Promoción" : "Crear Nueva Promoción"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {/* Plan Gratis - Pay per promotion notice (only for create) */}
-            {plan === "gratis" && !editingPromotion && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="mt-0.5 h-5 w-5 text-blue-600" />
-                  <div>
-                    <p className="font-medium text-blue-900">Plan Gratis - Pago por promoción</p>
-                    <p className="text-sm text-blue-700">
-                      Cada promoción activa cuesta ${EXTRA_PROMOTION_PRICE.toLocaleString()} COP/mes
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="title">Título de la promoción *</Label>
-              <Input
-                id="title"
-                placeholder="Ej: Descuento 20% en almuerzo"
-                value={formData.title}
-                onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Descripción *</Label>
-              <Textarea
-                id="description"
-                placeholder="Describe los términos y condiciones de la promoción..."
-                value={formData.description}
-                onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="instructions">Instrucciones de redención *</Label>
-              <Textarea
-                id="instructions"
-                placeholder="Ej: Presenta tu identificación militar al momento de ordenar"
-                value={formData.instructions}
-                onChange={(e) => setFormData((prev) => ({ ...prev, instructions: e.target.value }))}
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="percentage">Porcentaje de descuento *</Label>
-              <Input
-                id="percentage"
-                type="number"
-                min="0"
-                max="100"
-                placeholder="20"
-                value={formData.percentage}
-                onChange={(e) => {
-                  setFormData((prev) => ({ ...prev, percentage: clamp(parseInt(e.target.value, 10), 0, 100) }))
-                }}
-                onBlur={(e) => {
-                  if (!e.target.value || parseInt(e.target.value) < 1) {
-                    setFormData((prev) => ({ ...prev, percentage: 0 }))
-                  }
-                }}
-                disabled={isSubmitting}
-              />
-              <p className="text-xs text-muted-foreground">Valor entre 0 y 100</p>
-            </div>
-
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <Label>Imagen destacada</Label>
-              <ImageUploadWithCrop
-                value={editingPromotion?.featured_image}
-                onChange={handleImageChange}
-                disabled={isSubmitting}
-                recommendedDimensions="1600x800px (2:1)"
-                maxSizeMB={5}
-                aspectRatio={2 / 1}
-                minCroppedWidth={800}
-                minCroppedHeight={400}
-              />
-              <p className="text-xs text-muted-foreground">
-                La imagen se visualizará en el carrusel de la app móvil. Podrás ajustarla y posicionarla antes de subirla.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Fecha de expiración *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left bg-transparent" disabled={isSubmitting}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(formData.expiredAt, "PPP", { locale: es })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={formData.expiredAt}
-                    onSelect={(date) => date && setFormData((prev) => ({ ...prev, expiredAt: date }))}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Status Selection (only for edit mode) */}
-            {editingPromotion && (
-              <div className="space-y-2">
-                <Label htmlFor="status">Estado de la promoción</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: any) => setFormData((prev) => ({ ...prev, status: value }))}
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Activa</SelectItem>
-                    <SelectItem value="inactive">Inactiva</SelectItem>
-                    <SelectItem value="expired">Expirada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Featured Toggle */}
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <Label htmlFor="featured" className="text-base">Promoción destacada</Label>
-                <p className="text-sm text-muted-foreground">
-                  Las promociones destacadas aparecen primero en la app
-                </p>
-              </div>
-              <Switch
-                id="featured"
-                checked={formData.isFeatured}
-                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, isFeatured: checked }))}
-                disabled={isSubmitting}
-              />
-            </div>
-
-            {/* Location Targeting */}
-            <div className="space-y-3">
-              <Label>Ubicaciones donde aplica</Label>
-              <p className="text-xs text-muted-foreground">
-                Selecciona "Todas las ubicaciones" o marca ubicaciones específicas
-              </p>
-              <div className="space-y-2 rounded-lg border p-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="all-locations"
-                    checked={formData.locationIds.length === 0}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setFormData((prev) => ({ ...prev, locationIds: [] }))
-                      }
-                    }}
-                    disabled={isSubmitting}
-                  />
-                  <label
-                    htmlFor="all-locations"
-                    className="text-sm font-medium cursor-pointer"
-                  >
-                    Todas las ubicaciones
-                  </label>
-                </div>
-                {locations.map((location) => (
-                  <div key={location.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={location.id}
-                      checked={formData.locationIds.includes(location.id)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setFormData((prev) => ({
-                            ...prev,
-                            locationIds: [...prev.locationIds, location.id],
-                          }))
-                        } else {
-                          setFormData((prev) => ({
-                            ...prev,
-                            locationIds: prev.locationIds.filter((id) => id !== location.id),
-                          }))
-                        }
-                      }}
-                      disabled={isSubmitting}
-                    />
-                    <label
-                      htmlFor={location.id}
-                      className={`text-sm cursor-pointer ${isSubmitting ? 'opacity-50' : ''}`}
-                    >
-                      {location.name}
-                      {location.is_primary && <Badge variant="outline" className="ml-2 text-xs">Principal</Badge>}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleSubmitPromotion}
-                disabled={!formData.title || !formData.description || isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  editingPromotion ? "Actualizar Promoción" : "Crear Promoción"
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Shared Form Dialog */}
+      <PromotionFormDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        promotion={editingPromotion}
+        businessId={businessId}
+        plan={plan}
+        onSuccess={handleFormSuccess}
+        showPlanNotice={true}
+        allowStatusChange={!!editingPromotion}
+      />
 
       {/* Plan Limits Progress */}
       {limits.maxActivePromotions !== null && limits.maxActivePromotions !== Infinity && (
@@ -702,7 +299,7 @@ export default function PromotionsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="quantity">Cantidad de promociones</Label>
+              <label htmlFor="quantity" className="text-sm font-medium">Cantidad de promociones</label>
               <Input
                 id="quantity"
                 type="number"

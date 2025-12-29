@@ -1,5 +1,5 @@
 // User mapping utilities for Firebase integration
-import { collection, getDocs, doc, getDoc } from "firebase/firestore"
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore"
 import { User } from "firebase/auth"
 import { db } from "@/lib/firebase"
 import type { FirebaseUser, FirebaseConsumerUser, AdminDashboardUser } from "@/lib/types"
@@ -10,11 +10,6 @@ export function mapFirebaseUserToAdminUser(
   firebaseUser: FirebaseUser,
   authUser?: User
 ): AdminDashboardUser | null {
-  // Type guard - only process consumer users
-  if (firebaseUser.user_type !== "consumer") {
-    console.warn("Attempted to map non-consumer user to AdminDashboardUser")
-    return null
-  }
 
   const consumerUser = firebaseUser as FirebaseConsumerUser
   const { branch, rank } = parseRankString(consumerUser.rank)
@@ -45,7 +40,7 @@ export function mapFirebaseUserToAdminUser(
       ? new Date(authUser.metadata.creationTime)
       : new Date(),
     status: mapFirebaseStatusToAdminStatus(consumerUser.status, consumerUser.verified),
-    notes: "", // Notes not stored in Firebase consumer schema
+    favouriteBusinesses: consumerUser.favourite_businesses,
     lastLogin: authUser?.metadata.lastSignInTime
       ? new Date(authUser.metadata.lastSignInTime)
       : undefined,
@@ -65,20 +60,16 @@ function mapFirebaseStatusToAdminStatus(
 // Fetch all users from Firebase for admin dashboard
 export async function fetchAllUsersForAdmin(): Promise<AdminDashboardUser[]> {
   try {
-    const usersCollection = collection(db, "users")
-    const usersSnapshot = await getDocs(usersCollection)
+    const q = query(collection(db, "users"), where("permission", "==", "user"))
+    const snapshot = await getDocs(q)
 
     const users: AdminDashboardUser[] = []
 
-    usersSnapshot.forEach((doc) => {
+    snapshot.docs.forEach((doc) => {
       const userData = doc.data() as FirebaseUser
-
-      // Only include users with user_type="consumer" (not business users or admins)
-      if (userData.user_type === "consumer") {
-        const adminUser = mapFirebaseUserToAdminUser(userData)
-        if (adminUser) {
-          users.push(adminUser)
-        }
+      const adminUser = mapFirebaseUserToAdminUser(userData)
+      if (adminUser) {
+        users.push(adminUser)
       }
     })
 

@@ -44,8 +44,8 @@ export default function AdminAnalyticsPage() {
     totalUsers: 0, // Would need to implement users fetching
     totalRedemptions: 0, // Would need to implement redemptions fetching
     platformRevenue: businesses.filter(b => b.plan === "basico").length * 50000 +
-                    businesses.filter(b => b.plan === "pro").length * 150000 +
-                    businesses.filter(b => b.plan === "enterprise").length * 500000,
+      businesses.filter(b => b.plan === "pro").length * 150000 +
+      businesses.filter(b => b.plan === "enterprise").length * 500000,
     monthlyGrowth: 0, // Would need historical data
   }
 
@@ -251,7 +251,7 @@ export default function AdminAnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        {/* <Card>
           <CardHeader>
             <CardTitle>Actividad de Usuarios</CardTitle>
             <CardDescription>DAU vs MAU en los últimos 7 días</CardDescription>
@@ -268,7 +268,7 @@ export default function AdminAnalyticsPage() {
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
 
       {/* Geographic Heatmap */}
