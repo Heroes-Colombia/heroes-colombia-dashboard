@@ -233,6 +233,7 @@ export default function AdminBusinessesPage() {
           <p className="text-muted-foreground">Administra empresas registradas y solicitudes pendientes</p>
         </div>
         <div className="flex items-center gap-2">
+          <Badge variant="default">{businesses.filter((b) => b.status === "active").length} activas</Badge>
           <Badge variant="secondary">{businesses.filter((b) => b.status === "pending").length} pendientes</Badge>
           <Badge variant="destructive">{businesses.filter((b) => b.status === "suspended").length} marcadas</Badge>
           <Button onClick={exportBusinesses} variant="outline" size="sm">
