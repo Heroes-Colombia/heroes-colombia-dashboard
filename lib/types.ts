@@ -593,9 +593,13 @@ export interface Transaction {
 export interface AdminDashboardUser {
   id: string
   email: string
-  name: string // first_name + first_last_name
-  fullName: string // All name fields combined
-  militaryId: string // identification_card
+  name: string
+  fullName: string
+  first_name?: string
+  second_name?: string
+  first_last_name?: string
+  second_last_name?: string
+  militaryId: string
   rank: string
   branch: string
   phone?: string

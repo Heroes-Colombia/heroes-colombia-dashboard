@@ -120,15 +120,17 @@ export default function AdminUsersPage() {
 
   const exportUsers = () => {
     const csvContent = [
-      "Nombre,Email,ID Militar,Rango,Fuerza,Estado,Fecha de Registro,Última Conexión",
+      "Primer Nombre,Segundo Nombre,Primer Apellido,Segundo Apellido,Email,ID Militar,Rango,Fuerza,Estado,Fecha de Registro,Última Conexión",
       ...filteredUsers.map(user => {
         const regDate = user.registrationDate.toLocaleDateString()
         const lastLogin = user.lastLogin ? user.lastLogin.toLocaleDateString() : "N/A"
-        return `"${user.name}","${user.email}","${user.militaryId}","${user.rank}","${user.branch}","${user.status}","${regDate}","${lastLogin}"`
+        return `"${user.first_name}","${user.second_name}","${user.first_last_name}","${user.second_last_name}","${user.email}","${user.militaryId}","${user.rank}","${user.branch}","${user.status}","${regDate}","${lastLogin}"`
       })
     ].join("\n")
 
-    const blob = new Blob([csvContent], { type: "text/csv" })
+    // Add UTF-8 BOM for proper encoding of special characters
+    const BOM = "\uFEFF"
+    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url

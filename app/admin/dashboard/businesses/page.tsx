@@ -78,7 +78,7 @@ export default function AdminBusinessesPage() {
 
   const exportBusinesses = () => {
     const csvContent = [
-      "Nombre,Email,Teléfono,Propietario,Estado,Plan,Tipo,Categorías,Dirección,Fecha de Registro",
+      "Nombre,NIT,Email,Teléfono,Propietario,Estado,Plan,Tipo,Categorías,Dirección",
       ...filteredBusinesses.map((business) => {
         const regDate = business.created_at
           ? business.created_at instanceof Date
@@ -89,11 +89,13 @@ export default function AdminBusinessesPage() {
           : "N/A"
         const categories = business.categories?.map((c) => getCategoryName(c)).join("; ") || ""
         const businessType = business.type || "N/A"
-        return `"${business.name}","${business.email}","${business.phone_number || "N/A"}","${business.owner_name}","${business.status}","${business.plan || "Gratis"}","${businessType}","${categories}","${business.address}","${regDate}"`
+        return `"${business.name}","${business.identification}","${business.email}","${business.phone_number || "N/A"}","${business.owner_name}","${business.status}","${business.plan || "Gratis"}","${businessType}","${categories}","${business.address}"`
       }),
     ].join("\n")
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    // Add UTF-8 BOM for proper encoding of special characters
+    const BOM = "\uFEFF"
+    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8;" })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
