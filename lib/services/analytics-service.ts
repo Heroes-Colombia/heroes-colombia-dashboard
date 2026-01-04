@@ -56,6 +56,8 @@ export class AnalyticsEventService {
         user_type: doc.data().user_type,
         user_rank: doc.data().user_rank,
         user_city: doc.data().user_city,
+        user_sex: doc.data().user_sex,
+        user_age_range: doc.data().user_age_range,
         business_id: doc.data().business_id,
         location_id: doc.data().location_id,
         session_id: doc.data().session_id,

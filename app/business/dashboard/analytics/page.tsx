@@ -61,14 +61,12 @@ export default function BusinessAnalyticsPage() {
   })
   const [selectedPromotion, setSelectedPromotion] = useState("all")
   const [selectedLocation, setSelectedLocation] = useState("all")
-  const [reportType, setReportType] = useState("overview")
 
   const { user } = useAuth()
   const businessUser = user as any
   const { promotions, isLoading: promotionsLoading } = usePromotions({ businessId: businessUser?.businessId })
   const plan: PlanType = businessUser?.plan || "gratis"
   const limits = getPlanLimits(plan)
-  
 
   // Analytics tier access
   const analyticsLevel = limits.analyticsLevel
@@ -143,23 +141,13 @@ export default function BusinessAnalyticsPage() {
     return []
   }, [hasPerLocationAnalytics, filteredEvents, locations])
 
-  const handleExportReport = (format: "csv" | "pdf") => {
-    // TODO: Implement export functionality
-    console.log(`Exporting ${reportType} report as ${format}`)
-  }
-
-  const handleScheduleReport = () => {
-    // TODO: Implement report scheduling
-    console.log("Scheduling report")
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Analíticas</h1>
-          <p className="text-muted-foreground">Métricas detalladas de rendimiento de tus promociones</p>
+          <p className="text-muted-foreground">Métricas detalladas de rendimiento de tu negocio</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={hasAdvanced ? "default" : "secondary"} className="flex items-center gap-1">
@@ -227,16 +215,6 @@ export default function BusinessAnalyticsPage() {
             </SelectContent>
           </Select>
         )}
-        <Select value={reportType} onValueChange={setReportType}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Tipo de reporte" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="overview">Resumen</SelectItem>
-            <SelectItem value="detailed">Detallado</SelectItem>
-            <SelectItem value="comparison">Comparación</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Key Metrics - Basic (All Plans) */}
@@ -360,7 +338,7 @@ export default function BusinessAnalyticsPage() {
       >
         <>
           {/* Demographics */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Demografía por Edad</CardTitle>
@@ -418,7 +396,9 @@ export default function BusinessAnalyticsPage() {
                 )}
               </CardContent>
             </Card>
+          </div>
 
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Distribución por Fuerza</CardTitle>
@@ -526,7 +506,7 @@ export default function BusinessAnalyticsPage() {
                 <Activity className="h-5 w-5 mr-2 text-secondary" />
                 Mapas de Calor
               </CardTitle>
-              <CardDescription>Análisis de interacción por página</CardDescription>
+              <CardDescription>Análisis de interacción por promoción</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
