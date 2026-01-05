@@ -225,7 +225,7 @@ export interface FirebaseAnalyticsEvent {
   // Core
   entity_id: string
   entity_type: string
-  event_type: "impression" | "view" | "save" | "redemption"
+  event_type: "impression" | "view" | "save" | "redemption" | "click"
   business_id: string
   promotion_id?: string
   location_id?: string
@@ -243,8 +243,12 @@ export interface FirebaseAnalyticsEvent {
   session_id?: string
   device_type?: "ios" | "android" | "web"
 
-  // Metadata
-  // created_at: Timestamp
+  // Metadata - for tracking link clicks (navigation, website, phone, whatsapp)
+  metadata?: {
+    link_type?: "navigation" | "website" | "phone" | "whatsapp"
+    link_value?: string
+    [key: string]: any
+  }
 }
 
 // ============================================================================

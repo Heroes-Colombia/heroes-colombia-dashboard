@@ -43,6 +43,10 @@ import {
   Activity,
   Users,
   BookmarkCheck,
+  Navigation,
+  Globe,
+  Phone,
+  MessageCircle,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { addDays } from "date-fns"
@@ -50,6 +54,7 @@ import { getPlanLimits } from "@/lib/plan-limits"
 import { UpgradePlanButton } from "@/components/upgrade-plan-button"
 import { LockedFeature, FeatureGate } from "@/components/locked-feature"
 import type { PlanType } from "@/lib/types"
+import { useBusiness } from "@/hooks/use-businesses"
 
 export default function BusinessAnalyticsPage() {
   const [analyticsEvents, setAnalyticsEvents] = useState<FirebaseAnalyticsEvent[]>([])
@@ -65,6 +70,7 @@ export default function BusinessAnalyticsPage() {
   const { user } = useAuth()
   const businessUser = user as any
   const { promotions, isLoading: promotionsLoading } = usePromotions({ businessId: businessUser?.businessId })
+  const { business } = useBusiness(businessUser?.businessId)
   const plan: PlanType = businessUser?.plan || "gratis"
   const limits = getPlanLimits(plan)
 
@@ -140,6 +146,15 @@ export default function BusinessAnalyticsPage() {
     }
     return []
   }, [hasPerLocationAnalytics, filteredEvents, locations])
+
+  const linkEngagementData = useMemo(() => {
+    return [
+      { name: "Navegación", value: basicAnalytics.linkClicks.navigation, fill: "#7A8B5A" },
+      { name: "Sitio Web", value: basicAnalytics.linkClicks.website, fill: "#1E3A8A" },
+      { name: "Llamadas", value: basicAnalytics.linkClicks.phone, fill: "#059669" },
+      { name: "WhatsApp", value: basicAnalytics.linkClicks.whatsapp, fill: "#D97706" },
+    ]
+  }, [basicAnalytics.linkClicks])
 
   return (
     <div className="space-y-6">
@@ -218,6 +233,7 @@ export default function BusinessAnalyticsPage() {
       </div>
 
       {/* Key Metrics - Basic (All Plans) */}
+      {/* Row 1: Impressions, Views, Business Saves, Promotion Saves */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -226,18 +242,18 @@ export default function BusinessAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{basicAnalytics.impressions.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+12% vs período anterior</p>
+            <p className="text-xs text-muted-foreground">Veces que aparece tu negocio</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vistas</CardTitle>
+            <CardTitle className="text-sm font-medium">Clicks</CardTitle>
             <MousePointer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{basicAnalytics.views.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+8% vs período anterior</p>
+            <p className="text-xs text-muted-foreground">Veces que ven tu perfil</p>
           </CardContent>
         </Card>
 
@@ -248,7 +264,7 @@ export default function BusinessAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{basicAnalytics.saves.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground"># veces tu negocio es guardado como favorito</p>
+            <p className="text-xs text-muted-foreground">Veces guardado como favorito</p>
           </CardContent>
         </Card>
 
@@ -259,21 +275,9 @@ export default function BusinessAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{basicAnalytics.promotionSaves.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground"># veces que las promociones se guardan como favoritos</p>
+            <p className="text-xs text-muted-foreground">Promociones guardadas</p>
           </CardContent>
         </Card>
-
-        {/* TODO */}
-        {/* <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Redenciones</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{basicAnalytics.redemptions.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+15% vs período anterior</p>
-          </CardContent>
-        </Card> */}
       </div>
 
       {/* Charts Section - Basic */}
@@ -326,6 +330,61 @@ export default function BusinessAnalyticsPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Row 2: Link Click Metrics */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {business?.type && business.type === "physical" && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Navegación</CardTitle>
+              <Navigation className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{basicAnalytics.linkClicks.navigation.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Clics en cómo llegar</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {business?.website && business.website !== "" && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Sitio Web</CardTitle>
+              <Globe className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{basicAnalytics.linkClicks.website.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Visitas al sitio web</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {business?.phone_number && business.phone_number !== "" && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Llamadas</CardTitle>
+              <Phone className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{basicAnalytics.linkClicks.phone.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Clics en llamar</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {business?.phone_number && business.phone_number !== "" && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">WhatsApp</CardTitle>
+              <MessageCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{basicAnalytics.linkClicks.whatsapp.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Mensajes por WhatsApp</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Advanced Features - Pro+ */}
@@ -559,30 +618,29 @@ export default function BusinessAnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Benchmarking</CardTitle>
-                <CardDescription>Comparación con la industria</CardDescription>
+                <CardTitle>Engagement por Tipo de Contacto</CardTitle>
+                <CardDescription>Distribución de clics en métodos de contacto</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Tu conversión</span>
-                    <span className="text-lg font-bold text-primary">
-                      {enterpriseAnalytics?.benchmarking.myConversion.toFixed(1) || 0}%
-                    </span>
+                {linkEngagementData.some((item) => item.value > 0) ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={linkEngagementData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                        {linkEngagementData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
+                    No hay datos de engagement disponibles
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Promedio industria</span>
-                    <span className="text-lg font-bold text-muted-foreground">
-                      {enterpriseAnalytics?.benchmarking.industryAverage.toFixed(1) || 0}%
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Top performers</span>
-                    <span className="text-lg font-bold text-secondary">
-                      {enterpriseAnalytics?.benchmarking.topPerformers.toFixed(1) || 0}%
-                    </span>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>

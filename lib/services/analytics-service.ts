@@ -28,7 +28,7 @@ export class AnalyticsEventService {
       // Build query
       const eventsRef = collection(db, "analytics_events")
       let q = query(eventsRef, where("business_id", "==", businessId))
-      q = query(q, where("user_rank", "!=", "admin"))
+      // q = query(q, where("user_rank", "!=", "admin"))
 
       // Add date range filter if provided
       if (options?.dateRange) {

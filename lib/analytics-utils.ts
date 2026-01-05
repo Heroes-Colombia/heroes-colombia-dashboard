@@ -29,6 +29,12 @@ export interface BasicAnalytics {
   saves: number
   promotionSaves: number
   redemptions: number
+  linkClicks: {
+    navigation: number
+    website: number
+    phone: number
+    whatsapp: number
+  }
 }
 
 export interface AdvancedAnalytics extends BasicAnalytics {
@@ -46,12 +52,6 @@ export interface AdvancedAnalytics extends BasicAnalytics {
 export interface EnterpriseAnalytics extends AdvancedAnalytics {
   heatmaps: Array<{ page: string; clicks: number; time: number }>
   cohorts: Array<{ month: string; retention: number }>
-  benchmarking: {
-    industry: string
-    myConversion: number
-    industryAverage: number
-    topPerformers: number
-  }
 }
 
 export interface FunnelData {
@@ -95,6 +95,36 @@ export function calculatePromotionAnalytics(events: FirebaseAnalyticsEvent[], pr
 }
 
 /**
+ * Extract link clicks from event metadata
+ * Counts clicks by link_type: navigation, website, phone, whatsapp
+ */
+function calculateLinkClicks(events: FirebaseAnalyticsEvent[]): {
+  navigation: number
+  website: number
+  phone: number
+  whatsapp: number
+} {
+  const linkClicks = {
+    navigation: 0,
+    website: 0,
+    phone: 0,
+    whatsapp: 0,
+  }
+
+  events
+    .filter((e) => e.event_type === "click" && e.metadata?.link_type)
+    .forEach((event) => {
+      const linkType = event.metadata?.link_type
+      if (linkType === "navigation") linkClicks.navigation++
+      else if (linkType === "website") linkClicks.website++
+      else if (linkType === "phone") linkClicks.phone++
+      else if (linkType === "whatsapp") linkClicks.whatsapp++
+    })
+
+  return linkClicks
+}
+
+/**
  * Calculate basic analytics from analytics_events collection
  * More accurate than denormalized counts, but requires querying events
  */
@@ -107,6 +137,7 @@ export function calculateBasicAnalyticsFromEvents(
     saves: events.filter((e) => e.event_type === "save" && e.entity_type === "business").length || 0,
     promotionSaves: events.filter((e) => e.event_type === "save" && e.entity_type === "promotion").length || 0,
     redemptions: events.filter((e) => e.event_type === "redemption").length || 0,
+    linkClicks: calculateLinkClicks(events),
   }
 }
 
@@ -244,17 +275,11 @@ function formatRankDisplay(rankCode: string): string {
  * Calculate enterprise analytics
  * Available to: Enterprise plan only
  * Requires: analytics_events collection data
- *
- * NOTE: Industry benchmarking requires external data source
  */
 export function calculateEnterpriseAnalytics(
   promotions: Promotion[],
   events: FirebaseAnalyticsEvent[],
-  estimatedRevenue?: number,
-  options?: {
-    industryData?: { averageConversion: number; topConversion: number }
-    industryName?: string
-  }
+  estimatedRevenue?: number
 ): EnterpriseAnalytics {
   const advanced = calculateAdvancedAnalytics(events, estimatedRevenue)
 
@@ -264,19 +289,10 @@ export function calculateEnterpriseAnalytics(
   // Calculate cohort retention (user engagement over time)
   const cohorts = calculateCohorts(events)
 
-  // Benchmarking data (requires industry aggregate data)
-  const benchmarking = {
-    industry: options?.industryName || "General",
-    myConversion: advanced.conversionRate,
-    industryAverage: options?.industryData?.averageConversion || 0,
-    topPerformers: options?.industryData?.topConversion || 0,
-  }
-
   return {
     ...advanced,
     heatmaps,
     cohorts,
-    benchmarking,
   }
 }
 
@@ -498,12 +514,10 @@ export function getAnalyticsByPlan(
   events: FirebaseAnalyticsEvent[],
   options?: {
     estimatedRevenue?: number
-    industryData?: { averageConversion: number; topConversion: number }
-    industryName?: string
   }
 ): BasicAnalytics | AdvancedAnalytics | EnterpriseAnalytics {
   if (plan === "enterprise" && events && events.length > 0) {
-    return calculateEnterpriseAnalytics(promotions, events, options?.estimatedRevenue, options)
+    return calculateEnterpriseAnalytics(promotions, events, options?.estimatedRevenue)
   } else if ((plan === "pro" || plan === "basico") && events && events.length > 0) {
     return calculateAdvancedAnalytics(events, options?.estimatedRevenue)
   } else {
