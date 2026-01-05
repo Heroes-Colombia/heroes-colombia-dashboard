@@ -174,7 +174,7 @@ function calculateDemographics(events: FirebaseAnalyticsEvent[]) {
     if (event.user_rank && event.user_rank != "admin") {
       rankCounts.set(event.user_rank, (rankCounts.get(event.user_rank) || 0) + 1)
     }
-    if (event.user_city) {
+    if (event.user_city && event.user_city != 'Surfers Paradise' && event.user_city != 'Burleigh Heads') {
       cityCounts.set(event.user_city, (cityCounts.get(event.user_city) || 0) + 1)
     }
   })
@@ -295,16 +295,18 @@ function calculateHeatmaps(
   events
     .filter((e) => (e.event_type === "view" && e.entity_type === "promotion") && e.entity_id)
     .forEach((event) => {
-      const current = promotionViews.get(event.entity_id) || 0
-      promotionViews.set(event.entity_id, current + 1)
+      const promotionDetails = promotions.find((p) => p.id === event.entity_id)
+      if (promotionDetails) {
+        const current = promotionViews.get(promotionDetails.title) || 0
+        promotionViews.set(promotionDetails.title, current + 1)
+      }
     })
 
-  // Map to promotion titles and sort by engagement
+  // Map to promotion names and sort by engagement
   return Array.from(promotionViews.entries())
-    .map(([promotionId, clicks]) => {
-      const promotion = promotions.find((p) => p.id === promotionId)
+    .map(([promotionTitle, clicks]) => {
       return {
-        page: promotion?.title || `Promoción ${promotionId.slice(0, 8)}`,
+        page: promotionTitle,
         clicks,
         time: 0, // Would need time_spent tracking in events metadata
       }

@@ -107,7 +107,7 @@ export default function BusinessAnalyticsPage() {
 
   const basicAnalytics = useMemo(() => {
     return calculateBasicAnalyticsFromEvents(analyticsEvents)
-  }, [filteredPromotions])
+  }, [filteredPromotions, filteredEvents])
 
   const advancedAnalytics = useMemo(() => {
     if (plan === "pro" || plan === "enterprise") {
