@@ -179,35 +179,35 @@ export default function TeamPage() {
 
   const getStatusBadge = (status: string, isVerified?: boolean) => {
     if (!isVerified) {
-      return <Badge variant="destructive">Pendiente</Badge>
+      return <Badge variant="destructive" className="text-[10px] sm:text-xs px-1.5 sm:px-2">Pendiente</Badge>
     }
 
     switch (status) {
       case "active":
-        return <Badge variant="default" className="gap-1">
+        return <Badge variant="default" className="gap-1 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2">
           <CheckCircle className="h-3 w-3" />
           Activo
         </Badge>
       case "inactive":
-        return <Badge variant="secondary" className="gap-1">
+        return <Badge variant="secondary" className="gap-1 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2">
           <Clock className="h-3 w-3" />
           Inactivo
         </Badge>
       default:
-        return <Badge variant="outline">Pendiente</Badge>
+        return <Badge variant="outline" className="gap-1 sm:gap-1 text-[10px] sm:text-xs px-1.5 sm:px-2">Pendiente</Badge>
     }
   }
 
   const getRoleBadge = (role: BusinessPermission) => {
     const config = roleConfig[role]
     if (!config) {
-      return <Badge variant="outline">{role}</Badge>
+      return <Badge variant="outline" className="text-[10px] sm:text-xs">{role}</Badge>
     }
     const Icon = config.icon
     return (
-      <Badge variant={config.variant} className="gap-1">
-        <Icon className="h-3 w-3" />
-        {config.label}
+      <Badge variant={config.variant} className="gap-0.5 sm:gap-1 max-w-[120px] sm:max-w-[140px] text-[10px] sm:text-xs px-1.5 sm:px-2">
+        <Icon className="h-2.5 w-2.5 sm:h-3 sm:w-3 flex-shrink-0" />
+        <span className="truncate">{config.label}</span>
       </Badge>
     )
   }
@@ -348,32 +348,33 @@ export default function TeamPage() {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-3 text-muted-foreground">Cargando equipo...</span>
+      <div className="flex flex-col sm:flex-row items-center justify-center py-12 gap-3">
+        <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-primary" />
+        <span className="text-sm sm:text-base text-muted-foreground">Cargando equipo...</span>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Equipo</h1>
-          <p className="text-muted-foreground">Invita y gestiona miembros de tu equipo</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Equipo</h1>
+          <p className="text-sm text-muted-foreground">Invita y gestiona miembros de tu equipo</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
           <PlanLimitBadge
             plan={plan}
             resourceType="users"
             currentCount={activeTeamCount}
             showIcon
+            className="justify-center sm:justify-start text-xs sm:text-sm"
           />
           <PermissionGuard
             permission="can_manage_team"
             fallback={
-              <Button disabled title="No tienes permiso para gestionar el equipo">
+              <Button disabled className="w-full sm:w-auto" title="No tienes permiso para gestionar el equipo">
                 <Plus className="h-4 w-4 mr-1" />
                 Invitar Miembro
               </Button>
@@ -381,23 +382,23 @@ export default function TeamPage() {
           >
             <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
               <DialogTrigger asChild>
-                <Button disabled={!canInviteMore}>
+                <Button disabled={!canInviteMore} className="w-full sm:w-auto text-sm">
                   <Plus className="h-4 w-4 mr-1" />
                   Invitar Miembro
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto mx-2 sm:mx-4">
                 <DialogHeader>
-                  <DialogTitle>Invitar Nuevo Miembro</DialogTitle>
+                  <DialogTitle className="text-lg sm:text-xl">Invitar Nuevo Miembro</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-6">
                   {/* Notice about team management */}
-                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 sm:p-4">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="mt-0.5 h-5 w-5 text-blue-600" />
+                      <AlertCircle className="mt-0.5 h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
                       <div>
-                        <p className="font-medium text-blue-900">Gestión de equipo</p>
-                        <p className="text-sm text-blue-700">
+                        <p className="font-medium text-sm sm:text-base text-blue-900">Gestión de equipo</p>
+                        <p className="text-xs sm:text-sm text-blue-700">
                           Los miembros del equipo podrán acceder al Portal Web según los permisos asignados.
                         </p>
                       </div>
@@ -405,7 +406,7 @@ export default function TeamPage() {
                   </div>
 
                   {/* Basic Information */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="member-email">Email *</Label>
                       <Input
@@ -440,28 +441,28 @@ export default function TeamPage() {
                       <SelectContent>
                         <SelectItem value={BusinessPermission.staff}>
                           <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            <div>
-                              <div className="font-medium">Personal</div>
-                              <div className="text-xs text-muted-foreground">Acceso básico para operaciones</div>
+                            <User className="h-4 w-4 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-sm">Personal</div>
+                              <div className="text-xs text-muted-foreground truncate">Acceso básico para operaciones</div>
                             </div>
                           </div>
                         </SelectItem>
                         <SelectItem value={BusinessPermission.manager}>
                           <div className="flex items-center gap-2">
-                            <Shield className="h-4 w-4" />
-                            <div>
-                              <div className="font-medium">Gerente</div>
-                              <div className="text-xs text-muted-foreground">Gestión de promociones y analíticas</div>
+                            <Shield className="h-4 w-4 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-sm">Gerente</div>
+                              <div className="text-xs text-muted-foreground truncate">Gestión de promociones y analíticas</div>
                             </div>
                           </div>
                         </SelectItem>
                         <SelectItem value={BusinessPermission.owner}>
                           <div className="flex items-center gap-2">
-                            <Crown className="h-4 w-4" />
-                            <div>
-                              <div className="font-medium">Administrador</div>
-                              <div className="text-xs text-muted-foreground">Gestión de promociones, equipo y analíticas</div>
+                            <Crown className="h-4 w-4 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-sm">Administrador</div>
+                              <div className="text-xs text-muted-foreground truncate">Gestión de promociones, equipo y analíticas</div>
                             </div>
                           </div>
                         </SelectItem>
@@ -472,65 +473,71 @@ export default function TeamPage() {
                   {/* Permissions */}
                   <div className="space-y-4">
                     <Label>Permisos Específicos</Label>
-                    <div className="space-y-3 rounded-lg border p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
+                    <div className="space-y-3 rounded-lg border p-3 sm:p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm">Gestionar Promociones</div>
-                          <div className="text-xs text-muted-foreground">Crear, editar y eliminar promociones</div>
+                          <div className="text-xs text-muted-foreground break-words">Crear, editar y eliminar promociones</div>
                         </div>
                         <Switch
                           checked={newInvitation.permissions.can_manage_promotions}
                           onCheckedChange={(checked) => handlePermissionChange("can_manage_promotions", checked)}
+                          className="flex-shrink-0"
                         />
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm">Ver Analíticas</div>
-                          <div className="text-xs text-muted-foreground">Acceder a métricas y reportes</div>
+                          <div className="text-xs text-muted-foreground break-words">Acceder a métricas y reportes</div>
                         </div>
                         <Switch
                           checked={newInvitation.permissions.can_view_analytics}
                           onCheckedChange={(checked) => handlePermissionChange("can_view_analytics", checked)}
+                          className="flex-shrink-0"
                         />
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm">Gestionar Redenciones</div>
-                          <div className="text-xs text-muted-foreground">Procesar redenciones de promociones</div>
+                          <div className="text-xs text-muted-foreground break-words">Procesar redenciones de promociones</div>
                         </div>
                         <Switch
                           checked={newInvitation.permissions.can_manage_redemptions}
                           onCheckedChange={(checked) => handlePermissionChange("can_manage_redemptions", checked)}
+                          className="flex-shrink-0"
                         />
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm">Gestionar Ubicaciones</div>
-                          <div className="text-xs text-muted-foreground">Administrar ubicaciones del negocio</div>
+                          <div className="text-xs text-muted-foreground break-words">Administrar ubicaciones del negocio</div>
                         </div>
                         <Switch
                           checked={newInvitation.permissions.can_manage_locations}
                           onCheckedChange={(checked) => handlePermissionChange("can_manage_locations", checked)}
+                          className="flex-shrink-0"
                         />
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm">Gestionar Equipo</div>
-                          <div className="text-xs text-muted-foreground">Invitar y administrar miembros</div>
+                          <div className="text-xs text-muted-foreground break-words">Invitar y administrar miembros</div>
                         </div>
                         <Switch
                           checked={newInvitation.permissions.can_manage_team}
                           onCheckedChange={(checked) => handlePermissionChange("can_manage_team", checked)}
+                          className="flex-shrink-0"
                         />
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm">Ver Facturación</div>
-                          <div className="text-xs text-muted-foreground">Acceder a información de billing</div>
+                          <div className="text-xs text-muted-foreground break-words">Acceder a información de billing</div>
                         </div>
                         <Switch
                           checked={newInvitation.permissions.can_view_billing}
                           onCheckedChange={(checked) => handlePermissionChange("can_view_billing", checked)}
+                          className="flex-shrink-0"
                         />
                       </div>
                     </div>
@@ -564,7 +571,7 @@ export default function TeamPage() {
         <LockedFeature
           currentPlan={plan}
           featureName="Miembros adicionales de equipo"
-          requiredPlan={plan === "gratis" ? "basico" : plan === "basico" ? "pro" : "enterprise"}
+          requiredPlan={plan === "basico" ? "pro" : "enterprise"}
           description={`Tu plan actual permite hasta ${teamLimit} miembro${teamLimit > 1 ? "s" : ""} del equipo (incluyéndote a ti).`}
           variant="inline"
         />
@@ -573,23 +580,23 @@ export default function TeamPage() {
       {/* Current User Card */}
       <Card className="border-primary/20 bg-primary/5">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Crown className="h-5 w-5 text-primary" />
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Crown className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             Tu Cuenta
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-12 w-12">
+        <CardContent className="pb-2 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+              <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
                 <AvatarImage src="" />
-                <AvatarFallback className="bg-primary text-primary-foreground">
+                <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                   {getInitials(businessUser?.name, businessUser?.email)}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <div className="font-medium">{businessUser?.email}</div>
-                <div className="text-sm text-muted-foreground">{businessUser?.businessName}</div>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-xs sm:text-base truncate">{businessUser?.email}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground truncate">{businessUser?.businessName}</div>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -603,52 +610,56 @@ export default function TeamPage() {
       {/* Pending Invitations */}
       {pendingInvitations.length > 0 && (
         <Card className="border-orange-200 bg-orange-50/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-orange-600" />
+          <CardHeader className="pb-3 sm:pb-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
               Invitaciones Pendientes
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               Miembros invitados que aún no han aceptado
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2 sm:space-y-3">
             {pendingInvitations.map((invitation) => (
               <div
                 key={invitation.id}
-                className="flex items-center justify-between p-4 bg-white rounded-lg border"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-2 sm:p-4 bg-white rounded-lg border"
               >
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-10 w-10">
+                <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                  <Avatar className="h-10 w-10 flex-shrink-0">
                     <AvatarFallback className="bg-orange-100 text-orange-700">
                       <Mail className="h-5 w-5" />
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <p className="font-medium">{invitation.invited_email}</p>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-xs sm:text-base truncate">{invitation.invited_email}</p>
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-[10px] sm:text-sm text-muted-foreground">
                       {getRoleBadge(invitation.role)}
-                      <span>•</span>
-                      <span>Invitado: {formatDate(invitation.created_at.toDate())}</span>
+                      <span className="hidden sm:inline">•</span>
+                      <span className="truncate">Invitado: {formatDate(invitation.created_at.toDate())}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 self-end sm:self-auto flex-shrink-0">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleResendInvitation(invitation.id, invitation)}
+                    className="text-xs h-8 px-2 sm:px-3"
                   >
-                    <Mail className="h-4 w-4 mr-1" />
-                    Reenviar
+                    <Mail className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Reenviar</span>
                   </Button>
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => handleCancelInvitation(invitation.id)}
+                    title="Cancelar invitación"
+                    aria-label="Cancelar invitación"
+                    className="h-8 w-8"
                   >
-                    <XCircle className="h-4 w-4 text-destructive" />
+                    <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
                   </Button>
                 </div>
               </div>
@@ -658,9 +669,9 @@ export default function TeamPage() {
       )}
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+        <div className="relative flex-1 sm:max-w-sm">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Buscar miembros..."
             value={searchTerm}
@@ -669,7 +680,7 @@ export default function TeamPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue />
           </SelectTrigger>
@@ -683,57 +694,76 @@ export default function TeamPage() {
       </div>
 
       {/* Team Members List */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {filteredMembers.map((member) => (
           <Card key={member.id}>
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4 flex-1">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src="" />
-                    <AvatarFallback>
-                      {getInitials(member.first_name, member.email)}
-                    </AvatarFallback>
-                  </Avatar>
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex flex-col gap-3 sm:gap-4">
+                {/* Header row with avatar and actions */}
+                <div className="flex items-start justify-between gap-2 sm:gap-3">
+                  <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
+                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+                      <AvatarImage src="" />
+                      <AvatarFallback className="text-sm">
+                        {getInitials(member.first_name, member.email)}
+                      </AvatarFallback>
+                    </Avatar>
 
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold">{member.first_name || member.email}</h3>
-                      {getRoleBadge(member.business_roles[0].role)}
-                      {getStatusBadge(member.status, member.verified || true)}
-                    </div>
-
-                    {member.first_name && (
-                      <p className="text-sm text-muted-foreground mb-2">{member.email}</p>
-                    )}
-
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>{getPermissionSummary(member.business_roles[0].permissions)}</span>
-                      <span>Invitado: {formatDate(member.created_at)}</span>
-                      {member.status === "active" && (
-                        <span>Aceptado: {formatDate(member.updated_at)}</span>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-xs sm:text-base mb-0.5 sm:mb-1 truncate">
+                        {member.first_name || member.email}
+                      </h3>
+                      {member.first_name && (
+                        <p className="text-[10px] sm:text-sm text-muted-foreground mb-1 sm:mb-2 truncate">{member.email}</p>
                       )}
                     </div>
                   </div>
+
+                  {/* Actions - always visible on right */}
+                  <div className="flex items-center gap-0.5 sm:gap-2 flex-shrink-0">
+                    <PermissionGuard permission="can_manage_team">
+                      {member.status === "pending" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Reenviar invitación"
+                          aria-label="Reenviar invitación"
+                          className="h-8 w-8 sm:h-10 sm:w-10"
+                        >
+                          <Mail className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveTeamMember(member.id)}
+                        title="Remover miembro"
+                        aria-label="Remover miembro del equipo"
+                        className="h-8 w-8 sm:h-10 sm:w-10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-destructive" />
+                      </Button>
+                    </PermissionGuard>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <PermissionGuard permission="can_manage_team">
-                    {member.status === "pending" && (
-                      <Button variant="ghost" size="sm">
-                        <Mail className="h-4 w-4 mr-1" />
-                        Reenviar
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveTeamMember(member.id)}
-                      title="Remover miembro"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </PermissionGuard>
+                {/* Badges row - wraps naturally */}
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  {getRoleBadge(member.business_roles?.[0]?.role || BusinessPermission.staff)}
+                  {getStatusBadge(member.status, member.verified || true)}
+                </div>
+
+                {/* Metadata row - stacks on very small screens */}
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-1 sm:gap-4 text-[12px] sm:text-sm text-muted-foreground">
+                  <span className="font-medium">{member.business_roles?.[0]?.permissions && getPermissionSummary(member.business_roles[0].permissions)}</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span>Invitado: {formatDate(member.created_at)}</span>
+                  {member.status === "active" && (
+                    <>
+                      <span className="hidden sm:inline">•</span>
+                      <span>Aceptado: {formatDate(member.updated_at)}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -753,7 +783,7 @@ export default function TeamPage() {
                   : "Invita a tu primer miembro del equipo para comenzar"}
               </p>
               {!searchTerm && statusFilter === "all" && canInviteMore && (
-                <Button onClick={() => setIsInviteDialogOpen(true)}>
+                <Button onClick={() => setIsInviteDialogOpen(true)} className="w-full sm:w-auto">
                   <Plus className="h-4 w-4 mr-1" />
                   Invitar Primer Miembro
                 </Button>

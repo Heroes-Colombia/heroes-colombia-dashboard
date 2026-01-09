@@ -89,7 +89,7 @@ export default function AdminBusinessesPage() {
           : "N/A"
         const categories = business.categories?.map((c) => getCategoryName(c)).join("; ") || ""
         const businessType = business.type || "N/A"
-        return `"${business.name}","${business.identification}","${business.email}","${business.phone_number || "N/A"}","${business.owner_name}","${business.status}","${business.plan || "Gratis"}","${businessType}","${categories}","${business.address}"`
+        return `"${business.name}","${business.identification}","${business.email}","${business.phone_number || "N/A"}","${business.owner_name}","${business.status}","${business.plan || "Básico"}","${businessType}","${categories}","${business.address}"`
       }),
     ].join("\n")
 
@@ -274,7 +274,6 @@ export default function AdminBusinessesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los planes</SelectItem>
-            <SelectItem value="gratis">Gratis</SelectItem>
             <SelectItem value="básico">Básico</SelectItem>
             <SelectItem value="pro">Pro</SelectItem>
             <SelectItem value="enterprise">Enterprise</SelectItem>
@@ -301,7 +300,7 @@ export default function AdminBusinessesPage() {
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <h3 className="text-lg font-semibold">{business.name}</h3>
                         {getStatusBadge(business.status)}
-                        {getPlanBadge(business.plan || "gratis")}
+                        {getPlanBadge(business.plan || "basico")}
                         {getTypeBadge(business.type || "physical")}
                         {business.featured && <Badge variant="secondary">Destacado</Badge>}
                       </div>
@@ -441,7 +440,7 @@ export default function AdminBusinessesPage() {
                                   </h4>
                                   <div className="space-y-3 bg-muted/30 p-3 rounded-lg">
                                     {(() => {
-                                      const planLimits = getPlanLimits(selectedBusiness.plan || "gratis")
+                                      const planLimits = getPlanLimits(selectedBusiness.plan || "basico")
                                       const locationsCount = modalLocations.length
                                       const promotionsCount = promotions?.filter((p) => p.status === "active").length || 0
                                       const teamMembersCount = 0 // TODO: Fetch from team member service

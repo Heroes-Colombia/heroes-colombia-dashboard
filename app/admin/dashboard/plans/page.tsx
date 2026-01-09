@@ -5,11 +5,6 @@ import { useBusinesses } from "@/hooks/use-businesses"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Switch } from "@/components/ui/switch"
 import {
   Crown,
   DollarSign,
@@ -33,18 +28,11 @@ import type { PlanType } from "@/lib/types"
 
 export default function AdminPlansPage() {
   const { businesses, isLoading } = useBusinesses()
-  const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
 
   const pricing = getCurrentPricing()
 
   // Calculate real subscription stats from businesses
   const subscriptionStats = {
-    gratis: {
-      count: businesses.filter(b => !b.plan || b.plan === "gratis").length,
-      revenue: 0,
-      growth: "+0%"
-    },
     basico: {
       count: businesses.filter(b => b.plan === "basico").length,
       revenue: businesses.filter(b => b.plan === "basico").length * pricing.regularPlans.basico.monthly,
@@ -64,8 +52,6 @@ export default function AdminPlansPage() {
 
   const getPlanIcon = (planId: PlanType) => {
     switch (planId) {
-      case "gratis":
-        return <Zap className="h-5 w-5 text-gray-500" />
       case "basico":
         return <Shield className="h-5 w-5 text-blue-500" />
       case "pro":
@@ -95,7 +81,7 @@ export default function AdminPlansPage() {
       ...(Object.keys(PLAN_LIMITS) as PlanType[]).map(planId => {
         const limits = PLAN_LIMITS[planId]
         const stats = subscriptionStats[planId]
-        const prices = planId === "gratis" ? { monthly: 0, annual: 0 } : pricing.regularPlans[planId as "basico" | "pro" | "enterprise"]
+        const prices = pricing.regularPlans[planId as "basico" | "pro" | "enterprise"]
 
         return `"Plan ${planId}",${prices.monthly},${prices.annual},${stats.count},${stats.revenue},${formatLimitValue(limits.maxLocations)},${limits.maxActivePromotions === null ? "Pay-per-use" : formatLimitValue(limits.maxActivePromotions === Infinity ? Infinity : limits.maxActivePromotions)},${formatLimitValue(limits.maxUsers)},"${limits.analyticsLevel}"`
       })
@@ -116,7 +102,6 @@ export default function AdminPlansPage() {
   const totalSubscribers = Object.values(subscriptionStats).reduce((sum, stat) => sum + stat.count, 0)
 
   const planNames = {
-    gratis: "Gratis",
     basico: "Básico",
     pro: "Pro",
     enterprise: "Enterprise"
@@ -192,7 +177,7 @@ export default function AdminPlansPage() {
             {(Object.keys(PLAN_LIMITS) as PlanType[]).map((planId) => {
               const limits = PLAN_LIMITS[planId]
               const stats = subscriptionStats[planId]
-              const prices = planId === "gratis" ? { monthly: 0, annual: 0 } : pricing.regularPlans[planId as "basico" | "pro" | "enterprise"]
+              const prices = planId === "basico" ? { monthly: 50000, annual: 510000 } : pricing.regularPlans[planId as "pro" | "enterprise"]
 
               return (
                 <Card key={planId}>
@@ -290,10 +275,10 @@ export default function AdminPlansPage() {
                     </div>
 
                     {/* Extra Promotions Info */}
-                    {(planId === "gratis" || planId === "basico") && (
+                    {(planId === "basico") && (
                       <div className="pt-2 border-t">
                         <p className="text-xs text-muted-foreground">
-                          {planId === "gratis"
+                          {planId === "basico"
                             ? "💡 Cada promoción activa cuesta $11,900 COP/mes"
                             : "💡 Promociones adicionales disponibles por $11,900 COP c/u"}
                         </p>

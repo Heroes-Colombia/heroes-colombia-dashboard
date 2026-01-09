@@ -8,7 +8,7 @@ import type { Timestamp } from "firebase/firestore"
 // Core Types
 // ============================================================================
 
-export type PlanType = "gratis" | "basico" | "pro" | "enterprise"
+export type PlanType = "basico" | "pro" | "enterprise"
 export type UserRole = "business" | "admin"
 export type AdminPermission = "super_admin"
 export type LocationType = "physical" | "online"

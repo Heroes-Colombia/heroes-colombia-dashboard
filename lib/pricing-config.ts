@@ -3,9 +3,6 @@
  *
  * This file controls all pricing across different launch phases.
  * Update this file to change pricing without touching components.
- *
- * SOURCE OF TRUTH: This file is copied from heroes-colombia-website
- * and must stay in sync with the website pricing.
  */
 
 export interface TrialOffer {
@@ -34,10 +31,10 @@ export interface PlanPricing {
 }
 
 export interface RegularPlans {
-  gratis: {
-    monthly: number
-    perPromotion: number
-  }
+  // gratis: {
+  //   monthly: number
+  //   perPromotion: number
+  // }
   basico: PlanPricing
   pro: PlanPricing
   enterprise: PlanPricing
@@ -59,13 +56,13 @@ export interface PricingPeriod {
 
 export const PRICING_PERIODS: PricingPeriod[] = [
   // -------------------------------------------------------------------------
-  // PRE-LAUNCH PHASE (Oct 6 - Nov 30, 2025)
+  // PRE-LAUNCH PHASE (Oct 6 - Nov 30, 2024)
   // -------------------------------------------------------------------------
   {
     id: "pre-launch",
     name: "Pre-Lanzamiento",
     startDate: new Date("2025-10-06T00:00:00-05:00"), // Colombia timezone
-    endDate: new Date("2025-11-30T23:59:59-05:00"),
+    endDate: new Date("2025-12-06T23:59:59-05:00"),
 
     trialOffer: {
       enabled: true,
@@ -79,21 +76,21 @@ export const PRICING_PERIODS: PricingPeriod[] = [
 
     earlyBirdIncentive: {
       enabled: false,
-      deadline: new Date("2026-01-15T23:59:59-05:00"), // ⚠️ Updated to 2026
+      deadline: new Date("2026-01-15T23:59:59-05:00"),
       discount: 50, // 50% off first month
       badge: "⚡ Oferta Especial",
-      description: "Selecciona tu plan antes del 15 de enero de 2026 y obtén 50% de descuento en tu primer mes",
+      description: "Selecciona tu plan antes del 15 de enero y obtén 50% de descuento en tu primer mes",
     },
 
     regularPlans: {
-      gratis: {
-        monthly: 0,
-        perPromotion: 11900, // 10,000 + 19% IVA
-      },
+      // gratis: {
+      //   monthly: 0,
+      //   perPromotion: 11900, // 10,000 + 19% IVA
+      // },
       basico: {
-        monthly: 70000,
-        annual: 714000, // 70,000 × 12 × 0.85 (15% discount)
-        savings: 126000,
+        monthly: 50000,
+        annual: 510000,
+        savings: 90000,
         savingsPercent: 15,
       },
       pro: {
@@ -112,7 +109,7 @@ export const PRICING_PERIODS: PricingPeriod[] = [
   },
 
   // -------------------------------------------------------------------------
-  // LAUNCH PHASE (Dec 1, 2025 - Jan 31, 2026)
+  // LAUNCH PHASE (Dec 1, 2024 - Jan 31, 2026)
   // -------------------------------------------------------------------------
   {
     id: "launch",
@@ -124,7 +121,7 @@ export const PRICING_PERIODS: PricingPeriod[] = [
       enabled: true,
       price: 20000,
       duration: 61, // Days until Feb 1, 2026 (varies by signup date)
-      badge: "🚀 Lanzamiento - Únete a los Primeros 500",
+      badge: "🚀 Lanzamiento - Únete a los Primeros 100",
       headline: "20,000 COP",
       description: "Pago único por acceso completo hasta Febrero 1, 2026",
       nextBillingDate: new Date("2026-02-01T00:00:00-05:00"),
@@ -132,21 +129,21 @@ export const PRICING_PERIODS: PricingPeriod[] = [
 
     earlyBirdIncentive: {
       enabled: false,
-      deadline: new Date("2026-01-15T23:59:59-05:00"), // ⚠️ Updated to 2026
+      deadline: new Date("2026-01-15T23:59:59-05:00"),
       discount: 50,
       badge: "⚡ Últimos Días",
-      description: "Selecciona tu plan antes del 15 de enero de 2026 y obtén 50% de descuento en tu primer mes",
+      description: "Selecciona tu plan antes del 15 de enero y obtén 50% de descuento en tu primer mes",
     },
 
     regularPlans: {
-      gratis: {
-        monthly: 0,
-        perPromotion: 11900,
-      },
+      // gratis: {
+      //   monthly: 0,
+      //   perPromotion: 11900,
+      // },
       basico: {
-        monthly: 70000,
-        annual: 714000,
-        savings: 126000,
+        monthly: 50000,
+        annual: 510000,
+        savings: 90000,
         savingsPercent: 15,
       },
       pro: {
@@ -180,14 +177,14 @@ export const PRICING_PERIODS: PricingPeriod[] = [
     earlyBirdIncentive: undefined,
 
     regularPlans: {
-      gratis: {
-        monthly: 0,
-        perPromotion: 11900,
-      },
+      // gratis: {
+      //   monthly: 0,
+      //   perPromotion: 11900,
+      // },
       basico: {
-        monthly: 70000,
-        annual: 714000,
-        savings: 126000,
+        monthly: 50000,
+        annual: 510000,
+        savings: 90000,
         savingsPercent: 15,
       },
       pro: {
@@ -346,11 +343,11 @@ export function formatPriceSimple(price: number): string {
 }
 
 /**
- * Check if the app has been launched (December 1, 2025)
+ * Check if the app has been launched (December 5, 2025)
  */
 export function isAppLaunched(): boolean {
   const now = new Date()
-  const launchDate = new Date("2025-12-05T00:00:00-05:00") // Colombia timezone
+  const launchDate = new Date("2025-12-04T00:00:00-05:00") // Colombia timezone
   return now >= launchDate
 }
 
@@ -358,5 +355,5 @@ export function isAppLaunched(): boolean {
 // TYPE EXPORTS FOR COMPONENTS
 // ============================================================================
 
-export type PlanType = "gratis" | "basico" | "pro" | "enterprise"
+export type PlanType = "basico" | "pro" | "enterprise"
 export type BillingPeriod = "monthly" | "annual"

@@ -125,14 +125,10 @@ export default function HomePage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div className="text-center">
-                  <div className="font-semibold text-primary">Gratis</div>
-                  <div className="text-muted-foreground">$0 + $11k/promoción</div>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="text-center">
                   <div className="font-semibold text-primary">Básico</div>
-                  <div className="text-muted-foreground">$70,000/mes</div>
+                  <div className="text-muted-foreground">$50,000/mes</div>
                 </div>
                 <div className="text-center">
                   <div className="font-semibold text-secondary">Pro</div>

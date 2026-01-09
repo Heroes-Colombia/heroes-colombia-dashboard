@@ -8,7 +8,7 @@
  * and what's promised on the marketing website.
  */
 
-export type PlanType = "gratis" | "basico" | "pro" | "enterprise"
+export type PlanType = "basico" | "pro" | "enterprise"
 
 export interface PlanLimits {
   // Resource Limits
@@ -33,17 +33,6 @@ export interface PlanLimits {
  * Plan limits configuration matching CLAUDE.md Feature Comparison Matrix
  */
 export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
-  gratis: {
-    maxLocations: 1,
-    maxActivePromotions: null, // Pay $11,900 per promotion (no hard limit)
-    maxUsers: 1,
-    analyticsLevel: "basic",
-    perLocationAnalytics: false,
-    audienceSegmentation: false,
-    featuredBusiness: false,
-    featuredPromotions: false,
-    support: "email",
-  },
   basico: {
     maxLocations: 3,
     maxActivePromotions: 3, // Per business, not per location
@@ -194,13 +183,13 @@ export function canAddTeamMember(
 }
 
 /**
- * Check if Gratis plan requires payment per promotion
+ * Check if Básico plan requires payment per promotion
  *
  * @param plan - Current business plan
  * @returns true if plan requires payment per promotion
  */
 export function requiresPaymentPerPromotion(plan: PlanType): boolean {
-  return plan === "gratis"
+  return plan === "basico"
 }
 
 /**
@@ -217,7 +206,7 @@ export function getTotalAllowedPromotions(
   const limits = getPlanLimits(plan)
 
   if (limits.maxActivePromotions === null) {
-    return "unlimited" // Gratis pay-per-promo has no hard limit
+    return "unlimited" // Básico pay-per-promo has no hard limit
   }
 
   if (limits.maxActivePromotions === Infinity) {
@@ -297,7 +286,6 @@ export function getRecommendedUpgradePlan(
   reason?: "locations" | "promotions" | "users" | "analytics" | "features"
 ): PlanType {
   const upgradePath: Record<PlanType, PlanType> = {
-    gratis: "basico",
     basico: "pro",
     pro: "enterprise",
     enterprise: "enterprise", // Already at top
@@ -305,7 +293,7 @@ export function getRecommendedUpgradePlan(
 
   // If hitting location/promotion limits frequently, recommend jumping to Pro
   if (reason === "locations" || reason === "promotions") {
-    if (currentPlan === "gratis" || currentPlan === "basico") {
+    if (currentPlan === "basico") {
       return "pro"
     }
   }
@@ -387,7 +375,6 @@ export function canDowngradePlan(
  * Get human-readable plan name
  */
 export const PLAN_NAMES: Record<PlanType, string> = {
-  gratis: "Gratis",
   basico: "Básico",
   pro: "Pro",
   enterprise: "Enterprise",

@@ -7,7 +7,7 @@ import { AuthGuard } from "@/components/auth-guard"
 import { PermissionProvider } from "@/contexts/permission-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { HeroesLogo } from "@/components/heroes-logo"
 import { BarChart3, Building2, CreditCard, MapPin, Menu, Settings, Tag, Users, LogOut, Bell, Crown } from "lucide-react"
@@ -121,6 +121,9 @@ export default function BusinessDashboardLayout({ children }: { children: React.
         {/* Mobile sidebar */}
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent side="left" className="p-0 w-72">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Menú de navegación</SheetTitle>
+            </SheetHeader>
             <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-card">
               <Sidebar mobile />
             </div>

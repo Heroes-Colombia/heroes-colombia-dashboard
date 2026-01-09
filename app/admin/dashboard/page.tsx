@@ -50,13 +50,12 @@ export default function AdminDashboardPage() {
 
   // Calculate business distribution by plan
   const planDistribution = businesses?.reduce((acc, business) => {
-    const plan = business.plan || "gratis"
+    const plan = business.plan || "basico"
     acc[plan] = (acc[plan] || 0) + 1
     return acc
   }, {} as Record<string, number>)
 
   const businessesByTier = [
-    { name: "Gratis", value: planDistribution.gratis || 0, color: "#94A3B8" },
     { name: "Básico", value: planDistribution.basico || 0, color: "#7A8B5A" },
     { name: "Pro", value: planDistribution.pro || 0, color: "#1E3A8A" },
     { name: "Enterprise", value: planDistribution.enterprise || 0, color: "#059669" },
@@ -83,7 +82,7 @@ export default function AdminDashboardPage() {
     .slice(0, 5)
     .map(business => ({
       name: business.name,
-      plan: business.plan || "gratis",
+      plan: business.plan || "basico",
       id: business.id,
       status: business.status
     }))

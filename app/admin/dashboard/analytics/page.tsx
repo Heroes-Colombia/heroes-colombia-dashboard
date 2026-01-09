@@ -50,7 +50,6 @@ export default function AdminAnalyticsPage() {
   }
 
   const planAdoption = [
-    { plan: "Gratis", count: businesses.filter(b => !b.plan || b.plan === "gratis").length, revenue: 0, color: "#94A3B8" },
     { plan: "Básico", count: businesses.filter(b => b.plan === "basico").length, revenue: businesses.filter(b => b.plan === "basico").length * 50000, color: "#7A8B5A" },
     { plan: "Pro", count: businesses.filter(b => b.plan === "pro").length, revenue: businesses.filter(b => b.plan === "pro").length * 150000, color: "#1E3A8A" },
     { plan: "Enterprise", count: businesses.filter(b => b.plan === "enterprise").length, revenue: businesses.filter(b => b.plan === "enterprise").length * 500000, color: "#059669" },
