@@ -32,7 +32,7 @@ interface PromotionFormDialogProps {
   businessId: string
   plan?: PlanType
   onSuccess?: () => void
-  showPlanNotice?: boolean // Show plan gratis notice for create mode
+  showPlanNotice?: boolean // Show plan básico notice for create mode
   allowStatusChange?: boolean // Allow changing status (for admin)
 }
 
@@ -230,13 +230,13 @@ export function PromotionFormDialog({
           <DialogTitle>{promotion ? "Editar Promoción" : "Crear Nueva Promoción"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {/* Plan Gratis Notice */}
-          {showPlanNotice && plan === "gratis" && !promotion && (
+          {/* Plan Básico Notice */}
+          {showPlanNotice && plan === "basico" && !promotion && (
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
               <div className="flex items-start gap-2">
                 <AlertCircle className="mt-0.5 h-5 w-5 text-blue-600" />
                 <div>
-                  <p className="font-medium text-blue-900">Plan Gratis - Pago por promoción</p>
+                  <p className="font-medium text-blue-900">Plan Básico - Pago por promoción</p>
                   <p className="text-sm text-blue-700">
                     Cada promoción activa cuesta ${EXTRA_PROMOTION_PRICE.toLocaleString()} COP/mes
                   </p>

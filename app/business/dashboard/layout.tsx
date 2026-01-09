@@ -69,11 +69,10 @@ export default function BusinessDashboardLayout({ children }: { children: React.
                     <Link
                       href={item.href}
                       onClick={() => mobile && setSidebarOpen(false)}
-                      className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${
-                        isActive
+                      className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${isActive
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
+                        }`}
                     >
                       <item.icon className="h-5 w-5 shrink-0" />
                       {item.name}
@@ -84,7 +83,7 @@ export default function BusinessDashboardLayout({ children }: { children: React.
             </ul>
           </li>
           <li className="mt-auto">
-            <Link 
+            <Link
               href={'/business/dashboard/plans'}>
               <Card>
                 <CardContent className="p-4">
@@ -93,7 +92,7 @@ export default function BusinessDashboardLayout({ children }: { children: React.
                     {isPremium && <Crown className="h-4 w-4 text-primary" />}
                   </div>
                   <Badge variant={isPremium ? "default" : "secondary"} className="mb-2">
-                    {(businessUser?.plan || "gratis").toUpperCase()}
+                    {(businessUser?.plan || "basico").toUpperCase()}
                   </Badge>
                   <p className="text-xs text-muted-foreground">
                     {isPremium ? "Acceso completo a todas las funciones" : "Funciones básicas disponibles"}
@@ -111,56 +110,56 @@ export default function BusinessDashboardLayout({ children }: { children: React.
     <AuthGuard requiredRole="business">
       <PermissionProvider>
         <div className="h-screen flex">
-        {/* Desktop sidebar */}
-        <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
-          <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-card">
-            <Sidebar />
-          </div>
-        </div>
-
-        {/* Mobile sidebar */}
-        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent side="left" className="p-0 w-72">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Menú de navegación</SheetTitle>
-            </SheetHeader>
-            <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-card">
-              <Sidebar mobile />
-            </div>
-          </SheetContent>
-
-          <div className="lg:pl-72 flex flex-col flex-1">
-            {/* Top bar */}
-            <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-
-            <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-              <div className="flex flex-1 items-center">
-                <h1 className="text-lg font-semibold text-foreground">
-                  {businessUser?.businessName || "Dashboard Empresarial"}
-                </h1>
-              </div>
-              <div className="flex items-center gap-x-4 lg:gap-x-6">
-                <Button variant="ghost" size="icon">
-                  <Bell className="h-5 w-5" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={handleLogout}>
-                  <LogOut className="h-5 w-5" />
-                </Button>
-              </div>
+          {/* Desktop sidebar */}
+          <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+            <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-card">
+              <Sidebar />
             </div>
           </div>
 
-            {/* Main content */}
-            <main className="flex-1 overflow-y-auto">
-              <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>
-            </main>
-          </div>
-        </Sheet>
+          {/* Mobile sidebar */}
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetContent side="left" className="p-0 w-72">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Menú de navegación</SheetTitle>
+              </SheetHeader>
+              <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-card">
+                <Sidebar mobile />
+              </div>
+            </SheetContent>
+
+            <div className="lg:pl-72 flex flex-col flex-1">
+              {/* Top bar */}
+              <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="lg:hidden">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+
+                <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
+                  <div className="flex flex-1 items-center">
+                    <h1 className="text-lg font-semibold text-foreground">
+                      {businessUser?.businessName || "Dashboard Empresarial"}
+                    </h1>
+                  </div>
+                  <div className="flex items-center gap-x-4 lg:gap-x-6">
+                    <Button variant="ghost" size="icon">
+                      <Bell className="h-5 w-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={handleLogout}>
+                      <LogOut className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Main content */}
+              <main className="flex-1 overflow-y-auto">
+                <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+              </main>
+            </div>
+          </Sheet>
         </div>
       </PermissionProvider>
     </AuthGuard>

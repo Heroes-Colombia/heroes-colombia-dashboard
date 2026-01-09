@@ -297,7 +297,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between pt-4">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Plan actual:</span>
-                  <Badge>{businessUser.plan || "gratis"}</Badge>
+                  <Badge>{businessUser.plan || "basico"}</Badge>
                 </div>
                 <Button onClick={handleSave} disabled={isLoading}>
                   {isLoading ? "Guardando..." : "Guardar Cambios"}

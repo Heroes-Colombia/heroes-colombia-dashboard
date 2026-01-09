@@ -34,24 +34,6 @@ import type { PlanType, BillingPeriod } from "@/lib/types"
 import { useAuth } from "@/hooks/use-auth"
 
 const PLAN_FEATURES = {
-  gratis: {
-    icon: Zap,
-    name: "Gratis",
-    tagline: "Ideal para comenzar",
-    color: "text-gray-600",
-    features: [
-      "1 ubicación",
-      "Promociones ilimitadas (pago por promoción)",
-      "1 usuario",
-      "Analíticas básicas",
-      "Soporte por email",
-    ],
-    limitations: [
-      "Sin analíticas avanzadas",
-      "Sin equipo colaborativo",
-      "Sin análisis por ubicación",
-    ],
-  },
   basico: {
     icon: Shield,
     name: "Básico",
@@ -59,9 +41,9 @@ const PLAN_FEATURES = {
     color: "text-blue-600",
     popular: false,
     features: [
-      "Hasta 3 ubicaciones",
-      "3 promociones activas por negocio",
-      "2 usuarios del equipo",
+      "Hasta 1 ubicaciones",
+      "2 promociones activas por negocio",
+      "1 usuarios del equipo",
       "Analíticas básicas",
       "Soporte prioritario",
     ],
@@ -74,9 +56,9 @@ const PLAN_FEATURES = {
     color: "text-primary",
     popular: true,
     features: [
-      "Hasta 10 ubicaciones",
-      "10 promociones activas",
-      "5 usuarios del equipo",
+      "Hasta 5 ubicaciones",
+      "5 promociones activas",
+      "3 usuarios del equipo",
       "Analíticas avanzadas",
       "Análisis por ubicación",
       "Demografía de usuarios",
@@ -109,7 +91,7 @@ export default function PlansPage() {
   const [selectedPlan, setSelectedPlan] = useState<PlanType | null>(null)
 
   const businessUser = user as any
-  const currentPlan: PlanType = businessUser?.plan || "gratis"
+  const currentPlan: PlanType = businessUser?.plan || "basico"
 
   // Get query params for suggested plan
   const fromPlan = searchParams.get("from") as PlanType | null
@@ -129,8 +111,6 @@ export default function PlansPage() {
   }, [targetPlan])
 
   const getPlanPrice = (plan: PlanType, period: BillingPeriod) => {
-    if (plan === "gratis") return 0
-
     const planKey = plan as "basico" | "pro" | "enterprise"
     const basePrice = pricing.regularPlans[planKey][period]
 
@@ -142,8 +122,6 @@ export default function PlansPage() {
   }
 
   const calculateSavings = (plan: PlanType) => {
-    if (plan === "gratis") return 0
-
     const planKey = plan as "basico" | "pro" | "enterprise"
     const monthlyTotal = pricing.regularPlans[planKey].monthly * 12
     const annualPrice = pricing.regularPlans[planKey].annual
@@ -161,7 +139,7 @@ export default function PlansPage() {
   }
 
   const getPlanOrder = (plan: PlanType): number => {
-    const order = { gratis: 0, basico: 1, pro: 2, enterprise: 3 }
+    const order = { basico: 1, pro: 2, enterprise: 3 }
     return order[plan]
   }
 
@@ -196,30 +174,6 @@ export default function PlansPage() {
           </Card>
         )}
       </div>
-
-      {/* Trial Offer Banner */}
-      {trialAvailable && trialOffer && (
-        <Card className="border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="rounded-full bg-blue-500 p-3">
-                <Clock className="h-6 w-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-blue-900">
-                  {trialOffer.badge}
-                </h3>
-                <p className="text-blue-700 mt-1">
-                  {trialOffer.description} - Válido hasta {trialOffer.nextBillingDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
-                <Button className="mt-3" onClick={() => handleSelectPlan("enterprise")}>
-                  Activar Oferta por {formatPrice(trialOffer.price)}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Early Bird Banner */}
       {earlyBirdActive && (
@@ -263,7 +217,7 @@ export default function PlansPage() {
       </div>
 
       {/* Plans Grid */}
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
         {(Object.keys(PLAN_FEATURES) as PlanType[]).map((plan) => {
           const config = PLAN_FEATURES[plan]
           const Icon = config.icon
@@ -310,10 +264,10 @@ export default function PlansPage() {
                       ${price.toLocaleString()}
                     </span>
                     <span className="text-muted-foreground">
-                      {plan === "gratis" ? "" : billingPeriod === "monthly" ? "/mes" : "/año"}
+                      {billingPeriod === "monthly" ? "/mes" : "/año"}
                     </span>
                   </div>
-                  {earlyBirdActive && billingPeriod === "monthly" && plan !== "gratis" && (
+                  {earlyBirdActive && billingPeriod === "monthly" && plan !== "basico" && (
                     <div className="mt-2">
                       <Badge variant="secondary" className="text-xs">
                         50% OFF - Precio regular: ${getPlanPrice(plan, billingPeriod) * 2}
@@ -326,11 +280,6 @@ export default function PlansPage() {
                         Ahorras ${savings.toLocaleString()} COP al año
                       </Badge>
                     </div>
-                  )}
-                  {plan === "gratis" && (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      $11,900 COP por promoción activa
-                    </p>
                   )}
                 </div>
               </CardHeader>
@@ -407,7 +356,7 @@ export default function PlansPage() {
                     onClick={() => handleSelectPlan(plan)}
                     variant={isPopular ? "default" : "outline"}
                   >
-                    {plan === "gratis" ? "Comenzar Gratis" : "Actualizar Plan"}
+                    {plan === "basico" ? "Comenzar Básico" : "Actualizar Plan"}
                   </Button>
                 ) : canDowngrade(plan) ? (
                   <Button variant="outline" className="w-full" onClick={() => handleSelectPlan(plan)}>

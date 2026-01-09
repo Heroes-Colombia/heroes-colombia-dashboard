@@ -51,7 +51,7 @@ export default function LocationsPage() {
 
   const { user } = useAuth()
   const businessUser = user as any
-  const plan: PlanType = businessUser?.plan || "gratis"
+  const plan: PlanType = businessUser?.plan || "basico"
   const limits = getPlanLimits(plan)
   const businessId = businessUser?.businessId || businessUser?.id
 
@@ -314,7 +314,7 @@ export default function LocationsPage() {
         <LockedFeature
           currentPlan={plan}
           featureName="Ubicaciones adicionales"
-          requiredPlan={plan === "gratis" ? "basico" : plan === "basico" ? "pro" : "enterprise"}
+          requiredPlan={plan === "basico" ? "pro" : "enterprise"}
           description={`Tu plan actual permite hasta ${locationLimit} ubicación${locationLimit > 1 ? "es" : ""}.`}
           variant="inline"
         />

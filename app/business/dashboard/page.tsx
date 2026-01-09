@@ -43,7 +43,7 @@ export default function BusinessDashboardPage() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(false)
 
   const businessUser = user as any
-  const plan = businessUser?.plan || "gratis"
+  const plan = businessUser?.plan || "basico"
   const { promotions } = usePromotions({ businessId: businessUser?.businessId })
   const isPremium = plan === "pro" || plan === "enterprise"
 
@@ -149,19 +149,6 @@ export default function BusinessDashboardPage() {
           )}
         </div>
       </div>
-
-      {/* Plan Status Alert */}
-      {plan === "gratis" && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Estás en el plan gratuito. Publica promociones por $11,900 COP cada una o{" "}
-            <Link href="/business/dashboard/plan" className="text-primary hover:underline underline">
-              actualiza tu plan aquí
-            </Link> para acceso ilimitado.
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -320,12 +307,12 @@ export default function BusinessDashboardPage() {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold">{activePromotions?.length}{plan === "gratis" ? "/1" : plan === "basico" ? "/3" : plan === "pro" ? "/10" : "/∞"}</p>
+                <p className="text-2xl font-bold">{activePromotions?.length}{plan === "basico" ? "/2" : plan === "pro" ? "/5" : "/∞"}</p>
                 <p className="text-sm text-muted-foreground">activas este mes</p>
               </div>
               <ShoppingCart className="h-8 w-8 text-muted-foreground" />
             </div>
-            <Progress value={plan === "gratis" ? 100 : plan === "basico" ? 80 : 30} className="mt-3" />
+            <Progress value={plan === "basico" ? 100 : plan === "pro" ? 80 : 30} className="mt-3" />
           </CardContent>
         </Card>
 

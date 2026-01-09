@@ -84,7 +84,7 @@ export default function TeamPage() {
 
   const { user } = useAuth()
   const businessUser = user as any
-  const plan: PlanType = businessUser?.plan || "gratis"
+  const plan: PlanType = businessUser?.plan || "basico"
   const limits = getPlanLimits(plan)
   const businessId = businessUser?.businessId
 

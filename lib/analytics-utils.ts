@@ -4,7 +4,7 @@
  * This file provides analytics calculation functions for the dashboard.
  * Supports three tiers of analytics based on business plan:
  *
- * 1. Basic Analytics (Gratis & Básico): Simple counts from promotions
+ * 1. Basic Analytics (Básico & Pro): Simple counts from promotions
  * 2. Advanced Analytics (Pro): Demographics, conversion rates, per-location
  * 3. Enterprise Analytics: Cohorts, heatmaps, benchmarking
  *
@@ -79,7 +79,7 @@ export interface TimeSeriesDataPoint {
 }
 
 // ============================================================================
-// Basic Analytics (All Plans - Gratis, Básico, Pro, Enterprise)
+// Basic Analytics (All Plans - Básico, Pro, Enterprise)
 // ============================================================================
 
 /**
@@ -609,10 +609,9 @@ export function hasAnalyticsAccess(
   level: "basic" | "advanced" | "enterprise"
 ): boolean {
   const planHierarchy: Record<PlanType, number> = {
-    gratis: 1,
-    basico: 2,
-    pro: 3,
-    enterprise: 4,
+    basico: 1,
+    pro: 2,
+    enterprise: 3,
   }
 
   const levelRequirement: Record<string, number> = {

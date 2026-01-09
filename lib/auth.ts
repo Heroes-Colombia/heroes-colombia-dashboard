@@ -163,7 +163,7 @@ export interface BusinessUser extends CustomerUser {
   businessWebsite?: string
   businessDescription?: string
   businessAddress?: string
-  plan: "gratis" | "basico" | "pro" | "enterprise"
+  plan: "basico" | "pro" | "enterprise"
   permissions: ("owner" | "manager" | "staff")[]
   business_roles?: BusinessRole[]
 }
@@ -229,7 +229,7 @@ const fetchUserFromFirestore = async (firebaseUserId: string, firebaseUserEmail:
         businessWebsite: businesDetails.website || "",
         businessDescription: businesDetails.description || "",
         businessAddress: businesDetails.address || "",
-        plan: businesDetails.plan || "gratis",
+        plan: businesDetails.plan || "basico",
         permissions: userRole ? [userRole.role as ("owner" | "manager" | "staff")] : ["owner"],
         business_roles: businessRoles || [],
       }

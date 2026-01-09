@@ -36,7 +36,7 @@ export default function PromotionsPage() {
 
   const { user } = useAuth()
   const businessId = user?.businessId
-  const plan: PlanType = (user as any)?.plan ?? "gratis"
+  const plan: PlanType = (user as any)?.plan ?? "basico"
   const limits = getPlanLimits(plan)
 
   // TODO: Fetch from business profile

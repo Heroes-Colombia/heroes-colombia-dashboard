@@ -34,13 +34,6 @@ const mockInvoices = [
     status: "paid",
     plan: "Básico",
   },
-  {
-    id: "INV-2023-011",
-    date: "2023-11-15",
-    amount: 0,
-    status: "paid",
-    plan: "Gratis",
-  },
 ]
 
 export default function BillingPage() {
@@ -170,7 +163,7 @@ export default function BillingPage() {
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="font-medium">
-                          {invoice.amount === 0 ? "Gratis" : formatCurrency(invoice.amount)}
+                          {invoice.amount === 0 ? "Básico" : formatCurrency(invoice.amount)}
                         </p>
                         <Badge variant={invoice.status === "paid" ? "default" : "destructive"}>
                           {invoice.status === "paid" ? "Pagada" : "Pendiente"}

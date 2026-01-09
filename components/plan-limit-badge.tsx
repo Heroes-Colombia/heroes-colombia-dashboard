@@ -40,15 +40,6 @@ interface PlanLimitBadgeProps {
  *   extraPurchased={2}
  *   showDetails
  * />
- *
- * @example
- * // Users at limit
- * <PlanLimitBadge
- *   plan="gratis"
- *   resourceType="users"
- *   currentCount={1}
- *   showIcon
- * />
  */
 export function PlanLimitBadge({
   plan,

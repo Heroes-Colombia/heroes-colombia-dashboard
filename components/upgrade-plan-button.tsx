@@ -23,7 +23,7 @@ interface UpgradePlanButtonProps extends Omit<ButtonProps, "onClick"> {
  *
  * @example
  * // Basic upgrade button
- * <UpgradePlanButton currentPlan="gratis" />
+ * <UpgradePlanButton currentPlan="basico" />
  *
  * @example
  * // Upgrade to specific plan with feature context
@@ -31,15 +31,6 @@ interface UpgradePlanButtonProps extends Omit<ButtonProps, "onClick"> {
  *   currentPlan="basico"
  *   targetPlan="pro"
  *   feature="per-location analytics"
- * />
- *
- * @example
- * // Compact button without icon
- * <UpgradePlanButton
- *   currentPlan="gratis"
- *   size="sm"
- *   variant="outline"
- *   showIcon={false}
  * />
  */
 export function UpgradePlanButton({
@@ -62,8 +53,6 @@ export function UpgradePlanButton({
 
     // Upgrade path logic
     switch (currentPlan) {
-      case "gratis":
-        return "basico"
       case "basico":
         return "pro"
       case "pro":
@@ -82,7 +71,6 @@ export function UpgradePlanButton({
     }
 
     const planNames: Record<PlanType, string> = {
-      gratis: "Gratis",
       basico: "Básico",
       pro: "Pro",
       enterprise: "Enterprise",
@@ -102,8 +90,8 @@ export function UpgradePlanButton({
     router.push(`/business/dashboard/plans?${params.toString()}`)
   }
 
-  // Use sparkles icon for gratis users (highlight upgrade opportunity)
-  const Icon = currentPlan === "gratis" ? Sparkles : ArrowUpRight
+  // Use sparkles icon for basic users (highlight upgrade opportunity)
+  const Icon = currentPlan === "basico" ? Sparkles : ArrowUpRight
 
   return (
     <Button
@@ -127,7 +115,7 @@ export function UpgradePlanButton({
  * @example
  * <p>
  *   This feature is only available on higher plans.{" "}
- *   <UpgradePlanLink currentPlan="gratis" targetPlan="pro" />
+ *   <UpgradePlanLink currentPlan="basico" targetPlan="pro" />
  * </p>
  */
 export function UpgradePlanLink({

@@ -13,7 +13,7 @@ export type PlanType = "basico" | "pro" | "enterprise"
 export interface PlanLimits {
   // Resource Limits
   maxLocations: number
-  maxActivePromotions: number | null // null = pay-per-promotion (Gratis plan)
+  maxActivePromotions: number | null // null = pay-per-promotion (Básico plan)
   maxUsers: number
 
   // Analytics Access
@@ -34,9 +34,9 @@ export interface PlanLimits {
  */
 export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   basico: {
-    maxLocations: 3,
-    maxActivePromotions: 3, // Per business, not per location
-    maxUsers: 2,
+    maxLocations: 1,
+    maxActivePromotions: 2, // Per business, not per location
+    maxUsers: 1,
     analyticsLevel: "basic",
     perLocationAnalytics: false,
     audienceSegmentation: false,
@@ -45,9 +45,9 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     support: "email",
   },
   pro: {
-    maxLocations: 10,
-    maxActivePromotions: 10, // Per business, not per location
-    maxUsers: 5,
+    maxLocations: 5,
+    maxActivePromotions: 5, // Per business, not per location
+    maxUsers: 3,
     analyticsLevel: "advanced",
     perLocationAnalytics: true, // Can see analytics per location
     audienceSegmentation: true,
@@ -73,7 +73,7 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
 // ============================================================================
 
 /**
- * Cost per extra promotion (same as Gratis plan pay-per-promotion)
+ * Cost per extra promotion (same as Básico plan pay-per-promotion)
  * Includes 19% IVA (10,000 + 1,900)
  */
 export const EXTRA_PROMOTION_PRICE = 11900 // COP
@@ -124,7 +124,7 @@ export function canAddPromotion(
 } {
   const limits = getPlanLimits(plan)
 
-  // Gratis plan - always pay per promotion
+  // Básico plan - always pay per promotion
   if (limits.maxActivePromotions === null) {
     return {
       canAdd: true,

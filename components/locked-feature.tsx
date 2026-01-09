@@ -37,7 +37,6 @@ const ICON_MAP = {
 }
 
 const PLAN_NAMES: Record<PlanType, string> = {
-  gratis: "Gratis",
   basico: "Básico",
   pro: "Pro",
   enterprise: "Enterprise",
@@ -50,16 +49,6 @@ const PLAN_NAMES: Record<PlanType, string> = {
  * Supports multiple display variants: card, inline, and overlay.
  *
  * @example
- * // Card variant for empty state
- * <LockedFeature
- *   currentPlan="gratis"
- *   featureName="Per-Location Analytics"
- *   requiredPlan="pro"
- *   description="See detailed analytics for each of your locations"
- *   benefits={["Track performance by location", "Compare locations", "Optimize your strategy"]}
- * />
- *
- * @example
  * // Inline variant for in-page messaging
  * <LockedFeature
  *   currentPlan="basico"
@@ -67,20 +56,6 @@ const PLAN_NAMES: Record<PlanType, string> = {
  *   requiredPlan="pro"
  *   variant="inline"
  * />
- *
- * @example
- * // Overlay variant to block disabled UI sections
- * <div className="relative">
- *   <LockedFeature
- *     currentPlan="gratis"
- *     featureName="Team Management"
- *     requiredPlan="basico"
- *     variant="overlay"
- *   />
- *   <div className="opacity-50 pointer-events-none">
- *     [Disabled content here]
- *   </div>
- * </div>
  */
 export function LockedFeature({
   currentPlan,
@@ -243,7 +218,6 @@ export function FeatureGate({
 }) {
   // Plan hierarchy for access check
   const PLAN_HIERARCHY: Record<PlanType, number> = {
-    gratis: 0,
     basico: 1,
     pro: 2,
     enterprise: 3,
@@ -291,7 +265,6 @@ export function hasFeatureAccess(
   requiredPlan: PlanType
 ): boolean {
   const PLAN_HIERARCHY: Record<PlanType, number> = {
-    gratis: 0,
     basico: 1,
     pro: 2,
     enterprise: 3,

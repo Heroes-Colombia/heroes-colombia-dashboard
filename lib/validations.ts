@@ -7,7 +7,7 @@ import { z } from "zod"
 // Base Schemas
 // ============================================================================
 
-export const planTypeSchema = z.enum(["gratis", "basico", "pro", "enterprise"])
+export const planTypeSchema = z.enum(["basico", "pro", "enterprise"])
 export const userRoleSchema = z.enum(["business", "admin"])
 export const businessPermissionSchema = z.enum(["owner", "manager", "staff"])
 export const locationTypeSchema = z.enum(["physical", "online"])

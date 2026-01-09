@@ -71,7 +71,7 @@ export default function BusinessAnalyticsPage() {
   const businessUser = user as any
   const { promotions, isLoading: promotionsLoading } = usePromotions({ businessId: businessUser?.businessId })
   const { business } = useBusiness(businessUser?.businessId)
-  const plan: PlanType = businessUser?.plan || "gratis"
+  const plan: PlanType = businessUser?.plan || "basico"
   const limits = getPlanLimits(plan)
 
   // Analytics tier access

@@ -56,7 +56,7 @@ export interface User {
 export interface Subscription {
   id: string
   businessId: string
-  plan: "gratis" | "basico" | "pro" | "enterprise"
+  plan: "basico" | "pro" | "enterprise"
   status: "active" | "cancelled" | "past_due"
   currentPeriodStart: Timestamp
   currentPeriodEnd: Timestamp
