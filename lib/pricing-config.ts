@@ -80,9 +80,9 @@ export const PRICING_PERIODS: PricingPeriod[] = [
 
     regularPlans: {
       basico: {
-        monthly: 50000,
-        annual: 510000,
-        savings: 90000,
+        monthly: 100000,
+        annual: 1020000,
+        savings: 180000,
         savingsPercent: 15,
       },
       pro: {
@@ -129,9 +129,9 @@ export const PRICING_PERIODS: PricingPeriod[] = [
 
     regularPlans: {
       basico: {
-        monthly: 50000,
-        annual: 510000,
-        savings: 90000,
+        monthly: 100000,
+        annual: 1020000,
+        savings: 180000,
         savingsPercent: 15,
       },
       pro: {
@@ -166,9 +166,9 @@ export const PRICING_PERIODS: PricingPeriod[] = [
 
     regularPlans: {
       basico: {
-        monthly: 50000,
-        annual: 510000,
-        savings: 90000,
+        monthly: 100000,
+        annual: 1020000,
+        savings: 180000,
         savingsPercent: 15,
       },
       pro: {
