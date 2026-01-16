@@ -32,7 +32,9 @@ import {
   ShoppingBag,
   Globe,
   Tag,
+  BarChart2,
 } from "lucide-react"
+import Link from "next/link"
 import { PromotionService } from "@/lib/services/promotion-service"
 
 
@@ -342,6 +344,11 @@ export default function AdminBusinessesPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Link href={`/admin/dashboard/businesses/${business.id}/analytics`}>
+                        <Button variant="ghost" size="icon" title="Ver analíticas">
+                          <BarChart2 className="h-4 w-4" />
+                        </Button>
+                      </Link>
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="ghost" size="icon" onClick={() => setSelectedBusiness(business)}>

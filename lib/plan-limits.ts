@@ -17,7 +17,7 @@ export interface PlanLimits {
   maxUsers: number
 
   // Analytics Access
-  analyticsLevel: "basic" | "advanced" | "enterprise"
+  analyticsLevel: "básico" | "avanzadas"
   perLocationAnalytics: boolean // Pro+ can see analytics broken down by location
 
   // Feature Flags
@@ -37,7 +37,7 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     maxLocations: 1,
     maxActivePromotions: 2, // Per business, not per location
     maxUsers: 1,
-    analyticsLevel: "basic",
+    analyticsLevel: "básico",
     perLocationAnalytics: false,
     audienceSegmentation: false,
     featuredBusiness: false,
@@ -48,7 +48,7 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     maxLocations: 5,
     maxActivePromotions: 5, // Per business, not per location
     maxUsers: 3,
-    analyticsLevel: "advanced",
+    analyticsLevel: "avanzadas",
     perLocationAnalytics: true, // Can see analytics per location
     audienceSegmentation: true,
     featuredBusiness: false,
@@ -59,7 +59,7 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     maxLocations: Infinity, // Unlimited locations
     maxActivePromotions: Infinity, // Unlimited promotions
     maxUsers: 10,
-    analyticsLevel: "enterprise",
+    analyticsLevel: "avanzadas",
     perLocationAnalytics: true,
     audienceSegmentation: true,
     featuredBusiness: true,

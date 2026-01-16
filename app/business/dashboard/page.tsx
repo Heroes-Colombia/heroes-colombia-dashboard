@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { InfoTooltip, analyticsTooltips } from "@/components/ui/info-tooltip"
 import {
   XAxis,
   YAxis,
@@ -58,7 +59,7 @@ export default function BusinessDashboardPage() {
       try {
         const events = await AnalyticsEventService.getAnalyticsEvents(businessUser.businessId, {
           dateRange: {
-            from: addDays(new Date(), -7),
+            from: addDays(new Date(), -90),
             to: new Date(),
           },
         })
@@ -117,10 +118,10 @@ export default function BusinessDashboardPage() {
 
   const getKPIsByPlan = () => {
     const baseKPIs = [
-      { title: "Promociones Activas", value: activePromotions?.length, icon: ShoppingCart, change: `${promotions?.length} total` },
-      { title: "Total Impresiones", value: analytics.impressions, icon: Eye, change: "Últimos 30 días" },
-      { title: "Total Vistas", value: analytics.views, icon: TrendingUp, change: "Últimos 30 días" },
-      { title: "Guardadas", value: analytics.saves, icon: MousePointer, change: "Favoritas" },
+      { title: "Promociones Activas", value: activePromotions?.length, icon: ShoppingCart, change: `${promotions?.length} total`, tooltip: analyticsTooltips.activePromotions },
+      { title: "Total Impresiones", value: analytics.impressions, icon: Eye, change: "Últimos 30 días", tooltip: analyticsTooltips.impressions },
+      { title: "Total Vistas", value: analytics.views, icon: TrendingUp, change: "Últimos 30 días", tooltip: analyticsTooltips.totalViews },
+      { title: "Guardadas", value: analytics.saves, icon: MousePointer, change: "Favoritas", tooltip: analyticsTooltips.saves },
     ]
 
     return baseKPIs
@@ -155,7 +156,12 @@ export default function BusinessDashboardPage() {
         {getKPIsByPlan().map((kpi, index) => (
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{kpi.title}</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-medium">{kpi.title}</CardTitle>
+                <InfoTooltip title={kpi.tooltip.title}>
+                  {kpi.tooltip.content}
+                </InfoTooltip>
+              </div>
               <kpi.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -171,7 +177,12 @@ export default function BusinessDashboardPage() {
         {/* Trend Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Tendencia Semanal</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>Tendencia Semanal</CardTitle>
+              <InfoTooltip title={analyticsTooltips.weeklyTrend.title}>
+                {analyticsTooltips.weeklyTrend.content}
+              </InfoTooltip>
+            </div>
             <CardDescription>Impresiones, vistas y redenciones en los últimos 7 días</CardDescription>
           </CardHeader>
           <CardContent>
@@ -192,7 +203,12 @@ export default function BusinessDashboardPage() {
         {/* Funnel Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Embudo de Conversión</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>Embudo de Conversión</CardTitle>
+              <InfoTooltip title={analyticsTooltips.funnel.title}>
+                {analyticsTooltips.funnel.content}
+              </InfoTooltip>
+            </div>
             <CardDescription>Desde impresiones hasta redenciones</CardDescription>
           </CardHeader>
           <CardContent>

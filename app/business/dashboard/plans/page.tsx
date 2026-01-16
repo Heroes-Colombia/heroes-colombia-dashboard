@@ -19,6 +19,8 @@ import {
   Clock,
   Sparkles,
   AlertCircle,
+  Play,
+  Rocket,
 } from "lucide-react"
 import { getCurrentUser } from "@/lib/auth"
 import {
@@ -45,7 +47,7 @@ const PLAN_FEATURES = {
       "2 promociones activas por negocio",
       "1 usuarios del equipo",
       "Analíticas básicas",
-      "Soporte prioritario",
+      "Soporte por email",
     ],
     extraPromotions: true,
   },
@@ -63,7 +65,7 @@ const PLAN_FEATURES = {
       "Análisis por ubicación",
       "Demografía de usuarios",
       "Ingresos atribuidos",
-      "Soporte prioritario 24/7",
+      "Soporte prioritario",
     ],
   },
   enterprise: {
@@ -79,7 +81,7 @@ const PLAN_FEATURES = {
       "Mapas de calor",
       "Análisis de cohortes",
       "Benchmarking industria",
-      "Soporte 24/7 premium",
+      "Soporte personalizado por email o WhatsApp",
     ],
   },
 }
@@ -175,6 +177,71 @@ export default function PlansPage() {
         )}
       </div>
 
+      {/* 2026 Projections Video Section */}
+      <Card className="overflow-hidden border-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-primary/5 shadow-xl">
+        <CardContent className="p-0">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Video Content */}
+            <div className="order-2 lg:order-1 p-6 lg:p-8">
+              <div className="aspect-video w-full rounded-xl overflow-hidden shadow-lg">
+                <iframe
+                  src="https://www.youtube.com/embed/dRcycNpmUgE"
+                  title="Proyecciones 2026 - Heroes Colombia"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              </div>
+            </div>
+
+            {/* Text Content */}
+            <div className="order-1 lg:order-2 p-8 lg:p-10 flex flex-col justify-center">
+              <div className="space-y-6">
+                <div className="inline-flex items-center gap-2 bg-primary/20 text-primary px-4 py-2 rounded-full text-sm font-medium">
+                  <Rocket className="h-4 w-4" />
+                  <span>Exclusivo para negocios de Heroes Colombia</span>
+                </div>
+
+                <h2 className="text-2xl lg:text-3xl font-bold text-foreground">
+                  Descubre las Proyecciones 2026
+                </h2>
+
+                <p className="text-muted-foreground text-base lg:text-lg leading-relaxed">
+                  Mira este video exclusivo donde te explicamos cómo será el crecimiento de Heroes Colombia
+                  en 2026 y cómo tu negocio puede beneficiarse al continuar siendo parte de nuestra comunidad.
+                </p>
+
+                <ul className="space-y-3">
+                  <li className="flex items-center gap-3 text-sm lg:text-base">
+                    <div className="rounded-full bg-primary/20 p-1">
+                      <Check className="h-4 w-4 text-primary" />
+                    </div>
+                    <span>Nuevas funcionalidades que vienen en camino</span>
+                  </li>
+                  <li className="flex items-center gap-3 text-sm lg:text-base">
+                    <div className="rounded-full bg-primary/20 p-1">
+                      <Check className="h-4 w-4 text-primary" />
+                    </div>
+                    <span>Proyección de crecimiento de usuarios</span>
+                  </li>
+                  <li className="flex items-center gap-3 text-sm lg:text-base">
+                    <div className="rounded-full bg-primary/20 p-1">
+                      <Check className="h-4 w-4 text-primary" />
+                    </div>
+                    <span>Beneficios exclusivos para negocios activos</span>
+                  </li>
+                </ul>
+
+                <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2">
+                  <Play className="h-4 w-4" />
+                  <span>Video de 7 minutos</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Early Bird Banner */}
       {earlyBirdActive && (
         <Card className="border-yellow-500 bg-gradient-to-r from-yellow-50 to-yellow-100">
@@ -211,7 +278,7 @@ export default function PlansPage() {
         </Label>
         {billingPeriod === "annual" && (
           <Badge variant="default" className="ml-2">
-            Ahorra hasta 20%
+            Ahorra hasta 15%
           </Badge>
         )}
       </div>
@@ -429,7 +496,7 @@ export default function PlansPage() {
                   <td className="p-4">Analíticas avanzadas</td>
                   {(Object.keys(PLAN_LIMITS) as PlanType[]).map((plan) => (
                     <td key={plan} className="text-center p-4">
-                      {PLAN_LIMITS[plan].analyticsLevel === "advanced" || PLAN_LIMITS[plan].analyticsLevel === "enterprise" ? (
+                      {PLAN_LIMITS[plan].analyticsLevel === "avanzadas" ? (
                         <Check className="h-5 w-5 text-primary mx-auto" />
                       ) : (
                         <span className="text-muted-foreground">—</span>
@@ -453,7 +520,7 @@ export default function PlansPage() {
                   <td className="p-4">Analíticas enterprise</td>
                   {(Object.keys(PLAN_LIMITS) as PlanType[]).map((plan) => (
                     <td key={plan} className="text-center p-4">
-                      {PLAN_LIMITS[plan].analyticsLevel === "enterprise" ? (
+                      {PLAN_LIMITS[plan].analyticsLevel === "avanzadas" ? (
                         <Check className="h-5 w-5 text-primary mx-auto" />
                       ) : (
                         <span className="text-muted-foreground">—</span>

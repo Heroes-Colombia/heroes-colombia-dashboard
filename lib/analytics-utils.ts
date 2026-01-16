@@ -205,7 +205,7 @@ function calculateDemographics(events: FirebaseAnalyticsEvent[]) {
     if (event.user_rank && event.user_rank != "admin") {
       rankCounts.set(event.user_rank, (rankCounts.get(event.user_rank) || 0) + 1)
     }
-    if (event.user_city && event.user_city != 'Surfers Paradise' && event.user_city != 'Burleigh Heads') {
+    if (event.user_city && event.user_city != 'Surfers Paradise' && event.user_city != 'Burleigh Heads' && event.user_city != 'Mountain View') {
       cityCounts.set(event.user_city, (cityCounts.get(event.user_city) || 0) + 1)
     }
   })

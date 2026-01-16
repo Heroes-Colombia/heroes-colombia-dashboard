@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
+import { InfoTooltip, analyticsTooltips } from "@/components/ui/info-tooltip"
 import { usePromotions } from "@/hooks/use-promotions"
 import { AnalyticsEventService } from "@/lib/services/analytics-service"
 import {
@@ -61,7 +62,7 @@ export default function BusinessAnalyticsPage() {
   const [locations, setLocations] = useState<BusinessLocation[]>([])
   const [isLoadingEvents, setIsLoadingEvents] = useState(false)
   const [dateRange, setDateRange] = useState({
-    from: addDays(new Date(), -30),
+    from: addDays(new Date(), -90),
     to: new Date(),
   })
   const [selectedPromotion, setSelectedPromotion] = useState("all")
@@ -237,7 +238,12 @@ export default function BusinessAnalyticsPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Impresiones</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Impresiones</CardTitle>
+              <InfoTooltip title={analyticsTooltips.impressions.title}>
+                {analyticsTooltips.impressions.content}
+              </InfoTooltip>
+            </div>
             <Eye className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -248,7 +254,12 @@ export default function BusinessAnalyticsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clicks</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Clicks</CardTitle>
+              <InfoTooltip title={analyticsTooltips.clicks.title}>
+                {analyticsTooltips.clicks.content}
+              </InfoTooltip>
+            </div>
             <MousePointer className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -259,7 +270,12 @@ export default function BusinessAnalyticsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Negocio Favorito</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Negocio Favorito</CardTitle>
+              <InfoTooltip title={analyticsTooltips.businessSaves.title}>
+                {analyticsTooltips.businessSaves.content}
+              </InfoTooltip>
+            </div>
             <BookmarkCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -270,7 +286,12 @@ export default function BusinessAnalyticsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Promociones favoritas</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Promociones favoritas</CardTitle>
+              <InfoTooltip title={analyticsTooltips.promotionSaves.title}>
+                {analyticsTooltips.promotionSaves.content}
+              </InfoTooltip>
+            </div>
             <BookmarkCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -285,7 +306,12 @@ export default function BusinessAnalyticsPage() {
         {/* Time Series Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Tendencias Temporales</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>Tendencias Temporales</CardTitle>
+              <InfoTooltip title={analyticsTooltips.timeSeries.title}>
+                {analyticsTooltips.timeSeries.content}
+              </InfoTooltip>
+            </div>
             <CardDescription>Evolución de métricas en el tiempo</CardDescription>
           </CardHeader>
           <CardContent>
@@ -306,7 +332,12 @@ export default function BusinessAnalyticsPage() {
         {/* Funnel Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Embudo de Conversión</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>Embudo de Conversión</CardTitle>
+              <InfoTooltip title={analyticsTooltips.funnel.title}>
+                {analyticsTooltips.funnel.content}
+              </InfoTooltip>
+            </div>
             <CardDescription>Flujo de usuarios desde impresión hasta redención</CardDescription>
           </CardHeader>
           <CardContent>
@@ -337,7 +368,12 @@ export default function BusinessAnalyticsPage() {
         {business?.type && business.type === "physical" && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Navegación</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-medium">Navegación</CardTitle>
+                <InfoTooltip title={analyticsTooltips.navigation.title}>
+                  {analyticsTooltips.navigation.content}
+                </InfoTooltip>
+              </div>
               <Navigation className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -350,7 +386,12 @@ export default function BusinessAnalyticsPage() {
         {business?.website && business.website !== "" && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sitio Web</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-medium">Sitio Web</CardTitle>
+                <InfoTooltip title={analyticsTooltips.website.title}>
+                  {analyticsTooltips.website.content}
+                </InfoTooltip>
+              </div>
               <Globe className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -363,7 +404,12 @@ export default function BusinessAnalyticsPage() {
         {business?.phone_number && business.phone_number !== "" && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Llamadas</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-medium">Llamadas</CardTitle>
+                <InfoTooltip title={analyticsTooltips.phone.title}>
+                  {analyticsTooltips.phone.content}
+                </InfoTooltip>
+              </div>
               <Phone className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -376,7 +422,12 @@ export default function BusinessAnalyticsPage() {
         {business?.phone_number && business.phone_number !== "" && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">WhatsApp</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-medium">WhatsApp</CardTitle>
+                <InfoTooltip title={analyticsTooltips.whatsapp.title}>
+                  {analyticsTooltips.whatsapp.content}
+                </InfoTooltip>
+              </div>
               <MessageCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -400,7 +451,12 @@ export default function BusinessAnalyticsPage() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Demografía por Edad</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle>Demografía por Edad</CardTitle>
+                  <InfoTooltip title={analyticsTooltips.ageDemo.title}>
+                    {analyticsTooltips.ageDemo.content}
+                  </InfoTooltip>
+                </div>
                 <CardDescription>Distribución de rangos etarios</CardDescription>
               </CardHeader>
               <CardContent>
@@ -424,7 +480,12 @@ export default function BusinessAnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Distribución por Género</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle>Distribución por Género</CardTitle>
+                  <InfoTooltip title={analyticsTooltips.genderDemo.title}>
+                    {analyticsTooltips.genderDemo.content}
+                  </InfoTooltip>
+                </div>
                 <CardDescription>Proporción masculino/femenino</CardDescription>
               </CardHeader>
               <CardContent>
@@ -460,7 +521,12 @@ export default function BusinessAnalyticsPage() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Distribución por Fuerza</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle>Distribución por Fuerza</CardTitle>
+                  <InfoTooltip title={analyticsTooltips.rankDemo.title}>
+                    {analyticsTooltips.rankDemo.content}
+                  </InfoTooltip>
+                </div>
                 <CardDescription>Top 5 rangos militares</CardDescription>
               </CardHeader>
               <CardContent>
@@ -489,7 +555,12 @@ export default function BusinessAnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Usuarios por Ciudad</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle>Usuarios por Ciudad</CardTitle>
+                  <InfoTooltip title={analyticsTooltips.cityDemo.title}>
+                    {analyticsTooltips.cityDemo.content}
+                  </InfoTooltip>
+                </div>
                 <CardDescription>Top 5 ciudades</CardDescription>
               </CardHeader>
               <CardContent>
@@ -518,10 +589,15 @@ export default function BusinessAnalyticsPage() {
       {hasPerLocationAnalytics && locationAnalyticsData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <MapPin className="h-5 w-5 mr-2 text-primary" />
-              Análisis por Ubicación
-            </CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="flex items-center">
+                <MapPin className="h-5 w-5 mr-2 text-primary" />
+                Análisis por Ubicación
+              </CardTitle>
+              <InfoTooltip title={analyticsTooltips.locationAnalytics.title}>
+                {analyticsTooltips.locationAnalytics.content}
+              </InfoTooltip>
+            </div>
             <CardDescription>Rendimiento de cada ubicación</CardDescription>
           </CardHeader>
           <CardContent>
@@ -561,10 +637,15 @@ export default function BusinessAnalyticsPage() {
           {/* Heatmaps */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Activity className="h-5 w-5 mr-2 text-secondary" />
-                Mapas de Calor
-              </CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="flex items-center">
+                  <Activity className="h-5 w-5 mr-2 text-secondary" />
+                  Mapas de Calor
+                </CardTitle>
+                <InfoTooltip title={analyticsTooltips.heatmaps.title}>
+                  {analyticsTooltips.heatmaps.content}
+                </InfoTooltip>
+              </div>
               <CardDescription>Análisis de interacción por promoción</CardDescription>
             </CardHeader>
             <CardContent>
@@ -594,8 +675,13 @@ export default function BusinessAnalyticsPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Análisis de Cohortes</CardTitle>
-                <CardDescription>Retención de usuarios por mes</CardDescription>
+                <div className="flex items-center gap-2">
+                  <CardTitle>Análisis de Cohortes</CardTitle>
+                  <InfoTooltip title={analyticsTooltips.cohorts.title}>
+                    {analyticsTooltips.cohorts.content}
+                  </InfoTooltip>
+                </div>
+                <CardDescription>Retención de usuarios por mes de primer contacto</CardDescription>
               </CardHeader>
               <CardContent>
                 {enterpriseAnalytics && enterpriseAnalytics.cohorts && enterpriseAnalytics.cohorts.length > 0 ? (
@@ -604,7 +690,7 @@ export default function BusinessAnalyticsPage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip formatter={(value) => [`${value}%`, "Retención"]} />
                       <Line type="monotone" dataKey="retention" stroke="#1E3A8A" strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -618,7 +704,12 @@ export default function BusinessAnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Engagement por Tipo de Contacto</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle>Engagement por Tipo de Contacto</CardTitle>
+                  <InfoTooltip title={analyticsTooltips.engagement.title}>
+                    {analyticsTooltips.engagement.content}
+                  </InfoTooltip>
+                </div>
                 <CardDescription>Distribución de clics en métodos de contacto</CardDescription>
               </CardHeader>
               <CardContent>
