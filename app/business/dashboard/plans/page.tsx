@@ -131,13 +131,53 @@ export default function PlansPage() {
     return monthlyTotal - annualPrice
   }
 
-  const handleSelectPlan = (plan: PlanType) => {
-    if (plan === currentPlan) return
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSelectPlan = async (plan: PlanType) => {
+    // if (plan === currentPlan) return
 
     setSelectedPlan(plan)
+    setIsLoading(true)
+    setError(null)
 
-    // TODO: Navigate to payment/checkout
-    console.log(`Selected plan: ${plan}, billing: ${billingPeriod}`)
+    try {
+      // Get business info from the authenticated user
+      const businessId = businessUser?.business_id || businessUser?.id
+      const businessName = businessUser?.business_name || businessUser?.name || "Negocio"
+      const email = businessUser?.email || ""
+      const phone = businessUser?.phone_number || businessUser?.phone || ""
+
+      if (!businessId || !email) {
+        throw new Error("No se pudo obtener la información del negocio")
+      }
+
+      const response = await fetch("/api/mercadopago/setup-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan,
+          billingPeriod,
+          email,
+          businessName,
+          businessId,
+          phone,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Error al crear el checkout")
+      }
+
+      // Redirect to Mercado Pago checkout
+      window.location.href = result.checkoutUrl
+    } catch (error) {
+      console.error("[Setup Plan] Error:", error)
+      setError(error instanceof Error ? error.message : "Error al procesar la solicitud")
+      setIsLoading(false)
+    }
   }
 
   const getPlanOrder = (plan: PlanType): number => {
@@ -290,7 +330,7 @@ export default function PlansPage() {
           const Icon = config.icon
           const price = getPlanPrice(plan, billingPeriod)
           const limits = getPlanLimits(plan)
-          const isCurrentPlan = plan === currentPlan
+          const isCurrentPlan = plan === currentPlan && !trialAvailable
           const isPopular = config.popular
           const savings = billingPeriod === "annual" ? calculateSavings(plan) : 0
 
@@ -412,7 +452,7 @@ export default function PlansPage() {
                 )}
               </CardContent>
 
-              <CardFooter>
+              <CardFooter className="flex-col gap-2">
                 {isCurrentPlan ? (
                   <Button variant="outline" className="w-full" disabled>
                     Plan Actual
@@ -422,14 +462,40 @@ export default function PlansPage() {
                     className="w-full"
                     onClick={() => handleSelectPlan(plan)}
                     variant={isPopular ? "default" : "outline"}
+                    disabled={isLoading && selectedPlan === plan}
                   >
-                    {plan === "basico" ? "Comenzar Básico" : "Actualizar Plan"}
+                    {isLoading && selectedPlan === plan
+                      ? "Procesando..."
+                      : plan === "basico"
+                        ? "Comenzar Básico"
+                        : "Actualizar Plan"}
                   </Button>
                 ) : canDowngrade(plan) ? (
-                  <Button variant="outline" className="w-full" onClick={() => handleSelectPlan(plan)}>
-                    Cambiar a {config.name}
+                  <Button
+                    variant="default"
+                    className="w-full"
+                    onClick={() => handleSelectPlan(plan)}
+                    disabled={isLoading && selectedPlan === plan}
+                  >
+                    {isLoading && selectedPlan === plan
+                      ? "Procesando..."
+                      : `Cambiar a ${config.name}`}
+                  </Button>
+                ) : trialAvailable ? (
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    onClick={() => handleSelectPlan(plan)}
+                    disabled={isLoading && selectedPlan === plan}
+                  >
+                    {isLoading && selectedPlan === plan
+                      ? "Procesando..."
+                      : `Seguir en ${config.name}`}
                   </Button>
                 ) : null}
+                {error && selectedPlan === plan && (
+                  <p className="text-sm text-destructive text-center">{error}</p>
+                )}
               </CardFooter>
             </Card>
           )
