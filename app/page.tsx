@@ -128,7 +128,7 @@ export default function HomePage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="text-center">
                   <div className="font-semibold text-primary">Básico</div>
-                  <div className="text-muted-foreground">$50,000/mes</div>
+                  <div className="text-muted-foreground">$100,000/mes</div>
                 </div>
                 <div className="text-center">
                   <div className="font-semibold text-secondary">Pro</div>
