@@ -16,6 +16,8 @@ import { PromotionService } from "@/lib/services/promotion-service"
 import { LocationService } from "@/lib/services/location-service"
 import { PROMOTION_STATUS_CONFIG } from "@/lib/constants/promotion-status"
 import { PromotionFormDialog } from "@/components/promotions/promotion-form-dialog"
+import { WarningsSection } from "@/components/dashboard/warning-card"
+import { useBusinessWarningsContext } from "@/contexts/business-warnings-context"
 import type { Promotion, PlanType, BusinessLocation } from "@/lib/types"
 import { useAuth } from "@/hooks/use-auth"
 import { PermissionGuard } from "@/components/permission-guard"
@@ -35,9 +37,11 @@ export default function PromotionsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const { user } = useAuth()
+  const { getWarningsForPage } = useBusinessWarningsContext()
   const businessId = user?.businessId
   const plan: PlanType = (user as any)?.plan ?? "basico"
   const limits = getPlanLimits(plan)
+  const promotionsWarnings = getWarningsForPage("promotions")
 
   // TODO: Fetch from business profile
   const extraPromotionsPurchased = 0
@@ -226,6 +230,9 @@ export default function PromotionsPage() {
           </PermissionGuard>
         </div>
       </div>
+
+      {/* Warnings Section */}
+      <WarningsSection warnings={promotionsWarnings} title="Acciones Requeridas" />
 
       {/* Shared Form Dialog */}
       <PromotionFormDialog

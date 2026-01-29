@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Building2, Bell, Shield, Trash2, Plus, Loader2 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { useBusinessWarningsContext } from "@/contexts/business-warnings-context"
+import { WarningsSection } from "@/components/dashboard/warning-card"
 import { updateUserPassword, deleteUserAccount } from "@/lib/auth"
 import { BusinessService } from "@/lib/services/business-service"
 import { useRouter } from "next/navigation"
@@ -20,8 +22,10 @@ import { toast } from "sonner"
 
 export default function SettingsPage() {
   const { user } = useAuth()
+  const { getWarningsForPage } = useBusinessWarningsContext()
   const businessUser = user as any
   const router = useRouter()
+  const settingsWarnings = getWarningsForPage("settings")
 
   const [isLoading, setIsLoading] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
@@ -206,6 +210,9 @@ export default function SettingsPage() {
         <h1 className="text-3xl font-bold text-foreground">Configuración</h1>
         <p className="text-muted-foreground">Gestiona la información de tu empresa y configuraciones de la cuenta</p>
       </div>
+
+      {/* Warnings Section */}
+      <WarningsSection warnings={settingsWarnings} title="Perfil Incompleto" />
 
       <Tabs defaultValue="business" className="space-y-6">
         <TabsList>

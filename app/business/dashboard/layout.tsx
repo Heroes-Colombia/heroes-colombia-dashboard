@@ -5,12 +5,14 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { AuthGuard } from "@/components/auth-guard"
 import { PermissionProvider } from "@/contexts/permission-context"
+import { BusinessWarningsProvider, useBusinessWarningsContext } from "@/contexts/business-warnings-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { HeroesLogo } from "@/components/heroes-logo"
-import { BarChart3, Building2, CreditCard, MapPin, Menu, Settings, Tag, Users, LogOut, Bell, Crown } from "lucide-react"
+import { NotificationBell } from "@/components/dashboard/notification-bell"
+import { BarChart3, Building2, MapPin, Menu, Settings, Tag, Users, LogOut, Crown } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { logout } from "@/lib/auth"
@@ -21,12 +23,16 @@ const navigation = [
   { name: "Promociones", href: "/business/dashboard/promotions", icon: Tag },
   { name: "Redenciones", href: "/business/dashboard/redemptions", icon: Building2 },
   { name: "Analíticas", href: "/business/dashboard/analytics", icon: BarChart3 },
-  // { name: "Planes", href: "/business/dashboard/plans", icon: Crown },
-  // { name: "Facturación", href: "/business/dashboard/billing", icon: CreditCard },
   { name: "Ubicaciones", href: "/business/dashboard/locations", icon: MapPin },
   { name: "Equipo", href: "/business/dashboard/team", icon: Users },
   { name: "Configuración", href: "/business/dashboard/settings", icon: Settings },
 ]
+
+// Header notification bell that uses the warnings context
+function HeaderNotificationBell() {
+  const { warnings } = useBusinessWarningsContext()
+  return <NotificationBell warnings={warnings} />
+}
 
 export default function BusinessDashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -70,8 +76,8 @@ export default function BusinessDashboardLayout({ children }: { children: React.
                       href={item.href}
                       onClick={() => mobile && setSidebarOpen(false)}
                       className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
                         }`}
                     >
                       <item.icon className="h-5 w-5 shrink-0" />
@@ -109,58 +115,58 @@ export default function BusinessDashboardLayout({ children }: { children: React.
   return (
     <AuthGuard requiredRole="business">
       <PermissionProvider>
-        <div className="h-screen flex">
-          {/* Desktop sidebar */}
-          <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
-            <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-card">
-              <Sidebar />
-            </div>
-          </div>
-
-          {/* Mobile sidebar */}
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <SheetContent side="left" className="p-0 w-72">
-              <SheetHeader className="sr-only">
-                <SheetTitle>Menú de navegación</SheetTitle>
-              </SheetHeader>
-              <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-card">
-                <Sidebar mobile />
+        <BusinessWarningsProvider>
+          <div className="h-screen flex">
+            {/* Desktop sidebar */}
+            <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+              <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-card">
+                <Sidebar />
               </div>
-            </SheetContent>
+            </div>
 
-            <div className="lg:pl-72 flex flex-col flex-1">
-              {/* Top bar */}
-              <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="lg:hidden">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
+            {/* Mobile sidebar */}
+            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+              <SheetContent side="left" className="p-0 w-72">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Menú de navegación</SheetTitle>
+                </SheetHeader>
+                <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-card">
+                  <Sidebar mobile />
+                </div>
+              </SheetContent>
 
-                <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-                  <div className="flex flex-1 items-center">
-                    <h1 className="text-lg font-semibold text-foreground">
-                      {businessUser?.businessName || "Dashboard Empresarial"}
-                    </h1>
-                  </div>
-                  <div className="flex items-center gap-x-4 lg:gap-x-6">
-                    <Button variant="ghost" size="icon">
-                      <Bell className="h-5 w-5" />
+              <div className="lg:pl-72 flex flex-col flex-1">
+                {/* Top bar */}
+                <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="lg:hidden">
+                      <Menu className="h-5 w-5" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={handleLogout}>
-                      <LogOut className="h-5 w-5" />
-                    </Button>
+                  </SheetTrigger>
+
+                  <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
+                    <div className="flex flex-1 items-center">
+                      <h1 className="text-lg font-semibold text-foreground">
+                        {businessUser?.businessName || "Dashboard Empresarial"}
+                      </h1>
+                    </div>
+                    <div className="flex items-center gap-x-4 lg:gap-x-6">
+                      <HeaderNotificationBell />
+                      <Button variant="ghost" size="icon" onClick={handleLogout}>
+                        <LogOut className="h-5 w-5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Main content */}
-              <main className="flex-1 overflow-y-auto">
-                <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>
-              </main>
-            </div>
-          </Sheet>
-        </div>
+                {/* Main content */}
+                <main className="flex-1 overflow-y-auto">
+                  <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+                </main>
+              </div>
+            </Sheet>
+          </div>
+        </BusinessWarningsProvider>
       </PermissionProvider>
     </AuthGuard>
   )

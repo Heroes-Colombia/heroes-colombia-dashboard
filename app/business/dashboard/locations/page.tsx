@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus, Search, Filter, MapPin, Globe, Edit, Trash2, AlertCircle, Loader2, Crown } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { useBusinessWarningsContext } from "@/contexts/business-warnings-context"
+import { WarningsSection } from "@/components/dashboard/warning-card"
 import { getPlanLimits } from "@/lib/plan-limits"
 import { PlanLimitBadge, PlanLimitProgress } from "@/components/plan-limit-badge"
 import { PhoneInput } from "@/components/ui/phone-input"
@@ -50,10 +52,12 @@ export default function LocationsPage() {
   const [countryCode, setCountryCode] = useState("+57")
 
   const { user } = useAuth()
+  const { getWarningsForPage } = useBusinessWarningsContext()
   const businessUser = user as any
   const plan: PlanType = businessUser?.plan || "basico"
   const limits = getPlanLimits(plan)
   const businessId = businessUser?.businessId || businessUser?.id
+  const locationsWarnings = getWarningsForPage("locations")
 
   // Fetch locations from Firebase
   useEffect(() => {
@@ -303,6 +307,9 @@ export default function LocationsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Warnings Section */}
+      <WarningsSection warnings={locationsWarnings} title="Acciones Requeridas" />
 
       {/* Plan Limits Progress */}
       {locationLimit !== Infinity && (

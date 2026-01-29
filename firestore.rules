@@ -287,6 +287,88 @@ service cloud.firestore {
     }
 
     // ============================================================================
+    // Campaigns Collection (Automated Engagement System - Part A)
+    // ============================================================================
+
+    match /campaigns/{campaignId} {
+      // Only admins can read campaigns (for review/approval)
+      allow read: if isAdmin();
+
+      // Only Cloud Functions can create campaigns (no client writes)
+      // Admins can update for approval/rejection
+      allow update: if isAdmin();
+
+      // Only admins can delete
+      allow delete: if isAdmin();
+    }
+
+    // ============================================================================
+    // Campaign Metadata Collection (Enterprise Rotation Tracking)
+    // ============================================================================
+
+    match /campaigns_metadata/{metadataId} {
+      // Only admins can read metadata
+      allow read: if isAdmin();
+
+      // Only Cloud Functions write to this (no client writes)
+      allow write: if false;
+    }
+
+    // ============================================================================
+    // Business Notifications Collection (Automated Reports - Part B)
+    // ============================================================================
+
+    match /business_notifications/{notificationId} {
+      // Business owners can read their own notifications
+      allow read: if isAuthenticated() &&
+                     resource.data.business_id != null &&
+                     isBusinessTeamMember(resource.data.business_id);
+
+      // Admins can read all notifications
+      allow read: if isAdmin();
+
+      // Only Cloud Functions create these (no client writes)
+      allow write: if false;
+    }
+
+    // ============================================================================
+    // Analytics Events Collection (For tracking views, saves, clicks)
+    // ============================================================================
+
+    match /analytics_events/{eventId} {
+      // Authenticated users can create analytics events (mobile app)
+      allow create: if isAuthenticated();
+
+      // Business owners can read analytics for their business
+      allow read: if isAuthenticated() &&
+                     resource.data.business_id != null &&
+                     isBusinessTeamMember(resource.data.business_id);
+
+      // Admins can read all analytics
+      allow read: if isAdmin();
+
+      // No updates or deletes allowed
+      allow update, delete: if false;
+    }
+
+    // ============================================================================
+    // Transactions Collection (Payment history)
+    // ============================================================================
+
+    match /transactions/{transactionId} {
+      // Business owners can read their transactions
+      allow read: if isAuthenticated() &&
+                     resource.data.business_id != null &&
+                     isBusinessTeamMember(resource.data.business_id);
+
+      // Admins can read all
+      allow read: if isAdmin();
+
+      // Only Cloud Functions can write transactions
+      allow write: if false;
+    }
+
+    // ============================================================================
     // Default Deny Rule
     // ============================================================================
 

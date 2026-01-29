@@ -829,3 +829,306 @@ export interface TeamMember {
   updated_at?: Date | any
   // Add any other fields from FirebaseBusinessUser or BusinessRole that are used
 }
+
+// ============================================================================
+// Campaign Types (Automated Engagement System)
+// ============================================================================
+
+export type CampaignType = "push" | "inapp" | "email"
+export type CampaignContentCategory = "promotional" | "thematic" | "news" | "tips"
+export type CampaignStatus = "draft" | "pending_review" | "approved" | "sending" | "sent" | "failed" | "cancelled"
+export type CampaignTone = "professional_patriotic" | "friendly" | "urgency" | "celebratory"
+
+/**
+ * Firebase campaign document
+ * Collection: campaigns/{campaignId}
+ */
+export interface FirebaseCampaign {
+  // Identification
+  id?: string
+  campaign_type: CampaignType
+  content_category: CampaignContentCategory
+
+  // Status Workflow
+  status: CampaignStatus
+
+  // Timestamps
+  created_at: Timestamp
+  updated_at: Timestamp
+  scheduled_for: Timestamp
+  approved_at?: Timestamp
+  sent_at?: Timestamp
+
+  // Content Sources (what data was used to generate)
+  content_sources: {
+    top_promotions: string[]         // Promotion IDs from top 20
+    under_promoted: string[]         // Promotion IDs needing visibility
+    enterprise_businesses: string[]  // Enterprise business IDs featured
+    new_businesses: string[]         // Recently joined businesses
+    categories: string[]             // Categories referenced
+  }
+
+  // AI Metadata
+  generated_by: "claude" | "manual"
+  claude_model?: string
+  tone: CampaignTone
+  generation_prompt?: string         // For debugging
+
+  // Push Content (for push campaigns)
+  push_content?: {
+    title: string                    // Max 50 chars
+    body: string                     // Max 150 chars
+    deep_link: string                // e.g., "heroescolombia://promotions"
+  }
+
+  // In-App Content (for inapp campaigns)
+  inapp_content?: {
+    title: string
+    body: string
+    image_url: string                // From promotion.featured_image
+    featured_promotions: string[]    // 3-5 promotion IDs to show
+    button_text: string
+    button_action: string
+  }
+
+  // Email Content (for email campaigns)
+  email_content?: {
+    subject: string
+    preheader: string
+    sections: {
+      headline: string
+      promotions: string[]           // Promotion IDs
+      cta_text: string
+    }[]
+    footer_text: string
+  }
+
+  // Targeting
+  target_audience: "all_active"
+
+  // Analytics (basic - sent count only)
+  analytics: {
+    total_recipients: number
+    push_sent: number
+    email_sent: number
+    inapp_configured: boolean
+  }
+
+  // Approval
+  approval: {
+    reviewed_by?: string
+    approved_by?: string
+    rejected_by?: string
+    rejection_reason?: string
+    edits_made: boolean
+    original_content?: object
+  }
+}
+
+/**
+ * Campaign for dashboard display
+ */
+export interface Campaign {
+  id: string
+  campaign_type: CampaignType
+  content_category: CampaignContentCategory
+  status: CampaignStatus
+  tone: CampaignTone
+  generated_by: "claude" | "manual"
+
+  // Timestamps
+  created_at: Date
+  updated_at: Date
+  scheduled_for: Date
+  approved_at?: Date
+  sent_at?: Date
+
+  // Content
+  push_content?: {
+    title: string
+    body: string
+    deep_link: string
+  }
+  inapp_content?: {
+    title: string
+    body: string
+    image_url: string
+    featured_promotions: string[]
+    button_text: string
+    button_action: string
+  }
+  email_content?: {
+    subject: string
+    preheader: string
+    sections: {
+      headline: string
+      promotions: string[]
+      cta_text: string
+    }[]
+    footer_text: string
+  }
+
+  // Sources
+  content_sources: {
+    top_promotions: string[]
+    under_promoted: string[]
+    enterprise_businesses: string[]
+    new_businesses: string[]
+    categories: string[]
+  }
+
+  // Analytics
+  analytics: {
+    total_recipients: number
+    push_sent: number
+    email_sent: number
+    inapp_configured: boolean
+  }
+
+  // Approval
+  approval: {
+    reviewed_by?: string
+    approved_by?: string
+    rejected_by?: string
+    rejection_reason?: string
+    edits_made: boolean
+  }
+}
+
+/**
+ * Enterprise rotation metadata
+ * Collection: campaigns_metadata/enterprise_rotation
+ */
+export interface EnterpriseRotation {
+  businesses: {
+    [businessId: string]: {
+      last_featured_at: Timestamp | null
+      feature_count: number
+      last_campaign_id: string | null
+    }
+  }
+  updated_at: Timestamp
+}
+
+// ============================================================================
+// Business Notification Types (Automated Business Reports)
+// ============================================================================
+
+export type BusinessNotificationType =
+  | "promotion_expired"
+  | "no_active_promotions"
+  | "incomplete_profile"
+  | "new_favourite"
+  | "cta_clicked"
+  | "weekly_report"
+  | "monthly_report"
+
+export type BusinessNotificationStatus = "pending" | "sent" | "failed"
+
+/**
+ * Firebase business notification document
+ * Collection: business_notifications/{notificationId}
+ */
+export interface FirebaseBusinessNotification {
+  id?: string
+  business_id: string
+
+  notification_type: BusinessNotificationType
+
+  trigger_data: {
+    promotion_id?: string
+    promotion_title?: string
+    user_rank?: string
+    cta_type?: "phone" | "whatsapp" | "website" | "navigation"
+    missing_fields?: string[]
+    period?: "weekly" | "monthly"
+    stats?: {
+      impressions?: number
+      views?: number
+      saves?: number
+      cta_clicks?: number
+      phone_clicks?: number
+      whatsapp_clicks?: number
+      website_clicks?: number
+      navigation_clicks?: number
+      redemptions?: number
+    }
+    previous_period_stats?: {
+      impressions?: number
+      views?: number
+      saves?: number
+      cta_clicks?: number
+    }
+    platform_update_html?: string  // For monthly reports
+  }
+
+  status: BusinessNotificationStatus
+
+  email_content: {
+    subject: string
+    body_html: string
+    cta_text?: string
+    cta_url?: string
+  }
+
+  created_at: Timestamp
+  sent_at?: Timestamp
+
+  recipient_email: string
+  owner_name: string
+  business_name: string
+}
+
+/**
+ * Business notification for dashboard display
+ */
+export interface BusinessNotification {
+  id: string
+  business_id: string
+  notification_type: BusinessNotificationType
+  status: BusinessNotificationStatus
+
+  trigger_data: {
+    promotion_id?: string
+    promotion_title?: string
+    user_rank?: string
+    cta_type?: "phone" | "whatsapp" | "website" | "navigation"
+    missing_fields?: string[]
+    period?: "weekly" | "monthly"
+    stats?: {
+      impressions?: number
+      views?: number
+      saves?: number
+      cta_clicks?: number
+    }
+  }
+
+  email_content: {
+    subject: string
+    body_html: string
+    cta_text?: string
+    cta_url?: string
+  }
+
+  created_at: Date
+  sent_at?: Date
+
+  recipient_email: string
+  owner_name: string
+  business_name: string
+}
+
+// ============================================================================
+// Dashboard Warning Types (Business Dashboard Warning System)
+// ============================================================================
+
+export type WarningType = "no_promotions" | "expired_promotions" | "no_locations" | "incomplete_profile"
+
+export interface DashboardWarning {
+  id: string
+  type: WarningType
+  title: string
+  description: string
+  href: string
+  priority: number
+}

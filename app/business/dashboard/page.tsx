@@ -32,6 +32,8 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { usePromotions } from "@/hooks/use-promotions"
+import { useBusinessWarningsContext } from "@/contexts/business-warnings-context"
+import { WarningsSection } from "@/components/dashboard/warning-card"
 import { AnalyticsEventService } from "@/lib/services/analytics-service"
 import { calculateBasicAnalyticsFromEvents, calculatePromotionAnalytics, calculateFunnelData, calculateTimeSeriesData } from "@/lib/analytics-utils"
 import Link from "next/link"
@@ -42,11 +44,13 @@ export default function BusinessDashboardPage() {
   const { user } = useAuth()
   const [analyticsEvents, setAnalyticsEvents] = useState<FirebaseAnalyticsEvent[]>([])
   const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+  const { getWarningsForPage } = useBusinessWarningsContext()
 
   const businessUser = user as any
   const plan = businessUser?.plan || "basico"
   const { promotions } = usePromotions({ businessId: businessUser?.businessId })
   const isPremium = plan === "pro" || plan === "enterprise"
+  const dashboardWarnings = getWarningsForPage("dashboard")
 
   const daysUntilRenovation = Math.round((new Date('2026-01-30').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
 
@@ -77,12 +81,12 @@ export default function BusinessDashboardPage() {
   // Calculate analytics from real data
   const analytics = useMemo(() => {
     return calculateBasicAnalyticsFromEvents(analyticsEvents)
-  }, [promotions])
+  }, [analyticsEvents])
 
   const funnelData = useMemo(() => {
     const funnel = calculateFunnelData(analyticsEvents)
     return funnel.map((item) => ({ ...item, color: item.fill }))
-  }, [promotions, analyticsEvents])
+  }, [analyticsEvents])
 
   const impressionsData = useMemo(() => {
     if (analyticsEvents.length > 0) {
@@ -114,7 +118,7 @@ export default function BusinessDashboardPage() {
       })
       .sort((a, b) => (b.views_count || 0) - (a.views_count || 0))
       .slice(0, 5)
-  }, [promotions])
+  }, [promotions, analyticsEvents])
 
   const getKPIsByPlan = () => {
     const baseKPIs = [
@@ -150,6 +154,9 @@ export default function BusinessDashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Warnings Section */}
+      <WarningsSection warnings={dashboardWarnings} />
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

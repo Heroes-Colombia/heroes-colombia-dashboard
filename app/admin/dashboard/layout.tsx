@@ -21,6 +21,7 @@ import {
   Bell,
   Shield,
   Activity,
+  Megaphone,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -32,6 +33,7 @@ const navigation = [
   { name: "Empresas", href: "/admin/dashboard/businesses", icon: Building2 },
   { name: "Usuarios", href: "/admin/dashboard/users", icon: Users },
   { name: "Promociones", href: "/admin/dashboard/promotions", icon: Tag },
+  { name: "Campañas", href: "/admin/dashboard/campaigns", icon: Megaphone },
   { name: "Planes", href: "/admin/dashboard/plans", icon: CreditCard },
   { name: "Analíticas", href: "/admin/dashboard/analytics", icon: Activity },
   { name: "Configuración", href: "/admin/dashboard/settings", icon: Settings },
