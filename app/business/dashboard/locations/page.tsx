@@ -52,7 +52,7 @@ export default function LocationsPage() {
   const [countryCode, setCountryCode] = useState("+57")
 
   const { user } = useAuth()
-  const { getWarningsForPage } = useBusinessWarningsContext()
+  const { getWarningsForPage, refresh } = useBusinessWarningsContext()
   const businessUser = user as any
   const plan: PlanType = businessUser?.plan || "basico"
   const limits = getPlanLimits(plan)
@@ -189,6 +189,7 @@ export default function LocationsPage() {
           setLocations(fetchedLocations)
 
           alert("Ubicación creada exitosamente")
+          await refresh()
           setIsDialogOpen(false)
           resetForm()
         }
@@ -207,6 +208,7 @@ export default function LocationsPage() {
           setLocations(fetchedLocations)
 
           alert("Ubicación actualizada exitosamente")
+          await refresh()
           setIsDialogOpen(false)
           resetForm()
         }
@@ -268,6 +270,7 @@ export default function LocationsPage() {
         setLocations(fetchedLocations)
 
         alert("Ubicación eliminada exitosamente")
+        await refresh()
         setIsDeleteDialogOpen(false)
         setDeletingLocation(null)
       } else {

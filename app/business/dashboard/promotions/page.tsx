@@ -37,7 +37,7 @@ export default function PromotionsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const { user } = useAuth()
-  const { getWarningsForPage } = useBusinessWarningsContext()
+  const { getWarningsForPage, refresh } = useBusinessWarningsContext()
   const businessId = user?.businessId
   const plan: PlanType = (user as any)?.plan ?? "basico"
   const limits = getPlanLimits(plan)
@@ -152,6 +152,7 @@ export default function PromotionsPage() {
 
   const handleFormSuccess = async () => {
     await refreshPromotions()
+    await refresh()
   }
 
   const handleOpenDeleteDialog = (promotion: Promotion) => {
@@ -169,6 +170,7 @@ export default function PromotionsPage() {
       if (success) {
         // Refresh promotions
         await refreshPromotions()
+        await refresh()
 
         toast.success("Promoción eliminada exitosamente")
         setDeleteDialogOpen(false)

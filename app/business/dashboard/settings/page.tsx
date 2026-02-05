@@ -22,7 +22,7 @@ import { toast } from "sonner"
 
 export default function SettingsPage() {
   const { user, refreshCache } = useAuth()
-  const { getWarningsForPage } = useBusinessWarningsContext()
+  const { getWarningsForPage, refresh } = useBusinessWarningsContext()
   const businessUser = user as any
   const router = useRouter()
   const settingsWarnings = getWarningsForPage("settings")
@@ -169,6 +169,7 @@ export default function SettingsPage() {
         setBusinessData((prev) => ({ ...prev, featured_image: featuredImageUrl }))
         setSelectedImageFile(null)
         await refreshCache()
+        await refresh()
 
         if (imageUploadFailed) {
           toast.success("Cambios guardados", {
