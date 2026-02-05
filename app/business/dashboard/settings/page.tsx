@@ -21,7 +21,7 @@ import { uploadBusinessFeaturedImage, deleteBusinessFeaturedImage, uploadWithRet
 import { toast } from "sonner"
 
 export default function SettingsPage() {
-  const { user } = useAuth()
+  const { user, refreshCache } = useAuth()
   const { getWarningsForPage } = useBusinessWarningsContext()
   const businessUser = user as any
   const router = useRouter()
@@ -56,9 +56,9 @@ export default function SettingsPage() {
         businessId: businessUser.businessId || "",
         name: businessUser.businessName || "",
         identification: businessUser.businessIdentification || "",
-        email: businessUser.email || "",
+        email: businessUser.businessEmail || businessUser.email || "",
         phone_number: businessUser.businessPhone || "",
-        website: businessUser.website || "",
+        website: businessUser.businessWebsite || "",
         description: businessUser.businessDescription || "",
         featured_image: businessUser.businessFeaturedImage || "",
       })
@@ -168,6 +168,7 @@ export default function SettingsPage() {
         // Update local state
         setBusinessData((prev) => ({ ...prev, featured_image: featuredImageUrl }))
         setSelectedImageFile(null)
+        await refreshCache()
 
         if (imageUploadFailed) {
           toast.success("Cambios guardados", {
