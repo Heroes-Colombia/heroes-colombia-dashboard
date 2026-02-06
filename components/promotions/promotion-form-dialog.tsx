@@ -228,6 +228,7 @@ export function PromotionFormDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>{promotion ? "Editar Promoción" : "Crear Nueva Promoción"}</DialogTitle>
+          <p className="text-sm text-muted-foreground">* Campos requeridos</p>
         </DialogHeader>
         <div className="space-y-4">
           {/* Plan Básico Notice */}
@@ -306,7 +307,7 @@ export function PromotionFormDialog({
 
           {/* Image Upload */}
           <div className="space-y-2">
-            <Label>Imagen destacada</Label>
+            <Label>Imagen destacada *</Label>
             <ImageUploadWithCrop
               value={promotion?.featured_image}
               onChange={handleImageChange}
@@ -444,7 +445,7 @@ export function PromotionFormDialog({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!formData.title || !formData.description || isSubmitting}
+              disabled={!formData.title || !formData.description || (!selectedImageFile && !promotion?.featured_image) || isSubmitting}
             >
               {isSubmitting ? (
                 <>
