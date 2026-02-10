@@ -20,13 +20,13 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && (
         getUserData().user_type == 'admin' ||
-        getUserData().permission == 'admin'
+        'admin' in getUserData().permission
       );
     }
 
     // Check if user data (already loaded) is admin - Use INSIDE /users collection
     function isUserAdmin(userData) {
-      return userData.user_type == 'admin' || userData.permission == 'admin';
+      return userData.user_type == 'admin' || 'admin' in userData.permission;
     }
 
     // Check if user is part of a business team (V2 schema)

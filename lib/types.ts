@@ -15,7 +15,7 @@ export type LocationType = "physical" | "online"
 export type BusinessType = "physical" | "online" | "hybrid"
 export type PromotionStatus = "active" | "inactive" | "expired"
 export type BusinessStatus = "pending" | "active" | "inactive" | "approved" | "rejected" | "suspended"
-export type UserVerificationStatus = "pending" | "active" | "rejected"
+export type UserVerificationStatus = "pending" | "active" | "rejected" | "inactive"
 export type CategoryStatus = "active" | "inactive"
 export type BillingPeriod = "monthly" | "annual"
 export type SubscriptionStatus = "trial" | "active" | "past_due" | "cancelled" | "expired"
@@ -273,6 +273,7 @@ export interface FirebaseConsumerUser {
   identification_card: string
   license: string
   rank: string // Format: "BRANCH_CATEGORY_RANK"
+  sex?: string // Format: "BRANCH_CATEGORY_RANK"
 
   // Contact
   phone?: string
@@ -608,6 +609,7 @@ export interface AdminDashboardUser {
   branch: string
   phone?: string
   city?: string
+  sex?: string
   registrationDate: Date
   favouriteBusinesses?: string[]
   status: UserVerificationStatus

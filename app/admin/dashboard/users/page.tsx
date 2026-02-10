@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -33,6 +33,8 @@ export default function AdminUsersPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [branchFilter, setBranchFilter] = useState("all")
+  const [cityFilter, setCityFilter] = useState("all")
+  const [sexFilter, setSexFilter] = useState("all")
   const [selectedUser, setSelectedUser] = useState<AdminDashboardUser | null>(null)
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -61,23 +63,45 @@ export default function AdminUsersPage() {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.militaryId.includes(searchTerm)
+      user.militaryId.includes(searchTerm) ||
+      user.sex?.toLowerCase().includes(searchTerm)
     const matchesStatus = statusFilter === "all" || user.status === statusFilter
     const matchesBranch = branchFilter === "all" || user.branch.toLowerCase().includes(branchFilter)
-    return matchesSearch && matchesStatus && matchesBranch
+    const matchesCity = cityFilter === "all" || user.city?.toLowerCase().includes(cityFilter)
+    const matchesSex =
+      sexFilter === "all" ||
+      (sexFilter === "unknown" ? !user.sex : user.sex?.toLowerCase() === sexFilter)
+    return matchesSearch && matchesStatus && matchesBranch && matchesCity && matchesSex
   })
+
+  // Get unique cities from users filtered by current search/status/branch
+  // We exclude city filter to keep the dropdown populated when a city is selected
+  const cities = useMemo(() => {
+    const usersForCities = users.filter((user) => {
+      const matchesSearch =
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesStatus = statusFilter === "all" || user.status === statusFilter
+      const matchesBranch = branchFilter === "all" || user.branch.toLowerCase().includes(branchFilter)
+      const matchesSex =
+        sexFilter === "all" ||
+        (sexFilter === "unknown" ? !user.sex : user.sex?.toLowerCase() === sexFilter)
+      return matchesSearch && matchesStatus && matchesBranch && matchesSex
+    })
+
+    const cityList = usersForCities.map((user) => user.city).filter((city): city is string => !!city)
+    return [...new Set(cityList)].sort()
+  }, [users, searchTerm, statusFilter, branchFilter, sexFilter])
 
   const getStatusBadge = (status: string) => {
     const variants = {
       active: "default",
-      pending: "secondary",
-      rejected: "destructive",
+      inactive: "destructive",
     } as const
 
     const labels = {
       active: "Activo",
-      pending: "Pendiente",
-      rejected: "Rechazado",
+      inactive: "Inactivos",
     }
 
     return <Badge variant={variants[status as keyof typeof variants]}>{labels[status as keyof typeof labels]}</Badge>
@@ -150,9 +174,8 @@ export default function AdminUsersPage() {
           <p className="text-muted-foreground">Administra el proceso de verificación de usuarios militares</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="default">{users.filter((u) => u.status === "active").length} activos</Badge>
-          <Badge variant="secondary">{users.filter((u) => u.status === "pending").length} pendientes</Badge>
-          <Badge variant="destructive">{users.filter((u) => u.status === "rejected").length} rechazados</Badge>
+          <Badge variant="default">{filteredUsers.filter((u) => u.status === "active").length} activos</Badge>
+          <Badge variant="destructive">{filteredUsers.filter((u) => u.status === "inactive").length} inactivos</Badge>
           <Button onClick={exportUsers} variant="outline" size="sm">
             <Download className="h-4 w-4 mr-1" />
             Exportar CSV
@@ -179,8 +202,7 @@ export default function AdminUsersPage() {
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="active">Activos</SelectItem>
-              <SelectItem value="pending">Pendientes</SelectItem>
-              <SelectItem value="rejected">Rechazados</SelectItem>
+              <SelectItem value="inactive">Inactivos</SelectItem>
             </SelectContent>
           </Select>
           <Select value={branchFilter} onValueChange={setBranchFilter}>
@@ -194,6 +216,31 @@ export default function AdminUsersPage() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={cityFilter} onValueChange={setCityFilter}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Ciudad" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las ciudades</SelectItem>
+              {cities.map((city) => (
+                <SelectItem key={city} value={city.toLowerCase()}>
+                  {city}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={sexFilter} onValueChange={setSexFilter}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Sexo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los generos</SelectItem>
+              <SelectItem value="male">Masculino</SelectItem>
+              <SelectItem value="female">Femenino</SelectItem>
+              <SelectItem value="unknown">Sin especificar</SelectItem>
+            </SelectContent>
+          </Select>
+          <Badge variant="secondary">{filteredUsers.length} usuarios</Badge>
         </div>
       </div>
 
@@ -239,22 +286,12 @@ export default function AdminUsersPage() {
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <h3 className="text-lg font-semibold truncate">{user.name}</h3>
                       {getStatusBadge(user.status)}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3 text-sm text-muted-foreground mb-3">
                       <Badge variant="outline" className="text-xs">
                         {user.rank}
                       </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-muted-foreground mb-3">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">{user.email}</span>
-                      </div>
-                      {user.phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 flex-shrink-0" />
-                          <span>{user.phone}</span>
-                        </div>
-                      )}
                       {user.city && (
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4 flex-shrink-0" />
@@ -263,14 +300,23 @@ export default function AdminUsersPage() {
                       )}
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3 text-sm text-muted-foreground mb-3">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 flex-shrink-0" />
+                        <span>{user.email}</span>
+                      </div>
+                      {user.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 flex-shrink-0" />
+                          <span>{user.phone}</span>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Shield className="h-3 w-3" />
                         {user.branch}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        ID: {user.militaryId}
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />

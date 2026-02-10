@@ -1,5 +1,5 @@
 // User mapping utilities for Firebase integration
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore"
+import { collection, query, where, getDocs, doc, getDoc, or } from "firebase/firestore"
 import { User } from "firebase/auth"
 import { db } from "@/lib/firebase"
 import type { FirebaseUser, FirebaseConsumerUser, AdminDashboardUser } from "@/lib/types"
@@ -23,7 +23,7 @@ export function mapFirebaseUserToAdminUser(
     consumerUser.second_last_name
   ]
     .filter(part => part && part.trim().length > 0)
-    .map(part => part.trim())
+    .map(part => part?.trim())
     .join(' ')
 
   return {
@@ -40,9 +40,12 @@ export function mapFirebaseUserToAdminUser(
     branch: branch,
     phone: consumerUser.phone || "",
     city: consumerUser.city || "",
-    registrationDate: authUser?.metadata.creationTime
-      ? new Date(authUser.metadata.creationTime)
-      : new Date(),
+    sex: consumerUser.sex || "",
+    registrationDate: consumerUser.created_at
+      ? new Date(consumerUser.created_at.toDate())
+      : consumerUser.updated_at
+        ? new Date(consumerUser.updated_at.toDate())
+        : new Date(),
     status: mapFirebaseStatusToAdminStatus(consumerUser.status, consumerUser.verified),
     favouriteBusinesses: consumerUser.favourite_businesses,
     lastLogin: authUser?.metadata.lastSignInTime
@@ -53,10 +56,11 @@ export function mapFirebaseUserToAdminUser(
 
 // Map Firebase status + verified to admin dashboard status
 function mapFirebaseStatusToAdminStatus(
-  status: "pending" | "active" | "rejected",
+  status: "pending" | "active" | "rejected" | "inactive",
   verified: boolean
-): "pending" | "active" | "rejected" {
+): "pending" | "active" | "rejected" | "inactive" {
   if (status === "rejected") return "rejected"
+  if (status === "inactive") return "inactive"
   if (status === "active" && verified) return "active"
   return "pending" // For status="pending" or status="active" but not verified
 }
@@ -64,7 +68,7 @@ function mapFirebaseStatusToAdminStatus(
 // Fetch all users from Firebase for admin dashboard
 export async function fetchAllUsersForAdmin(): Promise<AdminDashboardUser[]> {
   try {
-    const q = query(collection(db, "users"), where("permission", "==", "user"))
+    const q = query(collection(db, "users"), or(where("permission", "==", "user"), where("user_type", "==", "consumer")))
     const snapshot = await getDocs(q)
 
     const users: AdminDashboardUser[] = []
