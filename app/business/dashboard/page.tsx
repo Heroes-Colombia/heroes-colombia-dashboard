@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { InfoTooltip, analyticsTooltips } from "@/components/ui/info-tooltip"
 import {
   XAxis,
@@ -38,7 +37,7 @@ import { AnalyticsEventService } from "@/lib/services/analytics-service"
 import { calculateBasicAnalyticsFromEvents, calculatePromotionAnalytics, calculateFunnelData, calculateTimeSeriesData } from "@/lib/analytics-utils"
 import Link from "next/link"
 import { addDays } from "date-fns"
-import type { Promotion, FirebaseAnalyticsEvent } from "@/lib/types"
+import type { FirebaseAnalyticsEvent } from "@/lib/types"
 
 export default function BusinessDashboardPage() {
   const { user } = useAuth()

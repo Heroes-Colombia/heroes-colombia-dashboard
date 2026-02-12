@@ -328,6 +328,351 @@ export const analyticsTooltips = {
       </div>
     ),
   },
+  // Settings page tooltips
+  businessName: {
+    title: "Nombre del Negocio",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Este nombre aparece en <strong>todas las pantallas de la app</strong>: listados, búsquedas, tu perfil y promociones.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Usa el nombre comercial que tus clientes reconocen</li>
+          <li>• Evita abreviaciones confusas</li>
+          <li>• No incluyas información de contacto aquí</li>
+        </ul>
+      </div>
+    ),
+  },
+  businessNit: {
+    title: "NIT",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué es esto?</h4>
+        <p className="text-sm text-muted-foreground">
+          Tu número de identificación tributaria. <strong>No es visible para los usuarios</strong> de la app.
+        </p>
+        <h4 className="font-semibold text-sm">¿Para qué lo usamos?</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Verificación interna de tu negocio</li>
+          <li>• Facturación y registros administrativos</li>
+        </ul>
+      </div>
+    ),
+  },
+  businessEmail: {
+    title: "Correo de Contacto",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Los usuarios pueden ver este correo en tu perfil y usarlo para <strong>contactarte directamente</strong>.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Usa un correo que revises frecuentemente</li>
+          <li>• Ideal: correo de atención al cliente o ventas</li>
+          <li>• Responde rápido para generar confianza</li>
+        </ul>
+      </div>
+    ),
+  },
+  businessWhatsapp: {
+    title: "WhatsApp",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Los usuarios podrán <strong>iniciar una conversación de WhatsApp</strong> con un solo click desde tu perfil.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Incluye el código de país (ej: +57 para Colombia)</li>
+          <li>• Usa un número con WhatsApp Business si es posible</li>
+          <li>• Este es el canal más usado por los usuarios</li>
+        </ul>
+      </div>
+    ),
+  },
+  businessWebsite: {
+    title: "Sitio Web",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Un botón en tu perfil que <strong>lleva a los usuarios a tu sitio web</strong>.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Incluye https:// al inicio</li>
+          <li>• Puedes usar tu página de Instagram o Facebook si no tienes sitio web</li>
+          <li>• Si usas Facebook o Instagram, incluye la url completa, ej: www.instagram.com/tu-negocio</li>
+          <li>• Asegúrate de que el sitio funcione en móviles</li>
+        </ul>
+      </div>
+    ),
+  },
+  businessDescription: {
+    title: "Descripción del Negocio",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Esta descripción aparece en <strong>tu perfil completo</strong> cuando los usuarios hacen clic para conocer más de tu negocio.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Describe qué productos o servicios ofreces</li>
+          <li>• Menciona qué te hace diferente de la competencia</li>
+          <li>• Incluye horarios de atención si aplica</li>
+          <li>• Sé claro y conciso (máximo 2-3 párrafos)</li>
+        </ul>
+      </div>
+    ),
+  },
+  businessLogo: {
+    title: "Logo de la Empresa",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Tu logo aparece en <strong>listados, búsquedas, tu perfil y promociones</strong>. Es lo primero que ven los usuarios.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Usa una imagen cuadrada (512x512px recomendado)</li>
+          <li>• Preferiblemente tu logo sobre fondo sólido</li>
+          <li>• Evita imágenes con mucho texto pequeño</li>
+          <li>• Asegúrate de que se vea bien en tamaño pequeño</li>
+        </ul>
+      </div>
+    ),
+  },
+  // Registration page tooltips
+  businessCategory: {
+    title: "Categoría",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Tu negocio aparece en esta <strong>categoría cuando los usuarios filtran</strong> por tipo de negocio.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Elige la categoría que mejor describa tu negocio</li>
+          <li>• Si vendes comida, elige "Restaurantes"</li>
+          <li>• Los usuarios buscan por categoría para encontrar lo que necesitan</li>
+        </ul>
+      </div>
+    ),
+  },
+  businessAddress: {
+    title: "Dirección",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Los usuarios ven la <strong>dirección y pueden navegar con GPS</strong> hasta tu negocio.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Usa el mapa para ubicar exactamente tu local</li>
+          <li>• Una ubicación precisa ayuda a que te encuentren fácilmente</li>
+          <li>• Podrás agregar más sedes después desde el panel</li>
+        </ul>
+      </div>
+    ),
+  },
+  ownerName: {
+    title: "Nombre del Propietario",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué es esto?</h4>
+        <p className="text-sm text-muted-foreground">
+          Tu nombre como administrador del negocio. <strong>No es visible para los usuarios</strong> de la app.
+        </p>
+        <h4 className="font-semibold text-sm">¿Para qué lo usamos?</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Comunicaciones internas contigo</li>
+          <li>• Identificarte en el panel de administración</li>
+        </ul>
+      </div>
+    ),
+  },
+  loginEmail: {
+    title: "Correo de Acceso",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué es esto?</h4>
+        <p className="text-sm text-muted-foreground">
+          El correo con el que <strong>iniciarás sesión</strong> en este panel. <strong>No es visible para los usuarios</strong>.
+        </p>
+        <h4 className="font-semibold text-sm">Importante</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Usa un correo al que tengas acceso permanente</li>
+          <li>• Es diferente al correo de contacto que ven los usuarios</li>
+          <li>• Podrás configurar el correo de contacto después</li>
+        </ul>
+      </div>
+    ),
+  },
+  // Promotion form tooltips
+  promotionTitle: {
+    title: "Título de la Promoción",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          El título aparece en <strong>el carrusel de promociones, listados y notificaciones</strong>. Es lo primero que leen.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Sé claro y directo (ej: "20% descuento en almuerzos")</li>
+          <li>• Menciona el beneficio principal</li>
+          <li>• Evita títulos muy largos (máximo 50 caracteres)</li>
+        </ul>
+      </div>
+    ),
+  },
+  promotionDescription: {
+    title: "Descripción",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          La descripción aparece cuando el usuario <strong>abre el detalle de la promoción</strong>.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Explica los términos y condiciones</li>
+          <li>• Menciona qué productos o servicios aplican</li>
+          <li>• Incluye restricciones importantes (horarios, días, etc.)</li>
+        </ul>
+      </div>
+    ),
+  },
+  promotionInstructions: {
+    title: "Instrucciones de Redención",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Los usuarios ven estas instrucciones <strong>cuando van a usar la promoción</strong>. Les indica cómo redimirla.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Sé específico (ej: "Muestra este cupón al mesero")</li>
+          <li>• Indica si necesitan identificación militar</li>
+          <li>• Menciona si es acumulable con otras ofertas</li>
+        </ul>
+      </div>
+    ),
+  },
+  promotionPercentage: {
+    title: "Porcentaje de Descuento",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          El porcentaje se muestra de forma <strong>destacada en la tarjeta de la promoción</strong> (ej: "20% OFF").
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Usa 0 si el beneficio no es un porcentaje (ej: 2x1, regalo, etc.)</li>
+          <li>• Promociones con mayor descuento atraen más atención</li>
+          <li>• Sé honesto - los usuarios verifican en el local</li>
+        </ul>
+      </div>
+    ),
+  },
+  promotionImage: {
+    title: "Imagen Destacada",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Esta imagen aparece en el <strong>carrusel principal de la app</strong> y en el detalle de la promoción.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Usa imágenes de alta calidad (1600x800px ideal)</li>
+          <li>• Muestra el producto o servicio en promoción</li>
+          <li>• Evita mucho texto en la imagen</li>
+          <li>• Imágenes atractivas aumentan los clicks</li>
+        </ul>
+      </div>
+    ),
+  },
+  promotionExpiration: {
+    title: "Fecha de Expiración",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Los usuarios ven <strong>"Válido hasta [fecha]"</strong> en la promoción. Después de esta fecha, la promoción se desactiva automáticamente.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Promociones con urgencia generan más acción</li>
+          <li>• Puedes extender la fecha después si lo deseas</li>
+          <li>• Revisa promociones próximas a vencer</li>
+        </ul>
+      </div>
+    ),
+  },
+  promotionStatus: {
+    title: "Estado de la Promoción",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué significa cada estado?</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• <strong>Activa:</strong> Visible para todos los usuarios en la app</li>
+          <li>• <strong>Inactiva:</strong> Oculta temporalmente (puedes reactivarla cuando quieras)</li>
+          <li>• <strong>Expirada:</strong> Ya pasó la fecha de vencimiento</li>
+        </ul>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <p className="text-sm text-muted-foreground">
+          Usa "Inactiva" para pausar promociones sin eliminarlas.
+        </p>
+      </div>
+    ),
+  },
+  promotionFeatured: {
+    title: "Promoción Destacada",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué significa?</h4>
+        <p className="text-sm text-muted-foreground">
+          Las promociones destacadas aparecen <strong>primero en los listados</strong> y tienen mayor visibilidad.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Usa esta opción para tus mejores ofertas</li>
+          <li>• No abuses - si todas son destacadas, ninguna lo es</li>
+          <li>• Ideal para promociones de temporada o especiales</li>
+        </ul>
+      </div>
+    ),
+  },
+  promotionLocations: {
+    title: "Ubicaciones",
+    content: (
+      <div className="space-y-2">
+        <h4 className="font-semibold text-sm">¿Qué verán los usuarios?</h4>
+        <p className="text-sm text-muted-foreground">
+          Los usuarios ven <strong>en qué sucursales aplica</strong> la promoción. Si seleccionas "Todas", aplica en todas tus ubicaciones.
+        </p>
+        <h4 className="font-semibold text-sm">Recomendaciones</h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Sé preciso - evita confusiones en el local</li>
+          <li>• Si la promoción es solo para una sucursal, selecciónala</li>
+          <li>• Los usuarios pueden filtrar promociones por ubicación</li>
+        </ul>
+      </div>
+    ),
+  },
   // Dashboard-specific tooltips
   activePromotions: {
     title: "Promociones Activas",

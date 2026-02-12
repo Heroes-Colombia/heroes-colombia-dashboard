@@ -21,11 +21,11 @@ import { useAuth } from "@/hooks/use-auth"
 const navigation = [
   { name: "Resumen", href: "/business/dashboard", icon: BarChart3 },
   { name: "Promociones", href: "/business/dashboard/promotions", icon: Tag },
-  { name: "Redenciones", href: "/business/dashboard/redemptions", icon: Building2 },
+  // { name: "Redenciones", href: "/business/dashboard/redemptions", icon: Building2 },
   { name: "Analíticas", href: "/business/dashboard/analytics", icon: BarChart3 },
   { name: "Ubicaciones", href: "/business/dashboard/locations", icon: MapPin },
   { name: "Equipo", href: "/business/dashboard/team", icon: Users },
-  { name: "Configuración", href: "/business/dashboard/settings", icon: Settings },
+  { name: "Mi Negocio", href: "/business/dashboard/settings", icon: Settings },
 ]
 
 // Header notification bell that uses the warnings context

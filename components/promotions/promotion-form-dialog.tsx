@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { ImageUploadWithCrop } from "@/components/ui/image-upload-with-crop"
 import { CalendarIcon, Loader2, AlertCircle } from "lucide-react"
+import { InfoTooltip, analyticsTooltips } from "@/components/ui/info-tooltip"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { toast } from "sonner"
@@ -248,7 +249,12 @@ export function PromotionFormDialog({
 
           {/* Title */}
           <div className="space-y-2">
-            <Label htmlFor="title">Título de la promoción *</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="title">Título de la promoción *</Label>
+              <InfoTooltip title={analyticsTooltips.promotionTitle.title}>
+                {analyticsTooltips.promotionTitle.content}
+              </InfoTooltip>
+            </div>
             <Input
               id="title"
               placeholder="Ej: Descuento 20% en almuerzo"
@@ -260,7 +266,12 @@ export function PromotionFormDialog({
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Descripción *</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="description">Descripción *</Label>
+              <InfoTooltip title={analyticsTooltips.promotionDescription.title}>
+                {analyticsTooltips.promotionDescription.content}
+              </InfoTooltip>
+            </div>
             <Textarea
               id="description"
               placeholder="Describe los términos y condiciones de la promoción..."
@@ -272,7 +283,12 @@ export function PromotionFormDialog({
 
           {/* Instructions */}
           <div className="space-y-2">
-            <Label htmlFor="instructions">Instrucciones de redención *</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="instructions">Instrucciones de redención *</Label>
+              <InfoTooltip title={analyticsTooltips.promotionInstructions.title}>
+                {analyticsTooltips.promotionInstructions.content}
+              </InfoTooltip>
+            </div>
             <Textarea
               id="instructions"
               placeholder="Ej: Presenta tu identificación militar al momento de ordenar"
@@ -284,7 +300,12 @@ export function PromotionFormDialog({
 
           {/* Percentage */}
           <div className="space-y-2">
-            <Label htmlFor="percentage">Porcentaje de descuento *</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="percentage">Porcentaje de descuento *</Label>
+              <InfoTooltip title={analyticsTooltips.promotionPercentage.title}>
+                {analyticsTooltips.promotionPercentage.content}
+              </InfoTooltip>
+            </div>
             <Input
               id="percentage"
               type="number"
@@ -307,7 +328,12 @@ export function PromotionFormDialog({
 
           {/* Image Upload */}
           <div className="space-y-2">
-            <Label>Imagen destacada *</Label>
+            <div className="flex items-center gap-2">
+              <Label>Imagen destacada *</Label>
+              <InfoTooltip title={analyticsTooltips.promotionImage.title}>
+                {analyticsTooltips.promotionImage.content}
+              </InfoTooltip>
+            </div>
             <ImageUploadWithCrop
               value={promotion?.featured_image}
               onChange={handleImageChange}
@@ -318,14 +344,16 @@ export function PromotionFormDialog({
               minCroppedWidth={800}
               minCroppedHeight={400}
             />
-            <p className="text-xs text-muted-foreground">
-              La imagen se visualizará en el carrusel de la app móvil. Podrás ajustarla y posicionarla antes de subirla.
-            </p>
           </div>
 
           {/* Expiration Date */}
           <div className="space-y-2">
-            <Label>Fecha de expiración *</Label>
+            <div className="flex items-center gap-2">
+              <Label>Fecha de expiración *</Label>
+              <InfoTooltip title={analyticsTooltips.promotionExpiration.title}>
+                {analyticsTooltips.promotionExpiration.content}
+              </InfoTooltip>
+            </div>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full justify-start text-left bg-transparent" disabled={isSubmitting}>
@@ -347,7 +375,12 @@ export function PromotionFormDialog({
           {/* Status Selection (for edit mode or admin) */}
           {(promotion || allowStatusChange) && (
             <div className="space-y-2">
-              <Label htmlFor="status">Estado de la promoción</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="status">Estado de la promoción</Label>
+                <InfoTooltip title={analyticsTooltips.promotionStatus.title}>
+                  {analyticsTooltips.promotionStatus.content}
+                </InfoTooltip>
+              </div>
               <Select
                 value={formData.status}
                 onValueChange={(value: any) => setFormData((prev) => ({ ...prev, status: value }))}
@@ -368,10 +401,12 @@ export function PromotionFormDialog({
           {/* Featured Toggle */}
           <div className="flex items-center justify-between rounded-lg border p-4">
             <div className="space-y-0.5">
-              <Label htmlFor="featured" className="text-base">Promoción destacada</Label>
-              <p className="text-sm text-muted-foreground">
-                Las promociones destacadas aparecen primero en la app
-              </p>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="featured" className="text-base">Promoción destacada</Label>
+                <InfoTooltip title={analyticsTooltips.promotionFeatured.title}>
+                  {analyticsTooltips.promotionFeatured.content}
+                </InfoTooltip>
+              </div>
             </div>
             <Switch
               id="featured"
@@ -383,10 +418,12 @@ export function PromotionFormDialog({
 
           {/* Location Targeting */}
           <div className="space-y-3">
-            <Label>Ubicaciones donde aplica</Label>
-            <p className="text-xs text-muted-foreground">
-              Selecciona "Todas las ubicaciones" o marca ubicaciones específicas
-            </p>
+            <div className="flex items-center gap-2">
+              <Label>Ubicaciones donde aplica</Label>
+              <InfoTooltip title={analyticsTooltips.promotionLocations.title}>
+                {analyticsTooltips.promotionLocations.content}
+              </InfoTooltip>
+            </div>
             <div className="space-y-2 rounded-lg border p-4">
               <div className="flex items-center space-x-2">
                 <Checkbox

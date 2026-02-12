@@ -19,6 +19,8 @@ import { useRouter } from "next/navigation"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { uploadBusinessFeaturedImage, deleteBusinessFeaturedImage, uploadWithRetry } from "@/lib/firebase-storage"
 import { toast } from "sonner"
+import { InfoTooltip, analyticsTooltips } from "@/components/ui/info-tooltip"
+import { PhoneInput, formatFullPhoneNumber } from "@/components/ui/phone-input"
 
 export default function SettingsPage() {
   const { user, refreshCache } = useAuth()
@@ -29,6 +31,7 @@ export default function SettingsPage() {
 
   const [isLoading, setIsLoading] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
+  const [countryCode, setCountryCode] = useState("+57")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
@@ -155,10 +158,12 @@ export default function SettingsPage() {
           console.error("Image upload failed after retries")
         }
       }
+      const fullPhoneNumber = formatFullPhoneNumber(countryCode, businessData.phone_number)
 
       // Update business data with new image URL
       const updatedData = {
         ...businessData,
+        phone_number: fullPhoneNumber,
         featured_image: featuredImageUrl,
       }
 
@@ -218,7 +223,7 @@ export default function SettingsPage() {
 
       <Tabs defaultValue="business" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="business">Empresa</TabsTrigger>
+          <TabsTrigger value="business">Negocio</TabsTrigger>
           {/* <TabsTrigger value="notifications">Notificaciones</TabsTrigger> */}
           <TabsTrigger value="security">Seguridad</TabsTrigger>
         </TabsList>
@@ -228,14 +233,19 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Información de la Empresa
+                Información del Negocio
               </CardTitle>
-              <CardDescription>Actualiza los datos básicos de tu empresa</CardDescription>
+              <CardDescription>Actualiza los datos básicos de tu negocio</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="business-name">Nombre de la Empresa</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="business-name">Nombre del Negocio</Label>
+                    <InfoTooltip title={analyticsTooltips.businessName.title}>
+                      {analyticsTooltips.businessName.content}
+                    </InfoTooltip>
+                  </div>
                   <Input
                     id="business-name"
                     value={businessData.name}
@@ -243,7 +253,12 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="business-nit">NIT</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="business-nit">NIT</Label>
+                    <InfoTooltip title={analyticsTooltips.businessNit.title}>
+                      {analyticsTooltips.businessNit.content}
+                    </InfoTooltip>
+                  </div>
                   <Input
                     id="business-nit"
                     value={businessData.identification}
@@ -251,7 +266,12 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="business-email">Correo corporativo</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="business-email">Correo de contacto</Label>
+                    <InfoTooltip title={analyticsTooltips.businessEmail.title}>
+                      {analyticsTooltips.businessEmail.content}
+                    </InfoTooltip>
+                  </div>
                   <Input
                     id="business-email"
                     type="email"
@@ -260,15 +280,34 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="business-phone">Teléfono</Label>
-                  <Input
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="business-phone">WhatsApp de contacto</Label>
+                    <InfoTooltip title={analyticsTooltips.businessWhatsapp.title}>
+                      {analyticsTooltips.businessWhatsapp.content}
+                    </InfoTooltip>
+                  </div>
+                  {/* <Input
                     id="business-phone"
                     value={businessData.phone_number}
                     onChange={(e) => handleInputChange("phone_number", e.target.value)}
+                  /> */}
+                  <PhoneInput
+                    id="business-phone"
+                    value={businessData.phone_number}
+                    onChange={(value) => handleInputChange("phone_number", value)}
+                    countryCode={countryCode}
+                    onCountryCodeChange={setCountryCode}
+                    required
+                    size="sm"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="business-website">Sitio Web</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="business-website">Sitio Web</Label>
+                    <InfoTooltip title={analyticsTooltips.businessWebsite.title}>
+                      {analyticsTooltips.businessWebsite.content}
+                    </InfoTooltip>
+                  </div>
                   <Input
                     id="business-website"
                     value={businessData.website}
@@ -278,7 +317,12 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="business-description">Descripción</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="business-description">Descripción del negocio</Label>
+                  <InfoTooltip title={analyticsTooltips.businessDescription.title}>
+                    {analyticsTooltips.businessDescription.content}
+                  </InfoTooltip>
+                </div>
                 <Textarea
                   id="business-description"
                   value={businessData.description}
@@ -289,7 +333,12 @@ export default function SettingsPage() {
               </div>
               {/* Logo Upload */}
               <div className="space-y-2">
-                <Label>Logo de la Empresa *</Label>
+                <div className="flex items-center gap-2">
+                  <Label>Logo de la Empresa *</Label>
+                  <InfoTooltip title={analyticsTooltips.businessLogo.title}>
+                    {analyticsTooltips.businessLogo.content}
+                  </InfoTooltip>
+                </div>
                 <div className="max-w-sm">
                   <ImageUpload
                     value={businessData.featured_image}

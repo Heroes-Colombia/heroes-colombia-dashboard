@@ -11,37 +11,44 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Get user data helper - ONLY use outside of /users collection rules
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    // Get user resource helper - returns null if not found
+    function getUserResource() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // Check if user is admin (V1 + V2 compatibility) - ONLY use outside of /users collection
+    // Check if user is admin (V1 + V2 compatibility) - Safely checks for existence
     function isAdmin() {
-      return isAuthenticated() && (
-        getUserData().user_type == 'admin' ||
-        'admin' in getUserData().permission
-      );
+      return isAuthenticated() && 
+             getUserResource() != null &&
+             (
+               getUserResource().data.user_type == 'admin' ||
+               getUserResource().data.permission == 'admin' ||
+               getUserResource().data.permission == 'super_admin'
+             );
     }
 
     // Check if user data (already loaded) is admin - Use INSIDE /users collection
     function isUserAdmin(userData) {
-      return userData.user_type == 'admin' || 'admin' in userData.permission;
+      return userData.user_type == 'admin' || 
+             userData.permission == 'admin' ||
+             userData.permission == 'super_admin';
     }
 
     // Check if user is part of a business team (V2 schema)
     function isBusinessTeamMember(businessId) {
       return isAuthenticated() &&
-             getUserData().user_type == 'business_team' &&
-             getUserData().business_roles != null &&
-             getUserData().business_roles.size() > 0;
+             getUserResource() != null &&
+             getUserResource().data.user_type == 'business_team' &&
+             getUserResource().data.business_roles != null &&
+             getUserResource().data.business_roles.size() > 0;
     }
 
     // Check if user is owner or manager of a business (simplified)
     function isBusinessOwnerOrManager(businessId) {
       return isAuthenticated() &&
-             getUserData().business_roles != null &&
-             getUserData().business_roles.size() > 0;
+             getUserResource() != null &&
+             getUserResource().data.business_roles != null &&
+             getUserResource().data.business_roles.size() > 0;
     }
 
     // ============================================================================
@@ -61,7 +68,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() &&
                      request.auth.uid != userId &&
                      resource.data.user_type == 'consumer' &&
-                     getUserData().user_type == 'business_team';
+                     getUserResource() != null &&
+                     getUserResource().data.user_type == 'business_team';
 
       // Allow unauthenticated users to validate invite codes during signup
       // SECURITY: Only allows reading military users (permission: 'user') with an invite_code

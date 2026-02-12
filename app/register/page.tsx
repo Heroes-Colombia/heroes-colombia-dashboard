@@ -16,11 +16,12 @@ import { HeroesLogo } from "@/components/heroes-logo"
 import { CategoryIcon } from "@/components/category-icon"
 import { LocationPickerModal } from "@/components/location-picker-modal"
 import { Building2, Mail, Lock, Phone, MapPin, AlertCircle, UserRound, Globe } from "lucide-react"
+import { InfoTooltip, analyticsTooltips } from "@/components/ui/info-tooltip"
 import Link from "next/link"
 import { registerBusiness } from "@/lib/auth"
 import { useCategories } from "@/hooks/use-categories"
 import { ImageUpload } from "@/components/ui/image-upload"
-import { PhoneInput } from "@/components/ui/phone-input"
+import { PhoneInput, formatFullPhoneNumber } from "@/components/ui/phone-input"
 import { uploadBusinessFeaturedImage, uploadWithRetry } from "@/lib/firebase-storage"
 import { BusinessService } from "@/lib/services/business-service"
 import { toast } from "sonner"
@@ -77,11 +78,12 @@ export default function BusinessRegisterPage() {
     }
 
     try {
+      const fullPhoneNumber = formatFullPhoneNumber(countryCode, formData.phone)
       // Register the business first
       const businessUser = await registerBusiness(formData.email, formData.password, {
         businessName: formData.businessName,
         nit: formData.nit,
-        phone: formData.phone,
+        phone: fullPhoneNumber,
         category: formData.category,
         description: formData.description,
         website: formData.website,
@@ -168,7 +170,12 @@ export default function BusinessRegisterPage() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="businessName">Nombre de la empresa *</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="businessName">Nombre de la empresa *</Label>
+                    <InfoTooltip title={analyticsTooltips.businessName.title}>
+                      {analyticsTooltips.businessName.content}
+                    </InfoTooltip>
+                  </div>
                   <div className="relative">
                     <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -183,7 +190,12 @@ export default function BusinessRegisterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="nit">NIT *</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="nit">NIT *</Label>
+                    <InfoTooltip title={analyticsTooltips.businessNit.title}>
+                      {analyticsTooltips.businessNit.content}
+                    </InfoTooltip>
+                  </div>
                   <Input
                     id="nit"
                     placeholder="900123456-7"
@@ -199,7 +211,12 @@ export default function BusinessRegisterPage() {
             <div className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="category">Categoría *</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="category">Categoría *</Label>
+                    <InfoTooltip title={analyticsTooltips.businessCategory.title}>
+                      {analyticsTooltips.businessCategory.content}
+                    </InfoTooltip>
+                  </div>
                   <Select onValueChange={(value) => handleInputChange("category", value)} disabled={categoriesLoading}>
                     <SelectTrigger>
                       <SelectValue placeholder={categoriesLoading ? "Cargando categorías..." : "Selecciona una categoría"} />
@@ -218,7 +235,12 @@ export default function BusinessRegisterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Whatsapp de la sede principal *</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="phone">WhatsApp de contacto *</Label>
+                    <InfoTooltip title={analyticsTooltips.businessWhatsapp.title}>
+                      {analyticsTooltips.businessWhatsapp.content}
+                    </InfoTooltip>
+                  </div>
                   <PhoneInput
                     id="phone"
                     value={formData.phone}
@@ -232,7 +254,12 @@ export default function BusinessRegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="website">Sitio web (opcional)</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="website">Sitio web (opcional)</Label>
+                  <InfoTooltip title={analyticsTooltips.businessWebsite.title}>
+                    {analyticsTooltips.businessWebsite.content}
+                  </InfoTooltip>
+                </div>
                 <div className="relative">
                   <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -299,7 +326,12 @@ export default function BusinessRegisterPage() {
                 {/* Physical-specific: Location Picker */}
                 {formData.type === 'physical' && (
                   <div className="space-y-2">
-                    <Label htmlFor="address">Dirección de tu negocio *</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="address">Dirección de tu negocio *</Label>
+                      <InfoTooltip title={analyticsTooltips.businessAddress.title}>
+                        {analyticsTooltips.businessAddress.content}
+                      </InfoTooltip>
+                    </div>
                     <div className="flex gap-2">
                       <Input
                         value={formData.address}
@@ -332,7 +364,12 @@ export default function BusinessRegisterPage() {
 
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="description">Descripción del negocio</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="description">Descripción del negocio</Label>
+                    <InfoTooltip title={analyticsTooltips.businessDescription.title}>
+                      {analyticsTooltips.businessDescription.content}
+                    </InfoTooltip>
+                  </div>
                   <Textarea
                     id="description"
                     placeholder="Describe brevemente tu negocio y los productos/servicios que ofreces..."
@@ -341,13 +378,15 @@ export default function BusinessRegisterPage() {
                     rows={9}
                     className="resize-none"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Ayuda a los usuarios a conocer qué ofreces
-                  </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="logo">Logo de tu empresa *</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="logo">Logo de tu empresa *</Label>
+                    <InfoTooltip title={analyticsTooltips.businessLogo.title}>
+                      {analyticsTooltips.businessLogo.content}
+                    </InfoTooltip>
+                  </div>
                   <ImageUpload
                     onChange={setSelectedLogoFile}
                     disabled={isLoading}
@@ -368,7 +407,12 @@ export default function BusinessRegisterPage() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="ownerName">Tu nombre personal *</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="ownerName">Tu nombre personal *</Label>
+                    <InfoTooltip title={analyticsTooltips.ownerName.title}>
+                      {analyticsTooltips.ownerName.content}
+                    </InfoTooltip>
+                  </div>
                   <div className="relative">
                     <UserRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -383,7 +427,12 @@ export default function BusinessRegisterPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Correo electrónico *</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="email">Correo electrónico *</Label>
+                    <InfoTooltip title={analyticsTooltips.loginEmail.title}>
+                      {analyticsTooltips.loginEmail.content}
+                    </InfoTooltip>
+                  </div>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
