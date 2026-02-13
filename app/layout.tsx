@@ -40,6 +40,19 @@ export default function RootLayout({
           <Suspense fallback={null}>{children}</Suspense>
         </AuthProvider>
         <Analytics />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function() {
+            var script = document.createElement('script');
+            script.dataset.bot = "698eee354c9ee63bf5cf99ac";
+            script.dataset.zindex = "99999";
+            script.src = "https://panel.chatfuel.com/widgets/chat-widget/chat-widget.js";
+            script.async = true;
+            script.defer = true;
+            document.getElementsByTagName('head')[0].appendChild(script);
+          })()`,
+          }}
+        />
       </body>
     </html>
   )
