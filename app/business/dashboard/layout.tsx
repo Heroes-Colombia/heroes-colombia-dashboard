@@ -12,11 +12,13 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { Badge } from "@/components/ui/badge"
 import { HeroesLogo } from "@/components/heroes-logo"
 import { NotificationBell } from "@/components/dashboard/notification-bell"
-import { BarChart3, Building2, MapPin, Menu, Settings, Tag, Users, LogOut, Crown } from "lucide-react"
+import { BarChart3, FileChartLine, MapPin, Menu, Settings, Tag, Users, LogOut, Crown } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { logout } from "@/lib/auth"
 import { useAuth } from "@/hooks/use-auth"
+import { SubscriptionExpiredOverlay } from "@/components/subscription-expired-overlay"
+import { SubscriptionWarningBanner } from "@/components/subscription-warning-banner"
 
 const navigation = [
   { name: "Resumen", href: "/business/dashboard", icon: BarChart3 },
@@ -26,6 +28,7 @@ const navigation = [
   { name: "Ubicaciones", href: "/business/dashboard/locations", icon: MapPin },
   { name: "Equipo", href: "/business/dashboard/team", icon: Users },
   { name: "Mi Negocio", href: "/business/dashboard/settings", icon: Settings },
+  { name: "Facturación", href: "/business/dashboard/plans", icon: FileChartLine },
 ]
 
 // Header notification bell that uses the warnings context
@@ -161,7 +164,17 @@ export default function BusinessDashboardLayout({ children }: { children: React.
 
                 {/* Main content */}
                 <main className="flex-1 overflow-y-auto">
-                  <div className="px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+                  <div className="px-4 py-6 sm:px-6 lg:px-8">
+                    {/* Subscription warning banner */}
+                    <SubscriptionWarningBanner dismissible compact={false} />
+
+                    {/* Page content with subscription overlay */}
+                    <div className="mt-4 relative min-h-[400px]">
+                      {children}
+                      {/* Subscription overlay - covers only content area for restricted pages */}
+                      <SubscriptionExpiredOverlay />
+                    </div>
+                  </div>
                 </main>
               </div>
             </Sheet>

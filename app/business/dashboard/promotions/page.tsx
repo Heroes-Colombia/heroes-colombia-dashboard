@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Plus, Search, Filter, Eye, Edit, Star, ShoppingCart, AlertCircle, MapPin, Loader2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
+import { showOnboardingStepToast } from "@/lib/onboarding-toast"
 import { getPlanLimits, canAddPromotion, EXTRA_PROMOTION_PRICE } from "@/lib/plan-limits"
 import { PlanLimitBadge, PlanLimitProgress } from "@/components/plan-limit-badge"
 import { UpgradePlanButton } from "@/components/upgrade-plan-button"
@@ -37,7 +38,7 @@ export default function PromotionsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const { user } = useAuth()
-  const { getWarningsForPage, refresh } = useBusinessWarningsContext()
+  const { getWarningsForPage, refresh, onboardingProgress } = useBusinessWarningsContext()
   const businessId = user?.businessId
   const plan: PlanType = (user as any)?.plan ?? "basico"
   const limits = getPlanLimits(plan)
@@ -151,8 +152,20 @@ export default function PromotionsPage() {
   }
 
   const handleFormSuccess = async () => {
+    const hadNoPromotions = promotions.length === 0
+    const isCreating = !editingPromotion
+
     await refreshPromotions()
     await refresh()
+
+    // Show onboarding toast if this was the first promotion created
+    if (hadNoPromotions && isCreating && onboardingProgress.isNewBusiness) {
+      showOnboardingStepToast(
+        "promotions",
+        onboardingProgress.completedCount + 1,
+        onboardingProgress.totalCount
+      )
+    }
   }
 
   const handleOpenDeleteDialog = (promotion: Promotion) => {

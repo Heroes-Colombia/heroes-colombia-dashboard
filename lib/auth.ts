@@ -13,7 +13,8 @@ import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } fro
 import { auth, db } from "./firebase"
 import { BusinessService } from "./services/business-service"
 import { LocationService } from "./services/location-service"
-import type { BusinessType, BusinessStatus, PlanType, SubscriptionStatus } from "./types"
+import type { BusinessType, BusinessStatus, PlanType, SubscriptionStatus, BusinessSubscription } from "./types"
+import { Timestamp } from "firebase/firestore"
 
 // Cache configuration
 const USER_CACHE_KEY = 'heroes_user_cache'
@@ -165,7 +166,7 @@ export interface BusinessUser extends CustomerUser {
   businessAddress?: string
   businessFeaturedImage?: string
   businessEmail?: string
-  plan: "basico" | "pro" | "enterprise"
+  plan: "fundador" | "basico" | "pro" | "enterprise"
   permissions: ("owner" | "manager" | "staff")[]
   business_roles?: BusinessRole[]
 }
@@ -342,6 +343,29 @@ export const registerBusiness = async (
     const businessLocation = isOnline ? defaultBogotaLocation : (businessData.coordinates || defaultBogotaLocation)
     const businessGeoHash = isOnline ? defaultBogotaGeoHash : (businessData.geoHash || defaultBogotaGeoHash)
 
+    // Create subscription object with pending_payment status
+    const now = Timestamp.now()
+    const subscription: BusinessSubscription = {
+      type: "trial",
+      status: "pending_payment",
+      plan: "trial",
+      billing_period: null,
+      start_date: null,
+      end_date: null,
+      current_period_start: null,
+      current_period_end: null,
+      next_payment_date: null,
+      last_payment_date: null,
+      amount: 20000,
+      currency: "COP",
+      mercadopago_subscription_id: null,
+      mercadopago_payer_id: null,
+      mercadopago_payer_email: firebaseUser.email,
+      is_founder: true,
+      created_at: now,
+      updated_at: now,
+    }
+
     const businessDataFirebase = {
       name: businessData.businessName,
       identification: businessData.nit,
@@ -360,10 +384,11 @@ export const registerBusiness = async (
       location: businessLocation,
       geo_hash: businessGeoHash,
 
-      status: "active" as BusinessStatus,
+      status: "pending" as BusinessStatus,
       featured: true,
       plan: businessData.plan as PlanType || "enterprise",
-      subscription_status: "trial" as SubscriptionStatus,
+      subscription_status: "pending_payment" as SubscriptionStatus,
+      subscription: subscription,
     }
 
     // Create business document

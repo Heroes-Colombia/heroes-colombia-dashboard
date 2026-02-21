@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus, Search, Filter, MapPin, Globe, Edit, Trash2, AlertCircle, Loader2, Crown } from "lucide-react"
+import { toast } from "sonner"
+import { showOnboardingStepToast } from "@/lib/onboarding-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { useBusinessWarningsContext } from "@/contexts/business-warnings-context"
 import { WarningsSection } from "@/components/dashboard/warning-card"
@@ -52,7 +54,7 @@ export default function LocationsPage() {
   const [countryCode, setCountryCode] = useState("+57")
 
   const { user } = useAuth()
-  const { getWarningsForPage, refresh } = useBusinessWarningsContext()
+  const { getWarningsForPage, refresh, onboardingProgress } = useBusinessWarningsContext()
   const businessUser = user as any
   const plan: PlanType = businessUser?.plan || "basico"
   const limits = getPlanLimits(plan)
@@ -177,6 +179,8 @@ export default function LocationsPage() {
 
     try {
       if (dialogMode === "create") {
+        const hadNoLocations = locations.length === 0
+
         // Create new location
         const locationId = await LocationService.createLocation(businessId, locationData)
 
@@ -188,8 +192,18 @@ export default function LocationsPage() {
           const fetchedLocations = await LocationService.getBusinessLocations(businessId)
           setLocations(fetchedLocations)
 
-          alert("Ubicación creada exitosamente")
+          toast.success("Ubicacion creada exitosamente")
           await refresh()
+
+          // Show onboarding toast if this was the first location for a new business
+          if (hadNoLocations && onboardingProgress.isNewBusiness) {
+            showOnboardingStepToast(
+              "locations",
+              onboardingProgress.completedCount + 1,
+              onboardingProgress.totalCount
+            )
+          }
+
           setIsDialogOpen(false)
           resetForm()
         }
@@ -207,7 +221,7 @@ export default function LocationsPage() {
           const fetchedLocations = await LocationService.getBusinessLocations(businessId)
           setLocations(fetchedLocations)
 
-          alert("Ubicación actualizada exitosamente")
+          toast.success("Ubicacion actualizada exitosamente")
           await refresh()
           setIsDialogOpen(false)
           resetForm()

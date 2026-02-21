@@ -4,7 +4,7 @@
 # Roles:
 # - Business Users (companies)
 # - Admins (platform operators)
-# Payments: Wompi. Email: MailerLite. Storage/DB/Auth: Firebase.
+# Payments: Mercado Pago. Email: MailerLite. Storage/DB/Auth: Firebase.
 
 ===================================================
 AUTHENTICATION & ACCESS
@@ -72,7 +72,7 @@ BUSINESS DASHBOARD (/business)
   - Manage subscription:
     * Upgrade/downgrade plans (side-by-side comparison table)
     * Pay-as-you-go promotions option
-    * Payment methods (via Wompi)
+    * Payment methods (via Mercado Pago)
     * Billing history (invoices, receipts)
     * Cancel subscription (at renewal)
   - Plan tiers:
@@ -149,7 +149,7 @@ ADMIN DASHBOARD (/admin)
 
 /settings
   - Platform config (branding, language).
-  - Integrations MailerLite, Wompi, Firebase
+  - Integrations MailerLite, Mercado Pago, Firebase
   - Audit logs of admin actions
 
 

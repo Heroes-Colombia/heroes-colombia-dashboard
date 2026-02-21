@@ -26,9 +26,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate plan type
-    if (!["basico", "pro", "enterprise"].includes(plan)) {
+    if (!["fundador", "basico", "pro", "enterprise"].includes(plan)) {
       return NextResponse.json(
-        { error: "Plan inválido. Debe ser: basico, pro o enterprise" },
+        { error: "Plan inválido. Debe ser: fundador, basico, pro o enterprise" },
         { status: 400 }
       )
     }

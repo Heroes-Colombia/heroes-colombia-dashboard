@@ -8,7 +8,7 @@ import type { Timestamp } from "firebase/firestore"
 // Core Types
 // ============================================================================
 
-export type PlanType = "basico" | "pro" | "enterprise"
+export type PlanType = "fundador" | "basico" | "pro" | "enterprise"
 export type UserRole = "business" | "admin"
 export type AdminPermission = "super_admin"
 export type LocationType = "physical" | "online"
@@ -18,7 +18,63 @@ export type BusinessStatus = "pending" | "active" | "inactive" | "approved" | "r
 export type UserVerificationStatus = "pending" | "active" | "rejected" | "inactive"
 export type CategoryStatus = "active" | "inactive"
 export type BillingPeriod = "monthly" | "annual"
-export type SubscriptionStatus = "trial" | "active" | "past_due" | "cancelled" | "expired"
+export type SubscriptionStatus = "pending_payment" | "trial" | "active" | "past_due" | "cancelled" | "expired"
+
+// ============================================================================
+// Subscription Types (V2 - Embedded in Business Document)
+// ============================================================================
+
+/**
+ * Type of subscription payment
+ * - trial: One-time 20k COP payment for 2-month trial
+ * - mercadopago: Recurring subscription via MercadoPago
+ * - manual: Manual activation by admin (e.g., bank transfer)
+ */
+export type SubscriptionType = "trial" | "mercadopago" | "manual"
+
+/**
+ * Available subscription plans
+ * - trial: 2-month trial with Enterprise features (20k COP one-time)
+ * - fundador: Annual plan for first 100 clients (480k COP/year, locked pricing)
+ * - basico, pro, enterprise: Regular plans
+ */
+export type SubscriptionPlan = "trial" | "fundador" | "basico" | "pro" | "enterprise"
+
+/**
+ * Embedded subscription object in business document
+ * Tracks subscription state, dates, and payment info
+ */
+export interface BusinessSubscription {
+  // Core identification
+  type: SubscriptionType
+  status: SubscriptionStatus
+  plan: SubscriptionPlan
+  billing_period: BillingPeriod | null // null for trial
+
+  // Important dates
+  start_date: Timestamp | null // When subscription/trial started (null if pending_payment)
+  end_date: Timestamp | null // Trial end date OR when cancelled sub ends
+  current_period_start: Timestamp | null // Current billing cycle start (MercadoPago)
+  current_period_end: Timestamp | null // Current billing cycle end (MercadoPago)
+  next_payment_date: Timestamp | null // Next charge date (MercadoPago)
+  last_payment_date: Timestamp | null // Last successful payment
+
+  // Pricing
+  amount: number // Amount paid/to be charged
+  currency: "COP"
+
+  // MercadoPago integration (null for trials and manual)
+  mercadopago_subscription_id: string | null
+  mercadopago_payer_id: number | null
+  mercadopago_payer_email: string | null
+
+  // Founder program tracking
+  is_founder: boolean // true if converted to Fundador plan
+
+  // Metadata
+  created_at: Timestamp
+  updated_at: Timestamp
+}
 
 // ============================================================================
 // Firebase GeoPoint Type
@@ -69,9 +125,14 @@ export interface FirebaseBusiness {
   status: BusinessStatus
   featured: boolean
 
-  // Plan & Subscription
+  // Plan & Subscription (V2: embedded subscription object)
+  /** @deprecated Use subscription.plan instead */
   plan: PlanType
+  /** @deprecated Use subscription.status instead */
   subscription_status: SubscriptionStatus
+
+  // NEW: Embedded subscription object (V2)
+  subscription?: BusinessSubscription | null
 
   // Plan Limits & Extra Resources
   extra_promotions_purchased?: number // Total extra promotions bought
@@ -438,9 +499,14 @@ export interface BusinessProfile {
   status: BusinessStatus
   featured: boolean
 
-  // Plan
+  // Plan & Subscription (V2: embedded subscription object)
+  /** @deprecated Use subscription.plan instead */
   plan: PlanType
+  /** @deprecated Use subscription.status instead */
   subscription_status: SubscriptionStatus
+
+  // NEW: Embedded subscription object (V2)
+  subscription?: BusinessSubscription | null
 
   // Extra Resources
   extra_promotions_purchased?: number

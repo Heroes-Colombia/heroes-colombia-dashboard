@@ -231,7 +231,7 @@ npm install @tremor/react@3.17.4
 ## Post-MVP Considerations
 
 **Immediate Next Steps** (post-3 weeks):
-1. Wompi payment integration
+1. MercadoPago payment integration
 2. MailerLite email system integration
 3. Mobile API endpoints
 4. Advanced analytics (heatmaps, cohorts)
@@ -453,7 +453,7 @@ npm install @tremor/react@3.17.4
 - System-wide platform configuration management
 - Business approval automation settings
 - Email template configuration and testing
-- Payment integration settings (Wompi)
+- Payment integration settings (MercadoPago)
 - Notification rules management
 - Platform monitoring dashboard with key metrics
 - Maintenance mode controls and system information

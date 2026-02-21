@@ -108,24 +108,17 @@ export default function BusinessRegisterPage() {
             await BusinessService.updateBusiness(businessUser.businessId, {
               featured_image: logoUrl,
             })
-            toast.success("Registro exitoso", {
-              description: "Tu empresa y logo se han registrado correctamente.",
-            })
-          } else {
-            toast.success("Registro exitoso", {
-              description: "Tu empresa se ha registrado. Puedes subir el logo desde Configuración.",
-            })
           }
         } catch (logoError) {
           console.error("Error uploading logo:", logoError)
           // Don't block registration if logo upload fails
-          toast.success("Registro exitoso", {
-            description: "Tu empresa se ha registrado. Puedes subir el logo desde Configuración.",
-          })
         }
       }
 
-      // Redirect to verification or dashboard
+      // Fallback: redirect to dashboard if payment flow fails
+      toast.success("Registro exitoso", {
+        description: "Tu empresa se ha registrado. Completa el pago para activar tu prueba.",
+      })
       router.push("/business/dashboard")
     } catch (err: any) {
       setError(err.message || "Error al registrar la empresa. Intenta nuevamente.")

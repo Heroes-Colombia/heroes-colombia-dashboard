@@ -33,10 +33,99 @@ import {
   Globe,
   Tag,
   BarChart2,
+  CreditCard,
+  AlertTriangle,
+  Timer,
+  CalendarPlus,
+  Ban,
+  PlayCircle,
 } from "lucide-react"
 import Link from "next/link"
 import { PromotionService } from "@/lib/services/promotion-service"
+import { auth } from "@/lib/firebase"
+import type { BusinessSubscription } from "@/lib/types"
 
+// Helper to get subscription display info
+function getSubscriptionDisplayInfo(business: any): {
+  label: string
+  variant: "default" | "secondary" | "destructive" | "outline"
+  daysRemaining: number | null
+  isExpiringSoon: boolean
+} {
+  const subscription = business.subscription as BusinessSubscription | null | undefined
+
+  if (!subscription) {
+    // Legacy: check old fields
+    if (business.subscription_status === "trial") {
+      return { label: "Trial (legacy)", variant: "secondary", daysRemaining: null, isExpiringSoon: false }
+    }
+    return { label: "Sin suscripción", variant: "outline", daysRemaining: null, isExpiringSoon: false }
+  }
+
+  const now = new Date()
+  let daysRemaining: number | null = null
+  let isExpiringSoon = false
+
+  // Calculate days remaining for trials
+  if (subscription.end_date) {
+    const endDate = subscription.end_date.toDate ? subscription.end_date.toDate() : new Date(subscription.end_date as any)
+    const diffTime = endDate.getTime() - now.getTime()
+    daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    isExpiringSoon = daysRemaining > 0 && daysRemaining <= 7
+  }
+
+  switch (subscription.status) {
+    case "pending_payment":
+      return { label: "Pago pendiente", variant: "secondary", daysRemaining, isExpiringSoon }
+    case "trial":
+      if (daysRemaining !== null && daysRemaining <= 0) {
+        return { label: "Trial expirado", variant: "destructive", daysRemaining: 0, isExpiringSoon: false }
+      }
+      if (isExpiringSoon) {
+        return { label: `Trial - ${daysRemaining}d`, variant: "destructive", daysRemaining, isExpiringSoon }
+      }
+      return { label: `Trial - ${daysRemaining}d`, variant: "default", daysRemaining, isExpiringSoon }
+    case "active":
+      const planLabel = subscription.plan === "fundador" ? "Fundador" : subscription.plan?.charAt(0).toUpperCase() + subscription.plan?.slice(1)
+      return { label: planLabel || "Activa", variant: "default", daysRemaining, isExpiringSoon }
+    case "past_due":
+      return { label: "Pago vencido", variant: "destructive", daysRemaining, isExpiringSoon }
+    case "cancelled":
+      return { label: "Cancelada", variant: "secondary", daysRemaining, isExpiringSoon }
+    case "expired":
+      return { label: "Expirada", variant: "destructive", daysRemaining: 0, isExpiringSoon: false }
+    default:
+      return { label: subscription.status, variant: "outline", daysRemaining, isExpiringSoon }
+  }
+}
+
+// Get subscription filter category for a business
+function getSubscriptionFilterCategory(business: any): string {
+  const subscription = business.subscription as BusinessSubscription | null | undefined
+  if (!subscription) return "none"
+
+  const now = new Date()
+
+  if (subscription.status === "pending_payment") return "pending_payment"
+  if (subscription.status === "expired") return "expired"
+  if (subscription.status === "cancelled") return "cancelled"
+  if (subscription.status === "active") return "active"
+  if (subscription.status === "past_due") return "past_due"
+
+  if (subscription.status === "trial") {
+    if (!subscription.end_date) return "trial_active"
+
+    const endDate = subscription.end_date.toDate ? subscription.end_date.toDate() : new Date(subscription.end_date as any)
+    const diffTime = endDate.getTime() - now.getTime()
+    const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    if (daysRemaining <= 0) return "trial_expired"
+    if (daysRemaining <= 7) return "trial_expiring"
+    return "trial_active"
+  }
+
+  return "none"
+}
 
 export default function AdminBusinessesPage() {
   const { getCategoryName } = useCategories()
@@ -44,7 +133,9 @@ export default function AdminBusinessesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [planFilter, setPlanFilter] = useState("all")
+  const [subscriptionFilter, setSubscriptionFilter] = useState("all")
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null)
+  const [isUpdatingSubscription, setIsUpdatingSubscription] = useState(false)
 
   // Resource counts per business (cached)
   const [businessCounts, setBusinessCounts] = useState<Record<string, { locations: number; promotions: number }>>({})
@@ -76,6 +167,77 @@ export default function AdminBusinessesPage() {
     if (success) {
       await refreshBusinesses()
     }
+  }
+
+  // Admin subscription actions
+  const handleSubscriptionAction = async (
+    businessId: string,
+    action: string,
+    data?: Record<string, unknown>
+  ) => {
+    setIsUpdatingSubscription(true)
+    try {
+      const token = await auth.currentUser?.getIdToken()
+      const response = await fetch("/api/admin/subscription", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          businessId,
+          action,
+          ...data,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || "Error updating subscription")
+      }
+
+      await refreshBusinesses()
+      // Refresh selected business data
+      if (selectedBusiness?.id === businessId) {
+        const updatedBusiness = businesses.find(b => b.id === businessId)
+        if (updatedBusiness) {
+          setSelectedBusiness(updatedBusiness)
+        }
+      }
+
+      return { success: true, message: result.message }
+    } catch (error) {
+      console.error("Error updating subscription:", error)
+      return { success: false, message: error instanceof Error ? error.message : "Error desconocido" }
+    } finally {
+      setIsUpdatingSubscription(false)
+    }
+  }
+
+  const handleExtendTrial = async (businessId: string, days: number) => {
+    return handleSubscriptionAction(businessId, "extend_trial", { days })
+  }
+
+  const handleExpireSubscription = async (businessId: string) => {
+    return handleSubscriptionAction(businessId, "expire")
+  }
+
+  const handleActivateSubscription = async (
+    businessId: string,
+    plan: string,
+    billingPeriod: string,
+    amount: number
+  ) => {
+    return handleSubscriptionAction(businessId, "activate_subscription", {
+      plan,
+      billingPeriod,
+      amount,
+    })
+  }
+
+  const handleCancelSubscription = async (businessId: string) => {
+    return handleSubscriptionAction(businessId, "cancel")
   }
 
   const exportBusinesses = () => {
@@ -115,7 +277,15 @@ export default function AdminBusinessesPage() {
       business.owner_name?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || business.status === statusFilter
     const matchesPlan = planFilter === "all" || business.plan?.toLowerCase() === planFilter
-    return matchesSearch && matchesStatus && matchesPlan
+
+    // Subscription filter
+    let matchesSubscription = true
+    if (subscriptionFilter !== "all") {
+      const subCategory = getSubscriptionFilterCategory(business)
+      matchesSubscription = subCategory === subscriptionFilter
+    }
+
+    return matchesSearch && matchesStatus && matchesPlan && matchesSubscription
   })
 
   // Fetch locations and analytics when modal opens
@@ -210,6 +380,16 @@ export default function AdminBusinessesPage() {
     )
   }
 
+  const getSubscriptionBadge = (business: any) => {
+    const info = getSubscriptionDisplayInfo(business)
+    return (
+      <Badge variant={info.variant} className="flex items-center gap-1">
+        {info.isExpiringSoon && <AlertTriangle className="h-3 w-3" />}
+        {info.label}
+      </Badge>
+    )
+  }
+
   const getTypeBadge = (type: string) => {
     const config = {
       physical: { label: "Física", icon: Store, variant: "outline" as const },
@@ -281,6 +461,23 @@ export default function AdminBusinessesPage() {
             <SelectItem value="enterprise">Enterprise</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={subscriptionFilter} onValueChange={setSubscriptionFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Suscripción" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las suscripciones</SelectItem>
+            <SelectItem value="trial_active">Trial activo</SelectItem>
+            <SelectItem value="trial_expiring">Trial por vencer (&lt;7d)</SelectItem>
+            <SelectItem value="trial_expired">Trial expirado</SelectItem>
+            <SelectItem value="active">Suscripción activa</SelectItem>
+            <SelectItem value="pending_payment">Pago pendiente</SelectItem>
+            <SelectItem value="past_due">Pago vencido</SelectItem>
+            <SelectItem value="cancelled">Cancelada</SelectItem>
+            <SelectItem value="expired">Expirada</SelectItem>
+            <SelectItem value="none">Sin suscripción</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Businesses List */}
@@ -302,9 +499,15 @@ export default function AdminBusinessesPage() {
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <h3 className="text-lg font-semibold">{business.name}</h3>
                         {getStatusBadge(business.status)}
-                        {getPlanBadge(business.plan || "basico")}
+                        {getSubscriptionBadge(business)}
                         {getTypeBadge(business.type || "physical")}
                         {business.featured && <Badge variant="secondary">Destacado</Badge>}
+                        {business.subscription?.is_founder && (
+                          <Badge variant="default" className="bg-amber-500 flex items-center gap-1">
+                            <Crown className="h-3 w-3" />
+                            Fundador
+                          </Badge>
+                        )}
                       </div>
 
                       <div className="space-y-2 text-sm text-muted-foreground mb-3">
@@ -361,10 +564,11 @@ export default function AdminBusinessesPage() {
                           </DialogHeader>
                           {selectedBusiness && (
                             <Tabs defaultValue="info" className="w-full">
-                              <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="info">Información General</TabsTrigger>
+                              <TabsList className="grid w-full grid-cols-4">
+                                <TabsTrigger value="info">Info General</TabsTrigger>
                                 <TabsTrigger value="locations">Ubicaciones</TabsTrigger>
-                                <TabsTrigger value="promotions">Promociones y Analíticas</TabsTrigger>
+                                <TabsTrigger value="promotions">Promociones</TabsTrigger>
+                                <TabsTrigger value="subscription">Suscripción</TabsTrigger>
                               </TabsList>
                               <TabsContent value="info" className="space-y-4 max-h-[60vh] overflow-y-auto">
                                 {/* Business Information */}
@@ -758,6 +962,226 @@ export default function AdminBusinessesPage() {
                                     </div>
                                   </div>
                                 </div>
+                              </TabsContent>
+
+                              {/* Subscription Tab */}
+                              <TabsContent value="subscription" className="space-y-4 max-h-[60vh] overflow-y-auto">
+                                {(() => {
+                                  const subscription = selectedBusiness.subscription as BusinessSubscription | null | undefined
+                                  const displayInfo = getSubscriptionDisplayInfo(selectedBusiness)
+
+                                  if (!subscription) {
+                                    return (
+                                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
+                                        <h3 className="text-lg font-semibold mb-2">Sin suscripción</h3>
+                                        <p className="text-muted-foreground text-sm mb-4">
+                                          Este negocio no tiene una suscripción activa
+                                        </p>
+                                        <Button
+                                          onClick={() => handleActivateSubscription(selectedBusiness.id, "fundador", "annual", 480000)}
+                                          disabled={isUpdatingSubscription}
+                                        >
+                                          <PlayCircle className="h-4 w-4 mr-2" />
+                                          Activar Plan Fundador
+                                        </Button>
+                                      </div>
+                                    )
+                                  }
+
+                                  const formatSubscriptionDate = (timestamp: any) => {
+                                    if (!timestamp) return "N/A"
+                                    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+                                    return date.toLocaleDateString("es-CO", {
+                                      day: "numeric",
+                                      month: "long",
+                                      year: "numeric",
+                                    })
+                                  }
+
+                                  return (
+                                    <>
+                                      {/* Subscription Status */}
+                                      <div>
+                                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                          <CreditCard className="h-4 w-4" />
+                                          Estado de Suscripción
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm bg-muted/30 p-4 rounded-lg">
+                                          <div>
+                                            <span className="text-muted-foreground">Tipo:</span>
+                                            <p className="font-medium capitalize">
+                                              {subscription.type === "trial" ? "Período de prueba" :
+                                               subscription.type === "mercadopago" ? "MercadoPago" : "Manual"}
+                                            </p>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Estado:</span>
+                                            <div className="mt-1">
+                                              <Badge variant={displayInfo.variant}>{displayInfo.label}</Badge>
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Plan:</span>
+                                            <p className="font-medium capitalize flex items-center gap-1">
+                                              {subscription.plan}
+                                              {subscription.is_founder && (
+                                                <Crown className="h-4 w-4 text-amber-500" />
+                                              )}
+                                            </p>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">Período:</span>
+                                            <p className="font-medium">
+                                              {subscription.billing_period === "annual" ? "Anual" :
+                                               subscription.billing_period === "monthly" ? "Mensual" : "N/A"}
+                                            </p>
+                                          </div>
+                                          <div className="col-span-2 border-t pt-2 mt-2">
+                                            <span className="text-muted-foreground">Fecha inicio:</span>
+                                            <p className="font-medium">{formatSubscriptionDate(subscription.start_date)}</p>
+                                          </div>
+                                          {subscription.type === "trial" && (
+                                            <>
+                                              <div>
+                                                <span className="text-muted-foreground">Fecha vencimiento:</span>
+                                                <p className="font-medium">{formatSubscriptionDate(subscription.end_date)}</p>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">Días restantes:</span>
+                                                <p className={`font-medium ${displayInfo.daysRemaining !== null && displayInfo.daysRemaining <= 7 ? "text-destructive" : ""}`}>
+                                                  {displayInfo.daysRemaining !== null ? (
+                                                    displayInfo.daysRemaining <= 0 ? "Expirado" : `${displayInfo.daysRemaining} días`
+                                                  ) : "N/A"}
+                                                </p>
+                                              </div>
+                                            </>
+                                          )}
+                                          {subscription.type === "mercadopago" && (
+                                            <>
+                                              <div>
+                                                <span className="text-muted-foreground">Próximo pago:</span>
+                                                <p className="font-medium">{formatSubscriptionDate(subscription.next_payment_date)}</p>
+                                              </div>
+                                              <div>
+                                                <span className="text-muted-foreground">Último pago:</span>
+                                                <p className="font-medium">{formatSubscriptionDate(subscription.last_payment_date)}</p>
+                                              </div>
+                                            </>
+                                          )}
+                                          <div className="col-span-2 border-t pt-2 mt-2">
+                                            <span className="text-muted-foreground">Monto:</span>
+                                            <p className="font-medium">
+                                              ${subscription.amount?.toLocaleString("es-CO")} {subscription.currency}
+                                            </p>
+                                          </div>
+                                          {subscription.mercadopago_payer_email && (
+                                            <div className="col-span-2">
+                                              <span className="text-muted-foreground">Email pago:</span>
+                                              <p className="font-medium">{subscription.mercadopago_payer_email}</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Admin Actions */}
+                                      <div>
+                                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                          <Timer className="h-4 w-4" />
+                                          Acciones de Admin
+                                        </h4>
+                                        <div className="flex flex-wrap gap-2 bg-muted/30 p-4 rounded-lg">
+                                          {subscription.type === "trial" && subscription.status !== "expired" && (
+                                            <>
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleExtendTrial(selectedBusiness.id, 7)}
+                                                disabled={isUpdatingSubscription}
+                                              >
+                                                <CalendarPlus className="h-4 w-4 mr-1" />
+                                                +7 días
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleExtendTrial(selectedBusiness.id, 14)}
+                                                disabled={isUpdatingSubscription}
+                                              >
+                                                <CalendarPlus className="h-4 w-4 mr-1" />
+                                                +14 días
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleExtendTrial(selectedBusiness.id, 30)}
+                                                disabled={isUpdatingSubscription}
+                                              >
+                                                <CalendarPlus className="h-4 w-4 mr-1" />
+                                                +30 días
+                                              </Button>
+                                            </>
+                                          )}
+
+                                          {subscription.status !== "active" && subscription.status !== "expired" && (
+                                            <Button
+                                              size="sm"
+                                              variant="default"
+                                              onClick={() => handleActivateSubscription(selectedBusiness.id, "fundador", "annual", 480000)}
+                                              disabled={isUpdatingSubscription}
+                                            >
+                                              <PlayCircle className="h-4 w-4 mr-1" />
+                                              Activar Fundador
+                                            </Button>
+                                          )}
+
+                                          {subscription.status !== "expired" && subscription.status !== "cancelled" && (
+                                            <Button
+                                              size="sm"
+                                              variant="destructive"
+                                              onClick={() => handleExpireSubscription(selectedBusiness.id)}
+                                              disabled={isUpdatingSubscription}
+                                            >
+                                              <Ban className="h-4 w-4 mr-1" />
+                                              Marcar Expirado
+                                            </Button>
+                                          )}
+
+                                          {subscription.status === "active" && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => handleCancelSubscription(selectedBusiness.id)}
+                                              disabled={isUpdatingSubscription}
+                                            >
+                                              <XCircle className="h-4 w-4 mr-1" />
+                                              Cancelar
+                                            </Button>
+                                          )}
+
+                                          {isUpdatingSubscription && (
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                                              Actualizando...
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Metadata */}
+                                      <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg">
+                                        <div className="flex items-center gap-2">
+                                          <Clock className="h-3 w-3" />
+                                          Creado: {formatSubscriptionDate(subscription.created_at)}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                          <Clock className="h-3 w-3" />
+                                          Actualizado: {formatSubscriptionDate(subscription.updated_at)}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )
+                                })()}
                               </TabsContent>
                             </Tabs>
                           )}

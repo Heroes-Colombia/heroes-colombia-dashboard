@@ -61,7 +61,6 @@ export interface Subscription {
   currentPeriodStart: Timestamp
   currentPeriodEnd: Timestamp
   cancelAtPeriodEnd: boolean
-  wompiSubscriptionId?: string
 }
 
 export interface BusinessDocument {

@@ -19,12 +19,13 @@ import { useRouter } from "next/navigation"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { uploadBusinessFeaturedImage, deleteBusinessFeaturedImage, uploadWithRetry } from "@/lib/firebase-storage"
 import { toast } from "sonner"
+import { showOnboardingStepToast, wasStepJustCompleted, type OnboardingStepId } from "@/lib/onboarding-toast"
 import { InfoTooltip, analyticsTooltips } from "@/components/ui/info-tooltip"
 import { PhoneInput, formatFullPhoneNumber } from "@/components/ui/phone-input"
 
 export default function SettingsPage() {
   const { user, refreshCache } = useAuth()
-  const { getWarningsForPage, refresh } = useBusinessWarningsContext()
+  const { getWarningsForPage, refresh, onboardingProgress, business } = useBusinessWarningsContext()
   const businessUser = user as any
   const router = useRouter()
   const settingsWarnings = getWarningsForPage("settings")
@@ -129,6 +130,12 @@ export default function SettingsPage() {
     setIsLoading(true)
     let imageUploadFailed = false
 
+    // Track previous values for onboarding toast
+    const previousPhoneNumber = business?.phone_number
+    const previousFeaturedImage = business?.featured_image
+    const previousDescription = business?.description
+    const previousWebsite = business?.website
+
     try {
       let featuredImageUrl = businessData.featured_image || ""
 
@@ -182,6 +189,33 @@ export default function SettingsPage() {
           })
         } else {
           toast.success("Cambios guardados exitosamente")
+        }
+
+        // Show onboarding toast if any step was just completed (for new businesses)
+        if (onboardingProgress.isNewBusiness) {
+          const completedSteps: OnboardingStepId[] = []
+
+          if (wasStepJustCompleted(previousPhoneNumber, fullPhoneNumber)) {
+            completedSteps.push("phone_number")
+          }
+          if (wasStepJustCompleted(previousFeaturedImage, featuredImageUrl)) {
+            completedSteps.push("featured_image")
+          }
+          if (wasStepJustCompleted(previousDescription, businessData.description)) {
+            completedSteps.push("description")
+          }
+          if (wasStepJustCompleted(previousWebsite, businessData.website)) {
+            completedSteps.push("website")
+          }
+
+          // Show toast for the first completed step (to avoid multiple toasts)
+          if (completedSteps.length > 0) {
+            showOnboardingStepToast(
+              completedSteps[0],
+              onboardingProgress.completedCount + completedSteps.length,
+              onboardingProgress.totalCount
+            )
+          }
         }
       } else {
         toast.error("Error al guardar los cambios")

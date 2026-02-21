@@ -8,7 +8,7 @@
  * and what's promised on the marketing website.
  */
 
-export type PlanType = "basico" | "pro" | "enterprise"
+export type PlanType = "fundador" | "basico" | "pro" | "enterprise"
 
 export interface PlanLimits {
   // Resource Limits
@@ -17,7 +17,7 @@ export interface PlanLimits {
   maxUsers: number
 
   // Analytics Access
-  analyticsLevel: "básico" | "avanzadas"
+  analyticsLevel: "basic" | "advanced"
   perLocationAnalytics: boolean // Pro+ can see analytics broken down by location
 
   // Feature Flags
@@ -33,11 +33,22 @@ export interface PlanLimits {
  * Plan limits configuration matching CLAUDE.md Feature Comparison Matrix
  */
 export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
+  fundador: {
+    maxLocations: Infinity, // Same as Enterprise
+    maxActivePromotions: Infinity, // Same as Enterprise
+    maxUsers: 10,
+    analyticsLevel: "advanced",
+    perLocationAnalytics: true,
+    audienceSegmentation: true,
+    featuredBusiness: true,
+    featuredPromotions: true,
+    support: "dedicated",
+  },
   basico: {
     maxLocations: 1,
     maxActivePromotions: 2, // Per business, not per location
     maxUsers: 1,
-    analyticsLevel: "básico",
+    analyticsLevel: "basic",
     perLocationAnalytics: false,
     audienceSegmentation: false,
     featuredBusiness: false,
@@ -48,7 +59,7 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     maxLocations: 5,
     maxActivePromotions: 5, // Per business, not per location
     maxUsers: 3,
-    analyticsLevel: "avanzadas",
+    analyticsLevel: "advanced",
     perLocationAnalytics: true, // Can see analytics per location
     audienceSegmentation: true,
     featuredBusiness: false,
@@ -59,7 +70,7 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     maxLocations: Infinity, // Unlimited locations
     maxActivePromotions: Infinity, // Unlimited promotions
     maxUsers: 10,
-    analyticsLevel: "avanzadas",
+    analyticsLevel: "advanced",
     perLocationAnalytics: true,
     audienceSegmentation: true,
     featuredBusiness: true,
@@ -286,6 +297,7 @@ export function getRecommendedUpgradePlan(
   reason?: "locations" | "promotions" | "users" | "analytics" | "features"
 ): PlanType {
   const upgradePath: Record<PlanType, PlanType> = {
+    fundador: "fundador", // Fundador is a special tier, no upgrade needed
     basico: "pro",
     pro: "enterprise",
     enterprise: "enterprise", // Already at top
@@ -375,6 +387,7 @@ export function canDowngradePlan(
  * Get human-readable plan name
  */
 export const PLAN_NAMES: Record<PlanType, string> = {
+  fundador: "Fundador",
   basico: "Básico",
   pro: "Pro",
   enterprise: "Enterprise",

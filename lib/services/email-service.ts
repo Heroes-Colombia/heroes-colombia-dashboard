@@ -34,30 +34,30 @@ export class EmailService {
               <meta charset="utf-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
             </head>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 600px; margin: 0 auto; padding: 20px;">
 
               <!-- Header -->
               <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #0070f3; margin: 0;">Héroes Colombia</h1>
+                <h1 style="color: #5d7a3a; margin: 0;">Héroes Colombia</h1>
               </div>
 
               <!-- Main Content -->
-              <div style="background: #f9f9f9; border-radius: 8px; padding: 30px;">
-                <h2 style="color: #333; margin-top: 0;">Invitación al equipo de ${params.businessName}</h2>
+              <div style="background: #f5f7f5; border-radius: 8px; padding: 30px;">
+                <h2 style="color: #1a1a1a; margin-top: 0;">Invitación al equipo de ${params.businessName}</h2>
 
-                <p style="font-size: 16px; color: #555;">
+                <p style="font-size: 16px; color: #6b7280;">
                   <strong>${params.inviterName}</strong> te ha invitado a unirte al equipo de
                   <strong>${params.businessName}</strong> como <strong>${params.role}</strong>.
                 </p>
 
-                <p style="font-size: 16px; color: #555;">
+                <p style="font-size: 16px; color: #6b7280;">
                   Podrás acceder al panel de administración y gestionar las promociones de acuerdo a los permisos asignados.
                 </p>
 
                 <!-- CTA Button -->
                 <div style="text-align: center; margin: 30px 0;">
                   <a href="${acceptUrl}"
-                     style="background: #0070f3;
+                     style="background: #5d7a3a;
                             color: white;
                             padding: 14px 28px;
                             text-decoration: none;
@@ -70,14 +70,14 @@ export class EmailService {
                 </div>
 
                 <!-- Alternative Link -->
-                <p style="font-size: 14px; color: #666; text-align: center;">
+                <p style="font-size: 14px; color: #6b7280; text-align: center;">
                   O copia este enlace en tu navegador:<br>
-                  <a href="${acceptUrl}" style="color: #0070f3; word-break: break-all;">${acceptUrl}</a>
+                  <a href="${acceptUrl}" style="color: #032291; word-break: break-all;">${acceptUrl}</a>
                 </p>
               </div>
 
               <!-- Footer -->
-              <div style="margin-top: 30px; text-align: center; color: #999; font-size: 12px;">
+              <div style="margin-top: 30px; text-align: center; color: #6b7280; font-size: 12px;">
                 <p>
                   Si no solicitaste esta invitación, puedes ignorar este correo de forma segura.
                 </p>

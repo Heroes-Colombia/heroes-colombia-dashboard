@@ -8,18 +8,15 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Globe,
   Shield,
   Mail,
-  CreditCard,
   Bell,
   Activity,
   AlertTriangle,
-  CheckCircle,
   Save,
   RefreshCw,
   Server,
@@ -60,10 +57,6 @@ const mockSystemSettings: SystemSettings = {
       variables: ["userName", "verificationUrl", "requiredDocuments"],
     },
   ],
-  wompiConfig: {
-    publicKey: "pub_test_xxxxx",
-    environment: "test",
-  },
   notificationRules: [
     {
       id: "business_registration",
@@ -139,9 +132,6 @@ export default function AdminSettingsPage() {
     alert("Email de prueba enviado al administrador")
   }
 
-  const handleTestPayment = () => {
-    alert("Conexión con Wompi verificada exitosamente")
-  }
 
   return (
     <div className="space-y-6">
@@ -235,11 +225,10 @@ export default function AdminSettingsPage() {
 
       {/* Settings Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-2 lg:grid-cols-4">
           <TabsTrigger value="platform">Plataforma</TabsTrigger>
           <TabsTrigger value="business">Empresas</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
-          <TabsTrigger value="payments">Pagos</TabsTrigger>
           <TabsTrigger value="notifications">Notificaciones</TabsTrigger>
         </TabsList>
 
@@ -406,67 +395,6 @@ export default function AdminSettingsPage() {
                   ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Payment Settings */}
-        <TabsContent value="payments" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Configuración de Pagos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="wompiPublicKey">Wompi Public Key</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="wompiPublicKey"
-                    value={settings.wompiConfig?.publicKey || ""}
-                    onChange={(e) => handleSettingChange("wompiConfig", {
-                      ...settings.wompiConfig,
-                      publicKey: e.target.value
-                    })}
-                    placeholder="pub_test_xxxxx"
-                  />
-                  <Button onClick={handleTestPayment} variant="outline">
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Probar
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="wompiEnvironment">Entorno</Label>
-                <Select
-                  value={settings.wompiConfig?.environment || "test"}
-                  onValueChange={(value: "test" | "production") =>
-                    handleSettingChange("wompiConfig", {
-                      ...settings.wompiConfig,
-                      environment: value
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="test">Pruebas</SelectItem>
-                    <SelectItem value="production">Producción</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {settings.wompiConfig?.environment === "production" && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded">
-                  <p className="text-sm text-green-800">
-                    ✅ Configurado para el entorno de producción. Los pagos reales serán procesados.
-                  </p>
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>

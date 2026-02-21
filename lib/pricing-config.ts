@@ -31,6 +31,7 @@ export interface PlanPricing {
 }
 
 export interface RegularPlans {
+  fundador: PlanPricing
   basico: PlanPricing
   pro: PlanPricing
   enterprise: PlanPricing
@@ -79,6 +80,12 @@ export const PRICING_PERIODS: PricingPeriod[] = [
     },
 
     regularPlans: {
+      fundador: {
+        monthly: 48000,
+        annual: 480000,
+        savings: 96000, // 48,000 × 12 - 480,000
+        savingsPercent: 20,
+      },
       basico: {
         monthly: 100000,
         annual: 1020000,
@@ -128,6 +135,12 @@ export const PRICING_PERIODS: PricingPeriod[] = [
     },
 
     regularPlans: {
+      fundador: {
+        monthly: 48000,
+        annual: 480000,
+        savings: 96000,
+        savingsPercent: 20,
+      },
       basico: {
         monthly: 100000,
         annual: 1020000,
@@ -165,6 +178,12 @@ export const PRICING_PERIODS: PricingPeriod[] = [
     earlyBirdIncentive: undefined,
 
     regularPlans: {
+      fundador: {
+        monthly: 48000,
+        annual: 480000,
+        savings: 96000,
+        savingsPercent: 20,
+      },
       basico: {
         monthly: 100000,
         annual: 1020000,
@@ -339,5 +358,5 @@ export function isAppLaunched(): boolean {
 // TYPE EXPORTS FOR COMPONENTS
 // ============================================================================
 
-export type PlanType = "basico" | "pro" | "enterprise"
+export type PlanType = "fundador" | "basico" | "pro" | "enterprise"
 export type BillingPeriod = "monthly" | "annual"

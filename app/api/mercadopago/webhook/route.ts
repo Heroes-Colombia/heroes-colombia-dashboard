@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createHmac } from "crypto"
 import { getAdminFirestore } from "@/lib/firebase-admin"
 import { getPlanFromMercadoPagoId } from "@/lib/mercadopago-plans"
-import { sendSubscriptionConfirmationEmail } from "@/lib/email"
+import { sendTrialWelcomeEmail, sendSubscriptionActivatedEmail } from "@/lib/email"
 import { Timestamp } from "firebase-admin/firestore"
 
 const MERCADOPAGO_WEBHOOK_SECRET = process.env.MERCADOPAGO_WEBHOOK_SECRET!
@@ -54,6 +54,29 @@ interface PreapprovalData {
   next_payment_date: string
   payment_method_id: string
   first_invoice_offset: number | null
+}
+
+interface PaymentData {
+  id: number
+  status: "pending" | "approved" | "authorized" | "in_process" | "in_mediation" | "rejected" | "cancelled" | "refunded" | "charged_back"
+  status_detail: string
+  external_reference: string
+  transaction_amount: number
+  currency_id: string
+  payer: {
+    id: number
+    email: string
+    first_name?: string
+    last_name?: string
+  }
+  metadata: {
+    business_id?: string
+    business_name?: string
+    payment_type?: string
+    email?: string
+  }
+  date_created: string
+  date_approved: string | null
 }
 
 /**
@@ -127,7 +150,33 @@ async function fetchSubscriptionDetails(subscriptionId: string): Promise<Preappr
 }
 
 /**
- * Parse external_reference to extract business info
+ * Fetch payment details from Mercado Pago API
+ */
+async function fetchPaymentDetails(paymentId: string): Promise<PaymentData | null> {
+  try {
+    const response = await fetch(
+      `https://api.mercadopago.com/v1/payments/${paymentId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`,
+        },
+      }
+    )
+
+    if (!response.ok) {
+      console.error("[Webhook] Error fetching payment:", await response.text())
+      return null
+    }
+
+    return response.json()
+  } catch (error) {
+    console.error("[Webhook] Error fetching payment details:", error)
+    return null
+  }
+}
+
+/**
+ * Parse external_reference to extract business info for subscriptions
  * Format: subscription_[businessId]_[plan]_[billingPeriod]_[timestamp]
  */
 function parseExternalReference(externalReference: string): {
@@ -148,7 +197,75 @@ function parseExternalReference(externalReference: string): {
 }
 
 /**
+ * Parse external_reference to extract business info for trial payments
+ * Format: trial_[businessId]_[timestamp]
+ */
+function parseTrialExternalReference(externalReference: string): {
+  businessId: string
+} | null {
+  const parts = externalReference.split("_")
+  if (parts.length < 2 || parts[0] !== "trial") {
+    return null
+  }
+
+  return {
+    businessId: parts[1],
+  }
+}
+
+/**
+ * Activate trial subscription after payment
+ */
+async function activateTrialSubscription(
+  businessId: string,
+  paymentData: PaymentData
+) {
+  const db = getAdminFirestore()
+  const businessRef = db.collection("businesses").doc(businessId)
+
+  const now = new Date()
+  const endDate = new Date(now)
+  endDate.setMonth(endDate.getMonth() + 2) // 2 months trial
+
+  // Build the subscription object (matches BusinessSubscription type)
+  const subscription = {
+    type: "trial",
+    status: "trial",
+    plan: "trial",
+    billing_period: null,
+    start_date: Timestamp.fromDate(now),
+    end_date: Timestamp.fromDate(endDate),
+    current_period_start: null,
+    current_period_end: null,
+    next_payment_date: null,
+    last_payment_date: Timestamp.fromDate(now),
+    amount: paymentData.transaction_amount || 20000,
+    currency: "COP",
+    mercadopago_subscription_id: null,
+    mercadopago_payer_id: paymentData.payer?.id || null,
+    mercadopago_payer_email: paymentData.payer?.email || null,
+    is_founder: false,
+    created_at: Timestamp.now(),
+    updated_at: Timestamp.now(),
+  }
+
+  // Update business document
+  await businessRef.update({
+    subscription: subscription,
+    subscription_status: "trial",
+    status: "active",
+    plan: "enterprise", // Trial gets Enterprise features
+    updated_at: Timestamp.now(),
+  })
+
+  console.log(`[Webhook] Activated trial for business ${businessId}, ends ${endDate.toISOString()}`)
+
+  return { endDate }
+}
+
+/**
  * Update business subscription in Firebase
+ * Writes to both the new subscription object and legacy fields for backward compatibility
  */
 async function updateBusinessSubscription(
   businessId: string,
@@ -159,22 +276,62 @@ async function updateBusinessSubscription(
   const db = getAdminFirestore()
   const businessRef = db.collection("businesses").doc(businessId)
 
-  const updateData: Record<string, unknown> = {
+  const now = Timestamp.now()
+  const startDate = Timestamp.fromDate(new Date(subscriptionData.date_created))
+  const nextPaymentDate = subscriptionData.next_payment_date
+    ? Timestamp.fromDate(new Date(subscriptionData.next_payment_date))
+    : null
+
+  // Calculate current_period_end (for annual: 1 year from start, for monthly: 1 month from start)
+  const periodEndDate = new Date(subscriptionData.date_created)
+  if (billingPeriod === "annual") {
+    periodEndDate.setFullYear(periodEndDate.getFullYear() + 1)
+  } else {
+    periodEndDate.setMonth(periodEndDate.getMonth() + 1)
+  }
+
+  // Check if this is a Fundador conversion (trial -> fundador)
+  const isFounder = plan === "fundador"
+
+  // Build the subscription object (matches BusinessSubscription type)
+  const subscription = {
+    type: "mercadopago",
+    status: subscriptionData.status === "authorized" ? "active" : "pending_payment",
+    plan: plan,
+    billing_period: billingPeriod,
+    start_date: startDate,
+    end_date: null, // Active subscriptions don't have end dates
+    current_period_start: startDate,
+    current_period_end: Timestamp.fromDate(periodEndDate),
+    next_payment_date: nextPaymentDate,
+    last_payment_date: subscriptionData.status === "authorized" ? now : null,
+    amount: subscriptionData.auto_recurring?.transaction_amount || 0,
+    currency: "COP",
+    mercadopago_subscription_id: subscriptionData.id,
+    mercadopago_payer_id: subscriptionData.payer_id,
+    mercadopago_payer_email: subscriptionData.payer_email || null,
+    is_founder: isFounder,
+    created_at: now,
+    updated_at: now,
+  }
+
+  // Update business document with new subscription object and legacy fields
+  await businessRef.update({
+    subscription: subscription,
+    // Legacy fields for backward compatibility
     plan: plan,
     subscription_status: subscriptionData.status === "authorized" ? "active" : "pending",
     mercadopago_subscription_id: subscriptionData.id,
     mercadopago_payer_id: subscriptionData.payer_id,
     billing_period: billingPeriod,
-    subscription_start_date: Timestamp.fromDate(new Date(subscriptionData.date_created)),
-    next_payment_date: subscriptionData.next_payment_date
-      ? Timestamp.fromDate(new Date(subscriptionData.next_payment_date))
-      : null,
-    updated_at: Timestamp.now(),
-  }
+    subscription_start_date: startDate,
+    next_payment_date: nextPaymentDate,
+    // Set is_founder at business level too
+    is_founder: isFounder,
+    updated_at: now,
+  })
 
-  await businessRef.update(updateData)
-
-  console.log(`[Webhook] Updated business ${businessId} with plan ${plan}`)
+  console.log(`[Webhook] Updated business ${businessId} with plan ${plan}, is_founder: ${isFounder}`)
 }
 
 /**
@@ -288,17 +445,93 @@ export async function POST(req: NextRequest) {
         // Send confirmation email if subscription is authorized
         if (subscriptionData.status === "authorized") {
           try {
-            await sendSubscriptionConfirmationEmail({
+            // Fetch business name for email
+            const db = getAdminFirestore()
+            const businessRef = db.collection("businesses").doc(businessInfo.businessId)
+            const businessDoc = await businessRef.get()
+            const businessName = businessDoc.data()?.name || "Tu Negocio"
+
+            // Use the new sendSubscriptionActivatedEmail for better Fundador handling
+            await sendSubscriptionActivatedEmail({
               email: subscriptionData.payer_email,
+              businessName: businessName,
               plan: businessInfo.plan,
               billingPeriod: businessInfo.billingPeriod,
               nextPaymentDate: subscriptionData.next_payment_date,
+              isFounder: businessInfo.plan === "fundador",
             })
           } catch (emailError) {
             console.error("[Webhook] Error sending confirmation email:", emailError)
             // Don't fail the webhook for email errors
           }
         }
+      }
+    }
+
+    // Handle one-time payment events (trial payments)
+    if (body.type === "payment") {
+      const paymentId = body.data.id
+
+      // Fetch payment details
+      const paymentData = await fetchPaymentDetails(paymentId)
+      if (!paymentData) {
+        console.error("[Webhook] Could not fetch payment details")
+        return NextResponse.json({ error: "Could not fetch payment" }, { status: 400 })
+      }
+
+      console.log("[Webhook] Payment data:", {
+        id: paymentData.id,
+        status: paymentData.status,
+        external_reference: paymentData.external_reference,
+        payer_email: paymentData.payer?.email,
+        amount: paymentData.transaction_amount,
+        metadata: paymentData.metadata,
+      })
+
+      // Check if this is a trial payment
+      const trialInfo = parseTrialExternalReference(paymentData.external_reference || "")
+
+      if (trialInfo && paymentData.status === "approved") {
+        console.log("[Webhook] Processing approved trial payment for business:", trialInfo.businessId)
+
+        // Activate trial subscription
+        const { endDate } = await activateTrialSubscription(trialInfo.businessId, paymentData)
+
+        // Create transaction record for trial
+        const db = getAdminFirestore()
+        const transactionsRef = db.collection("transactions")
+        await transactionsRef.add({
+          business_id: trialInfo.businessId,
+          payment_id: paymentData.id.toString(),
+          type: "trial",
+          amount: paymentData.transaction_amount,
+          currency: "COP",
+          plan: "trial",
+          billing_period: null,
+          payment_method: "mercadopago",
+          payment_reference: paymentData.id.toString(),
+          payment_status: "approved",
+          created_at: Timestamp.now(),
+        })
+
+        // Get business details for email
+        const businessRef = db.collection("businesses").doc(trialInfo.businessId)
+        const businessDoc = await businessRef.get()
+        const businessName = businessDoc.data()?.name || "Tu Negocio"
+
+        // Send trial welcome email
+        try {
+          await sendTrialWelcomeEmail({
+            email: paymentData.payer?.email || paymentData.metadata?.email || "",
+            businessName: businessName,
+            trialEndDate: endDate,
+          })
+        } catch (emailError) {
+          console.error("[Webhook] Error sending trial welcome email:", emailError)
+          // Don't fail the webhook for email errors
+        }
+      } else if (trialInfo) {
+        console.log(`[Webhook] Trial payment not approved yet. Status: ${paymentData.status}`)
       }
     }
 

@@ -17,6 +17,16 @@ export interface MercadoPagoPlanConfig {
 }
 
 export const MERCADOPAGO_PLAN_IDS: Record<PlanType, Record<BillingPeriod, MercadoPagoPlanConfig>> = {
+  fundador: {
+    monthly: {
+      planId: "6a6f36d2a89b4b0b9c42fa826c918011",
+      trialDays: 0,
+    },
+    annual: {
+      planId: "25bd64cb44384867aa11e4c832cc04d7",
+      trialDays: 0,
+    },
+  },
   basico: {
     monthly: {
       planId: "0865edb241804d71b91cca47d5638a56",

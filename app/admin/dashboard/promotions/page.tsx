@@ -194,7 +194,7 @@ export default function AdminPromotionsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4" />
-                          {promotion.redemptions_count || 0} redenciones
+                          {promotion.saves_count || 0} guardadas
                         </div>
                       </div>
                       {!promotion.featured_image && (

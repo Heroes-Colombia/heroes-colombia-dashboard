@@ -77,9 +77,8 @@ export default function BusinessAnalyticsPage() {
 
   // Analytics tier access
   const analyticsLevel = limits.analyticsLevel
-  const hasBasic = analyticsLevel === "basic" || analyticsLevel === "advanced" || analyticsLevel === "enterprise"
-  const hasAdvanced = analyticsLevel === "advanced" || analyticsLevel === "enterprise"
-  const hasEnterprise = analyticsLevel === "enterprise"
+  const hasBasic = analyticsLevel === "basic"
+  const hasAdvanced = analyticsLevel === "advanced"
   const hasPerLocationAnalytics = limits.perLocationAnalytics
 
   // Fetch analytics events when business or date range changes
@@ -170,7 +169,6 @@ export default function BusinessAnalyticsPage() {
             {hasAdvanced && <Crown className="h-3 w-3" />}
             {analyticsLevel === "basic" && "Básico"}
             {analyticsLevel === "advanced" && "Avanzado"}
-            {analyticsLevel === "enterprise" && "Enterprise"}
           </Badge>
         </div>
       </div>

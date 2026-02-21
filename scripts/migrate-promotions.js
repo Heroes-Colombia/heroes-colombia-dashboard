@@ -65,7 +65,7 @@ async function migratePromotions() {
 
         // Timing
         start_date: adData.start_date || null,
-        expired_at: adData.expired_at || admin.firestore.Timestamp.fromDate(new Date('2099-12-31')),
+        expired_at: adData.expired_at || Timestamp.fromDate(new Date('2099-12-31')),
 
         // Limits (new fields, optional)
         max_redemptions: adData.max_redemptions || null,

@@ -600,7 +600,7 @@ export default function TeamPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {getRoleBadge(businessUser?.business_roles[0].role)}
+              {getRoleBadge(businessUser?.business_roles[0]?.role)}
               <Badge variant="default">Activo</Badge>
             </div>
           </div>
@@ -755,7 +755,7 @@ export default function TeamPage() {
 
                 {/* Metadata row - stacks on very small screens */}
                 <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-1 sm:gap-4 text-[12px] sm:text-sm text-muted-foreground">
-                  <span className="font-medium">{member.business_roles?.[0]?.permissions && getPermissionSummary(member.business_roles[0].permissions)}</span>
+                  <span className="font-medium">{member.business_roles?.[0]?.permissions && getPermissionSummary(member.business_roles[0]?.permissions)}</span>
                   <span className="hidden sm:inline">•</span>
                   <span>Invitado: {formatDate(member.created_at)}</span>
                   {member.status === "active" && (

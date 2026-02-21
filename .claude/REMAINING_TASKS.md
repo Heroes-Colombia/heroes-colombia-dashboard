@@ -149,7 +149,7 @@
 
 ## 🟡 MEDIUM PRIORITY - Week 2
 
-### 4. Payment Integration (MercadoPago/Wompi)
+### 4. Payment Integration (MercadoPago)
 
 **Status:** ❌ TODO
 

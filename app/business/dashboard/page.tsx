@@ -33,6 +33,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { usePromotions } from "@/hooks/use-promotions"
 import { useBusinessWarningsContext } from "@/contexts/business-warnings-context"
 import { WarningsSection } from "@/components/dashboard/warning-card"
+import { OnboardingProgressCard } from "@/components/dashboard/onboarding-progress-card"
 import { AnalyticsEventService } from "@/lib/services/analytics-service"
 import { calculateBasicAnalyticsFromEvents, calculatePromotionAnalytics, calculateFunnelData, calculateTimeSeriesData } from "@/lib/analytics-utils"
 import Link from "next/link"
@@ -43,13 +44,19 @@ export default function BusinessDashboardPage() {
   const { user } = useAuth()
   const [analyticsEvents, setAnalyticsEvents] = useState<FirebaseAnalyticsEvent[]>([])
   const [isLoadingEvents, setIsLoadingEvents] = useState(false)
-  const { getWarningsForPage } = useBusinessWarningsContext()
+  const { getWarningsForPage, business, onboardingProgress } = useBusinessWarningsContext()
 
   const businessUser = user as any
   const plan = businessUser?.plan || "basico"
   const { promotions } = usePromotions({ businessId: businessUser?.businessId })
   const isPremium = plan === "pro" || plan === "enterprise"
   const dashboardWarnings = getWarningsForPage("dashboard")
+
+  // Determine onboarding card mode based on business status
+  const onboardingMode = business?.status === "pending" ? "onboarding" : "optimization"
+
+  // Show onboarding card only for new businesses (created within 30 days)
+  const showOnboardingCard = onboardingProgress.isNewBusiness && onboardingProgress.shouldShowCard
 
   const daysUntilRenovation = Math.round((new Date('2026-01-30').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
 
@@ -154,8 +161,18 @@ export default function BusinessDashboardPage() {
         </div>
       </div>
 
-      {/* Warnings Section */}
-      <WarningsSection warnings={dashboardWarnings} />
+      {/* Onboarding Card - Only for new businesses (created within 30 days) */}
+      {showOnboardingCard && (
+        <OnboardingProgressCard
+          mode={onboardingMode}
+          progress={onboardingProgress}
+        />
+      )}
+
+      {/* Warnings Section - For all businesses */}
+      {dashboardWarnings.length > 0 && (
+        <WarningsSection warnings={dashboardWarnings} />
+      )}
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
