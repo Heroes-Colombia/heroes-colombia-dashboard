@@ -99,7 +99,10 @@ export class SubscriptionService {
     const now = new Date()
     const isPendingPayment = subscription.status === "pending_payment"
     const isTrialExpired = this.checkTrialExpired(subscription, now)
-    const isFounder = subscription.is_founder
+    // All businesses that entered through the trial (type === "trial") are founders
+    // by definition — they joined before the 100-spot limit was reached.
+    // This covers existing businesses without requiring a Firestore backfill.
+    const isFounder = subscription.is_founder || subscription.type === "trial"
     const isActive = this.checkIsActive(subscription, now)
     const daysUntilExpiration = this.calculateDaysUntilExpiration(subscription, now)
 
@@ -205,6 +208,7 @@ export class SubscriptionService {
       end_date: Timestamp.fromDate(endDate),
       last_payment_date: Timestamp.fromDate(now),
       mercadopago_payer_email: payerEmail || subscription.mercadopago_payer_email,
+      is_founder: true, // All trial sign-ups are founders (first 100 businesses)
       updated_at: Timestamp.now(),
     }
 

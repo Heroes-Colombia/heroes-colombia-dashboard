@@ -58,7 +58,37 @@ export default function BusinessDashboardPage() {
   // Show onboarding card only for new businesses (created within 30 days)
   const showOnboardingCard = onboardingProgress.isNewBusiness && onboardingProgress.shouldShowCard
 
-  const daysUntilRenovation = Math.round((new Date('2026-01-30').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+  const renovationInfo = useMemo(() => {
+    const subscription = business?.subscription
+    if (!subscription) return { days: null, label: "días restantes", isExpired: false, expiryDate: null }
+
+    const status = subscription.status
+    const now = new Date()
+
+    if (status === "trial") {
+      const endDate = subscription.end_date?.toDate?.() ?? null
+      if (!endDate) return { days: null, label: "días restantes", isExpired: false, expiryDate: null }
+      const days = Math.round((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      return { days, label: "días de prueba restantes", isExpired: false, expiryDate: endDate }
+    }
+
+    if (status === "active") {
+      const periodEnd = subscription.current_period_end?.toDate?.() ?? null
+      if (!periodEnd) return { days: null, label: "días restantes", isExpired: false, expiryDate: null }
+      const days = Math.round((periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      return { days, label: "días hasta renovación", isExpired: false, expiryDate: periodEnd }
+    }
+
+    if (status === "expired" || status === "cancelled") {
+      const expiryDate =
+        subscription.current_period_end?.toDate?.() ??
+        subscription.end_date?.toDate?.() ??
+        null
+      return { days: null, label: "acceso terminado", isExpired: true, expiryDate }
+    }
+
+    return { days: null, label: "días restantes", isExpired: false, expiryDate: null }
+  }, [business?.subscription])
 
   // Fetch last 7 days of analytics events
   useEffect(() => {
@@ -325,13 +355,28 @@ export default function BusinessDashboardPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Próxima Renovación</CardTitle>
+            <CardTitle className="text-base">
+              {renovationInfo.isExpired ? "Suscripción Vencida" : "Próxima Renovación"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold">{daysUntilRenovation}</p>
-                <p className="text-sm text-muted-foreground">días restantes</p>
+                {renovationInfo.isExpired ? (
+                  <>
+                    <p className="text-2xl font-bold text-destructive">
+                      {renovationInfo.expiryDate
+                        ? renovationInfo.expiryDate.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })
+                        : "—"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">fecha de vencimiento</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold">{renovationInfo.days ?? "—"}</p>
+                    <p className="text-sm text-muted-foreground">{renovationInfo.label}</p>
+                  </>
+                )}
               </div>
               <Calendar className="h-8 w-8 text-muted-foreground" />
             </div>

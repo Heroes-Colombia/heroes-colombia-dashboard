@@ -117,8 +117,12 @@ export default function PlansPage() {
   const [isTrialLoading, setIsTrialLoading] = useState(false)
   const [trialError, setTrialError] = useState<string | null>(null)
 
-  // Determine which plans to show based on founder status
-  const visiblePlans: PlanType[] = isFounder
+  // Determine which plans to show:
+  // - Founders always see only the Fundador card (already paid)
+  // - Expired trial users see only the Fundador card (natural next step, mirrors CTA on overlay)
+  // - Everyone else sees the three regular plans
+  const showFoundadorOnly = isFounder || isTrialExpired
+  const visiblePlans: PlanType[] = showFoundadorOnly
     ? ["fundador"]
     : ["basico", "pro", "enterprise"]
 
@@ -140,18 +144,19 @@ export default function PlansPage() {
   }, [targetPlan])
 
   const getPlanPrice = (plan: PlanType, period: BillingPeriod) => {
-    const planKey = plan as "basico" | "pro" | "enterprise"
+    const planKey = plan as keyof typeof pricing.regularPlans
     const basePrice = pricing.regularPlans[planKey][period]
 
-    if (earlyBirdActive && period === "monthly") {
-      return calculateEarlyBirdPrice(planKey, period)
+    // Early-bird only applies to regular plans, not fundador
+    if (earlyBirdActive && period === "monthly" && plan !== "fundador") {
+      return calculateEarlyBirdPrice(plan as "basico" | "pro" | "enterprise", period)
     }
 
     return basePrice
   }
 
   const calculateSavings = (plan: PlanType) => {
-    const planKey = plan as "basico" | "pro" | "enterprise"
+    const planKey = plan as keyof typeof pricing.regularPlans
     const monthlyTotal = pricing.regularPlans[planKey].monthly * 12
     const annualPrice = pricing.regularPlans[planKey].annual
 
@@ -338,9 +343,15 @@ export default function PlansPage() {
       {/* Header */}
       {!isPendingPayment && (
         <div className="text-center space-y-4">
-          <h1 className="text-3xl font-bold">Elige el Plan Perfecto para tu Negocio</h1>
+          <h1 className="text-3xl font-bold">
+            {isTrialExpired && !isFounder
+              ? "Activa tu Plan Fundador"
+              : "Elige el Plan Perfecto para tu Negocio"}
+          </h1>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Comienza con alguno de nuestros planes y actualiza cuando lo necesites
+            {isTrialExpired && !isFounder
+              ? "Tu período de prueba finalizó. Continúa con el precio exclusivo de $480,000 COP/año — válido para los primeros 100 negocios."
+              : "Comienza con alguno de nuestros planes y actualiza cuando lo necesites"}
           </p>
 
           {/* Feature context banner */}
@@ -539,30 +550,55 @@ export default function PlansPage() {
         </CardContent>
       </Card>
 
-      {/* Founder Banner */}
-      {isFounder && !isPendingPayment && (
-        <Card className="border-amber-500 bg-gradient-to-r from-amber-50 to-amber-100">
+      {/* Founder / Trial-expired banner */}
+      {showFoundadorOnly && !isPendingPayment && (
+        <Card className={cn(
+          "border-2",
+          isTrialExpired
+            ? "border-primary/40 bg-gradient-to-r from-primary/5 to-primary/10"
+            : "border-amber-500 bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20"
+        )}>
           <CardContent className="p-6">
             <div className="flex items-start gap-4">
-              <div className="rounded-full bg-amber-500 p-3">
+              <div className={cn(
+                "rounded-full p-3",
+                isTrialExpired ? "bg-primary" : "bg-amber-500"
+              )}>
                 <Star className="h-6 w-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-amber-900">
-                  🎖️ Plan Fundador Exclusivo
-                </h3>
-                <p className="text-amber-700 mt-1">
-                  Como uno de los primeros negocios en unirse a Heroes Colombia,
-                  tienes acceso al precio especial de fundador con todas las
-                  funcionalidades Enterprise.
-                </p>
+                {isTrialExpired ? (
+                  <>
+                    <h3 className="text-lg font-bold">
+                      Tu prueba terminó — activa el Plan Fundador
+                    </h3>
+                    <p className="text-muted-foreground mt-1">
+                      Por haber sido parte de los primeros en unirte, tienes derecho al
+                      precio exclusivo de <span className="font-bold text-primary">$480,000 COP/año</span> —
+                      el mismo que viste al registrarte. Este precio es válido solo para los
+                      primeros 100 negocios.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-bold text-amber-900 dark:text-amber-100">
+                      🎖️ Plan Fundador Exclusivo
+                    </h3>
+                    <p className="text-amber-700 dark:text-amber-300 mt-1">
+                      Como uno de los primeros negocios en unirse a Heroes Colombia,
+                      tienes acceso al precio especial de fundador con todas las
+                      funcionalidades Enterprise.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {!isPendingPayment && (
+      {/* Billing toggle — hidden in single-card (fundador) mode; annual is the only option */}
+      {!isPendingPayment && !showFoundadorOnly && (
         <div className="flex items-center justify-center gap-4">
           <Label htmlFor="billing-toggle" className={billingPeriod === "monthly" ? "font-semibold" : ""}>
             Mensual
@@ -577,7 +613,7 @@ export default function PlansPage() {
           </Label>
           {billingPeriod === "annual" && (
             <Badge variant="default" className="ml-2">
-              Ahorra hasta {isFounder ? "17" : "15"}%
+              Ahorra hasta 15%
             </Badge>
           )}
         </div>
@@ -752,14 +788,18 @@ export default function PlansPage() {
                     // Non-founder on trial (expired or not) - always allow payment
                     if (!isFounder && (needsPayment || isOnTrial)) {
                       const isUrgent = isTrialExpired || (daysUntilExpiration !== null && daysUntilExpiration <= 7)
+                      const isFundador = plan === "fundador"
                       return (
                         <Button
                           className={cn(
                             "w-full shadow-lg",
-                            isUrgent
-                              ? "bg-primary hover:bg-primary/90"
-                              : "bg-primary/80 hover:bg-primary"
+                            isFundador
+                              ? "bg-amber-500 hover:bg-amber-600 text-white"
+                              : isUrgent
+                                ? "bg-primary hover:bg-primary/90"
+                                : "bg-primary/80 hover:bg-primary"
                           )}
+                          size="lg"
                           onClick={() => handleSelectPlan(plan)}
                           disabled={isLoading && selectedPlan === plan}
                         >
@@ -767,8 +807,10 @@ export default function PlansPage() {
                             "Procesando..."
                           ) : (
                             <>
-                              <Zap className="mr-2 h-4 w-4" />
-                              Activar {config.name}
+                              <CreditCard className="mr-2 h-4 w-4" />
+                              {isFundador
+                                ? `Activar Plan Fundador — $480,000/año`
+                                : `Activar ${config.name}`}
                             </>
                           )}
                         </Button>
@@ -852,8 +894,8 @@ export default function PlansPage() {
         </div>
       )}
 
-      {/* Comparison Table - Hidden for founders since they only have one plan */}
-      {!isFounder && (
+      {/* Comparison Table - Hidden in single-card (fundador) mode */}
+      {!showFoundadorOnly && (
         <Card>
           <CardHeader>
             <CardTitle>Comparación Detallada de Planes</CardTitle>
