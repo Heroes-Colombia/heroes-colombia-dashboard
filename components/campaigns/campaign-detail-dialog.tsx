@@ -99,7 +99,7 @@ export function CampaignDetailDialog({
   }
 
   const handleSaveEdits = async () => {
-    if (!user?.uid) return
+    if (!user?.id) return
 
     setIsSubmitting(true)
     try {
@@ -129,7 +129,7 @@ export function CampaignDetailDialog({
         }
       }
 
-      const success = await CampaignService.updateContent(campaign.id, content, user.uid)
+      const success = await CampaignService.updateContent(campaign.id, content, user.id)
 
       if (success) {
         setIsEditing(false)
@@ -143,11 +143,11 @@ export function CampaignDetailDialog({
   }
 
   const handleApprove = async () => {
-    if (!user?.uid) return
+    if (!user?.id) return
 
     setIsSubmitting(true)
     try {
-      const success = await CampaignService.approveCampaign(campaign.id, user.uid)
+      const success = await CampaignService.approveCampaign(campaign.id, user.id)
       if (success) {
         setShowApproveDialog(false)
         onCampaignUpdated()
@@ -160,13 +160,13 @@ export function CampaignDetailDialog({
   }
 
   const handleReject = async () => {
-    if (!user?.uid || !rejectionReason.trim()) return
+    if (!user?.id || !rejectionReason.trim()) return
 
     setIsSubmitting(true)
     try {
       const success = await CampaignService.rejectCampaign(
         campaign.id,
-        user.uid,
+        user.id,
         rejectionReason
       )
       if (success) {
@@ -182,11 +182,11 @@ export function CampaignDetailDialog({
   }
 
   const handleCancel = async () => {
-    if (!user?.uid) return
+    if (!user?.id) return
 
     setIsSubmitting(true)
     try {
-      const success = await CampaignService.cancelCampaign(campaign.id, user.uid)
+      const success = await CampaignService.cancelCampaign(campaign.id, user.id)
       if (success) {
         onCampaignUpdated()
       }
@@ -590,10 +590,10 @@ export function CampaignDetailDialog({
                   {Object.values(campaign.content_sources).every(
                     (arr) => !arr || arr.length === 0
                   ) && (
-                    <p className="text-sm text-muted-foreground">
-                      No hay fuentes de contenido registradas
-                    </p>
-                  )}
+                      <p className="text-sm text-muted-foreground">
+                        No hay fuentes de contenido registradas
+                      </p>
+                    )}
                 </CardContent>
               </Card>
             </TabsContent>
