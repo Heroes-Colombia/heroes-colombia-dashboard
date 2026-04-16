@@ -339,11 +339,6 @@ export function CampaignDetailDialog({
                             <p className="text-sm text-muted-foreground mt-1">
                               {campaign.push_content.body}
                             </p>
-                            {campaign.push_content.deep_link && (
-                              <p className="text-xs text-blue-600 mt-2">
-                                Deep link: {campaign.push_content.deep_link}
-                              </p>
-                            )}
                           </div>
                         </div>
                       </div>

@@ -946,7 +946,6 @@ export interface FirebaseCampaign {
   push_content?: {
     title: string                    // Max 50 chars
     body: string                     // Max 150 chars
-    deep_link: string                // e.g., "heroescolombia://promotions"
   }
 
   // In-App Content (for inapp campaigns)
@@ -1015,7 +1014,6 @@ export interface Campaign {
   push_content?: {
     title: string
     body: string
-    deep_link: string
   }
   inapp_content?: {
     title: string
