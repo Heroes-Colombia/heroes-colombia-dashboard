@@ -212,35 +212,29 @@ export class CampaignService {
     adminUid: string
   ): Promise<boolean> {
     try {
-      const campaign = await this.getCampaign(campaignId)
-      if (!campaign) return false
-
-      // Store original content if this is the first edit
       const updateData: Record<string, any> = {
         updated_at: Timestamp.now(),
         "approval.edits_made": true,
         "approval.reviewed_by": adminUid,
       }
 
-      // Store original content on first edit
-      if (!campaign.approval.edits_made) {
-        updateData["approval.original_content"] = {
-          push_content: campaign.push_content,
-          inapp_content: campaign.inapp_content,
-          email_content: campaign.email_content,
+      // Try to snapshot original content on first edit (non-blocking if it fails)
+      try {
+        const existing = await this.getCampaign(campaignId)
+        if (existing && !existing.approval.edits_made) {
+          updateData["approval.original_content"] = {
+            push_content: existing.push_content,
+            inapp_content: existing.inapp_content,
+            email_content: existing.email_content,
+          }
         }
+      } catch {
+        // Original content snapshot is best-effort; don't block the save
       }
 
-      // Apply content updates
-      if (content.push_content) {
-        updateData.push_content = content.push_content
-      }
-      if (content.inapp_content) {
-        updateData.inapp_content = content.inapp_content
-      }
-      if (content.email_content) {
-        updateData.email_content = content.email_content
-      }
+      if (content.push_content) updateData.push_content = content.push_content
+      if (content.inapp_content) updateData.inapp_content = content.inapp_content
+      if (content.email_content) updateData.email_content = content.email_content
 
       const docRef = doc(db, this.COLLECTION, campaignId)
       await updateDoc(docRef, updateData)

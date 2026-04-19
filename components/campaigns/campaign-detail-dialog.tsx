@@ -69,6 +69,7 @@ export function CampaignDetailDialog({
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [rejectionReason, setRejectionReason] = useState("")
+  const [actionError, setActionError] = useState<string | null>(null)
 
   // Edit state
   const [editedPushTitle, setEditedPushTitle] = useState("")
@@ -99,34 +100,38 @@ export function CampaignDetailDialog({
   }
 
   const handleSaveEdits = async () => {
-    if (!user?.id) return
+    if (!user?.id) {
+      setActionError("No se pudo identificar al usuario. Por favor recarga la página.")
+      return
+    }
 
     setIsSubmitting(true)
+    setActionError(null)
     try {
       const content: Parameters<typeof CampaignService.updateContent>[1] = {}
 
-      if (campaign.campaign_type === "push" && campaign.push_content) {
+      if (campaign.campaign_type === "push") {
         content.push_content = {
-          ...campaign.push_content,
+          ...(campaign.push_content ?? {}),
           title: editedPushTitle,
           body: editedPushBody,
-        }
+        } as Campaign["push_content"]
       }
 
-      if (campaign.campaign_type === "email" && campaign.email_content) {
+      if (campaign.campaign_type === "email") {
         content.email_content = {
-          ...campaign.email_content,
+          ...(campaign.email_content ?? {}),
           subject: editedEmailSubject,
           preheader: editedEmailPreheader,
-        }
+        } as Campaign["email_content"]
       }
 
-      if (campaign.campaign_type === "inapp" && campaign.inapp_content) {
+      if (campaign.campaign_type === "inapp") {
         content.inapp_content = {
-          ...campaign.inapp_content,
+          ...(campaign.inapp_content ?? {}),
           title: editedInAppTitle,
           body: editedInAppBody,
-        }
+        } as Campaign["inapp_content"]
       }
 
       const success = await CampaignService.updateContent(campaign.id, content, user.id)
@@ -134,26 +139,38 @@ export function CampaignDetailDialog({
       if (success) {
         setIsEditing(false)
         onCampaignUpdated()
+      } else {
+        setActionError("No se pudo guardar. Revisa los permisos o intenta de nuevo.")
       }
     } catch (error) {
       console.error("Error saving edits:", error)
+      setActionError("Error inesperado al guardar los cambios.")
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleApprove = async () => {
-    if (!user?.id) return
+    if (!user?.id) {
+      setActionError("No se pudo identificar al usuario. Por favor recarga la página.")
+      return
+    }
 
     setIsSubmitting(true)
+    setActionError(null)
     try {
       const success = await CampaignService.approveCampaign(campaign.id, user.id)
       if (success) {
         setShowApproveDialog(false)
         onCampaignUpdated()
+      } else {
+        setShowApproveDialog(false)
+        setActionError("No se pudo aprobar la campaña. Verifica permisos en Firestore o revisa la consola.")
       }
     } catch (error) {
       console.error("Error approving campaign:", error)
+      setShowApproveDialog(false)
+      setActionError("Error inesperado al aprobar la campaña.")
     } finally {
       setIsSubmitting(false)
     }
@@ -163,6 +180,7 @@ export function CampaignDetailDialog({
     if (!user?.id || !rejectionReason.trim()) return
 
     setIsSubmitting(true)
+    setActionError(null)
     try {
       const success = await CampaignService.rejectCampaign(
         campaign.id,
@@ -173,25 +191,37 @@ export function CampaignDetailDialog({
         setShowRejectDialog(false)
         setRejectionReason("")
         onCampaignUpdated()
+      } else {
+        setShowRejectDialog(false)
+        setActionError("No se pudo rechazar la campaña. Verifica permisos en Firestore o revisa la consola.")
       }
     } catch (error) {
       console.error("Error rejecting campaign:", error)
+      setShowRejectDialog(false)
+      setActionError("Error inesperado al rechazar la campaña.")
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleCancel = async () => {
-    if (!user?.id) return
+    if (!user?.id) {
+      setActionError("No se pudo identificar al usuario. Por favor recarga la página.")
+      return
+    }
 
     setIsSubmitting(true)
+    setActionError(null)
     try {
       const success = await CampaignService.cancelCampaign(campaign.id, user.id)
       if (success) {
         onCampaignUpdated()
+      } else {
+        setActionError("No se pudo cancelar la campaña. Verifica permisos en Firestore o revisa la consola.")
       }
     } catch (error) {
       console.error("Error cancelling campaign:", error)
+      setActionError("Error inesperado al cancelar la campaña.")
     } finally {
       setIsSubmitting(false)
     }
@@ -256,7 +286,7 @@ export function CampaignDetailDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-2 flex-wrap">
               {getTypeBadge(campaign.campaign_type)}
@@ -274,16 +304,21 @@ export function CampaignDetailDialog({
                 campaign.inapp_content?.title ||
                 "Campaña sin título"}
             </DialogTitle>
-            <DialogDescription>
-              Creada: {formatDate(campaign.created_at)} | Programada: {formatDate(campaign.scheduled_for)}
+            <DialogDescription className="flex flex-col sm:flex-row sm:gap-2 text-xs sm:text-sm">
+              <span>Creada: {formatDate(campaign.created_at)}</span>
+              <span className="hidden sm:inline">|</span>
+              <span>Programada: {formatDate(campaign.scheduled_for)}</span>
             </DialogDescription>
           </DialogHeader>
 
           <Tabs defaultValue="content" className="mt-4">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="content">Contenido</TabsTrigger>
-              <TabsTrigger value="sources">Fuentes</TabsTrigger>
-              <TabsTrigger value="analytics">Estadísticas</TabsTrigger>
+              <TabsTrigger value="content" className="text-xs sm:text-sm">Contenido</TabsTrigger>
+              <TabsTrigger value="sources" className="text-xs sm:text-sm">Fuentes</TabsTrigger>
+              <TabsTrigger value="analytics" className="text-xs sm:text-sm">
+                <span className="hidden sm:inline">Estadísticas</span>
+                <span className="sm:hidden">Stats</span>
+              </TabsTrigger>
             </TabsList>
 
             {/* Content Tab */}
@@ -473,7 +508,7 @@ export function CampaignDetailDialog({
                   <CardTitle className="text-base">Detalles</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">Categoría</p>
                       <p className="font-medium">{getCategoryLabel(campaign.content_category)}</p>
@@ -493,13 +528,13 @@ export function CampaignDetailDialog({
                       </p>
                     </div>
                     {campaign.approval.edits_made && (
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <p className="text-muted-foreground">Editado por</p>
                         <p className="font-medium">{campaign.approval.reviewed_by || "Admin"}</p>
                       </div>
                     )}
                     {campaign.approval.rejected_by && (
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <p className="text-muted-foreground">Razón de rechazo</p>
                         <p className="font-medium text-destructive">
                           {campaign.approval.rejection_reason}
@@ -649,15 +684,23 @@ export function CampaignDetailDialog({
 
           <Separator className="my-4" />
 
+          {/* Error feedback */}
+          {actionError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive mb-4">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>{actionError}</span>
+            </div>
+          )}
+
           {/* Action Buttons */}
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
             {isEditing ? (
               <>
-                <Button variant="outline" onClick={cancelEditing} disabled={isSubmitting}>
+                <Button variant="outline" onClick={cancelEditing} disabled={isSubmitting} className="w-full sm:w-auto">
                   <X className="h-4 w-4 mr-1" />
                   Cancelar
                 </Button>
-                <Button onClick={handleSaveEdits} disabled={isSubmitting}>
+                <Button onClick={handleSaveEdits} disabled={isSubmitting} className="w-full sm:w-auto">
                   {isSubmitting ? (
                     <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                   ) : (
@@ -669,13 +712,13 @@ export function CampaignDetailDialog({
             ) : (
               <>
                 {canEdit && (
-                  <Button variant="outline" onClick={startEditing}>
+                  <Button variant="outline" onClick={startEditing} className="w-full sm:w-auto">
                     <Edit className="h-4 w-4 mr-1" />
                     Editar
                   </Button>
                 )}
                 {canCancel && (
-                  <Button variant="outline" onClick={handleCancel} disabled={isSubmitting}>
+                  <Button variant="outline" onClick={handleCancel} disabled={isSubmitting} className="w-full sm:w-auto">
                     <XCircle className="h-4 w-4 mr-1" />
                     Cancelar Campaña
                   </Button>
@@ -686,6 +729,7 @@ export function CampaignDetailDialog({
                       variant="destructive"
                       onClick={() => setShowRejectDialog(true)}
                       disabled={isSubmitting}
+                      className="w-full sm:w-auto"
                     >
                       <XCircle className="h-4 w-4 mr-1" />
                       Rechazar
@@ -694,6 +738,7 @@ export function CampaignDetailDialog({
                       variant="default"
                       onClick={() => setShowApproveDialog(true)}
                       disabled={isSubmitting}
+                      className="w-full sm:w-auto"
                     >
                       <CheckCircle className="h-4 w-4 mr-1" />
                       Aprobar y Enviar
@@ -708,7 +753,7 @@ export function CampaignDetailDialog({
 
       {/* Approve Confirmation Dialog */}
       <AlertDialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[calc(100%-2rem)] sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>Aprobar y Enviar Campaña</AlertDialogTitle>
             <AlertDialogDescription>
@@ -716,9 +761,9 @@ export function CampaignDetailDialog({
               Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleApprove} disabled={isSubmitting}>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel disabled={isSubmitting} className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleApprove} disabled={isSubmitting} className="w-full sm:w-auto">
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               ) : (
@@ -732,7 +777,7 @@ export function CampaignDetailDialog({
 
       {/* Reject Dialog */}
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[calc(100%-2rem)] sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>Rechazar Campaña</AlertDialogTitle>
             <AlertDialogDescription>
@@ -747,12 +792,12 @@ export function CampaignDetailDialog({
               rows={3}
             />
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel disabled={isSubmitting} className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleReject}
               disabled={isSubmitting || !rejectionReason.trim()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />

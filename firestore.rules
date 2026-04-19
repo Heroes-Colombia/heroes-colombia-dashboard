@@ -18,18 +18,23 @@ service cloud.firestore {
 
     // Check if user is admin (V1 + V2 compatibility) - Safely checks for existence
     function isAdmin() {
-      return isAuthenticated() && 
+      let userData = getUserResource().data;
+      return isAuthenticated() &&
              getUserResource() != null &&
              (
-               getUserResource().data.user_type == 'admin' ||
-               getUserResource().data.permission == 'admin' ||
-               getUserResource().data.permission == 'super_admin'
+               userData.user_type == 'admin' ||
+               userData.role == 'admin' ||
+               (userData.permission is list && ('admin' in userData.permission || 'super_admin' in userData.permission)) ||
+               userData.permission == 'admin' ||
+               userData.permission == 'super_admin'
              );
     }
 
     // Check if user data (already loaded) is admin - Use INSIDE /users collection
     function isUserAdmin(userData) {
-      return userData.user_type == 'admin' || 
+      return userData.user_type == 'admin' ||
+             userData.role == 'admin' ||
+             (userData.permission is list && ('admin' in userData.permission || 'super_admin' in userData.permission)) ||
              userData.permission == 'admin' ||
              userData.permission == 'super_admin';
     }
