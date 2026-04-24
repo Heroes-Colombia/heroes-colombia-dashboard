@@ -42,7 +42,6 @@ export class CampaignService {
       content_category: data.content_category,
       status: data.status,
       tone: data.tone,
-      generated_by: data.generated_by,
 
       // Timestamps
       created_at: this.toDate(data.created_at)!,
@@ -222,14 +221,12 @@ export class CampaignService {
       try {
         const existing = await this.getCampaign(campaignId)
         if (existing && !existing.approval.edits_made) {
-          updateData["approval.original_content"] = {
-            push_content: existing.push_content,
-            inapp_content: existing.inapp_content,
-            email_content: existing.email_content,
-          }
+          if (existing.push_content) updateData["approval.original_content"].push_content = existing.push_content
+          if (existing.inapp_content) updateData["approval.original_content"].inapp_content = existing.inapp_content
+          if (existing.email_content) updateData["approval.original_content"].email_content = existing.email_content
         }
       } catch {
-        // Original content snapshot is best-effort; don't block the save
+        console.error("Error getting existing campaign content")
       }
 
       if (content.push_content) updateData.push_content = content.push_content

@@ -255,11 +255,10 @@ export default function AdminCampaignsPage() {
             {filteredCampaigns.map((campaign) => (
               <Card
                 key={campaign.id}
-                className={`hover:shadow-md transition-shadow cursor-pointer ${
-                  campaign.status === "pending_review"
+                className={`hover:shadow-md transition-shadow cursor-pointer ${campaign.status === "pending_review"
                     ? "ring-2 ring-yellow-400 ring-opacity-50"
                     : ""
-                }`}
+                  }`}
                 onClick={() => handleViewCampaign(campaign)}
               >
                 <CardContent className="p-6">
@@ -313,20 +312,6 @@ export default function AdminCampaignsPage() {
                             <Mail className="h-4 w-4 text-green-500" />
                             <span>{campaign.analytics.email_sent} emails</span>
                           </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* AI badge */}
-                    {campaign.generated_by === "claude" && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
-                          Generado por IA
-                        </span>
-                        {campaign.approval.edits_made && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                            Editado
-                          </span>
                         )}
                       </div>
                     )}

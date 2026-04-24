@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -78,6 +78,17 @@ export function CampaignDetailDialog({
   const [editedEmailPreheader, setEditedEmailPreheader] = useState("")
   const [editedInAppTitle, setEditedInAppTitle] = useState("")
   const [editedInAppBody, setEditedInAppBody] = useState("")
+
+  useEffect(() => {
+    if (!open) {
+      setIsEditing(false)
+      setIsSubmitting(false)
+      setShowRejectDialog(false)
+      setShowApproveDialog(false)
+      setRejectionReason("")
+      setActionError(null)
+    }
+  }, [open])
 
   if (!campaign) return null
 
@@ -291,12 +302,6 @@ export function CampaignDetailDialog({
             <div className="flex items-center gap-2 flex-wrap">
               {getTypeBadge(campaign.campaign_type)}
               {getStatusBadge(campaign.status)}
-              {campaign.generated_by === "claude" && (
-                <Badge variant="outline" className="flex items-center gap-1 bg-purple-50">
-                  <Sparkles className="h-3 w-3" />
-                  Generado por IA
-                </Badge>
-              )}
             </div>
             <DialogTitle className="text-xl mt-2">
               {campaign.push_content?.title ||
@@ -520,12 +525,6 @@ export function CampaignDetailDialog({
                     <div>
                       <p className="text-muted-foreground">Audiencia</p>
                       <p className="font-medium">Todos los usuarios activos</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Generado por</p>
-                      <p className="font-medium">
-                        {campaign.generated_by === "claude" ? "Claude AI" : "Manual"}
-                      </p>
                     </div>
                     {campaign.approval.edits_made && (
                       <div className="sm:col-span-2">

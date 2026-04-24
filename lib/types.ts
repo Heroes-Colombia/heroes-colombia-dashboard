@@ -937,7 +937,6 @@ export interface FirebaseCampaign {
   }
 
   // AI Metadata
-  generated_by: "claude" | "manual"
   claude_model?: string
   tone: CampaignTone
   generation_prompt?: string         // For debugging
@@ -1001,7 +1000,6 @@ export interface Campaign {
   content_category: CampaignContentCategory
   status: CampaignStatus
   tone: CampaignTone
-  generated_by: "claude" | "manual"
 
   // Timestamps
   created_at: Date
