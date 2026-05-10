@@ -142,12 +142,18 @@ export default function AdminCampaignsPage() {
 
   const handleDialogClose = () => {
     setIsDetailOpen(false)
-    setSelectedCampaign(null)
+    requestAnimationFrame(() => setSelectedCampaign(null))
   }
 
   const handleCampaignUpdated = () => {
     loadCampaigns()
-    handleDialogClose()
+    // Defer dialog close by one frame so Radix finishes unmounting the
+    // AlertDialog portal (focus trap teardown) before the parent Dialog unmounts.
+    // Without this, both dialogs unmount simultaneously and Radix leaves
+    // pointer-events: none on the body, locking the entire page.
+    requestAnimationFrame(() => {
+      handleDialogClose()
+    })
   }
 
   const getCampaignTitle = (campaign: Campaign) => {

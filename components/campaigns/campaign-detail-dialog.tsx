@@ -172,15 +172,12 @@ export function CampaignDetailDialog({
     try {
       const success = await CampaignService.approveCampaign(campaign.id, user.id)
       if (success) {
-        setShowApproveDialog(false)
         onCampaignUpdated()
       } else {
-        setShowApproveDialog(false)
         setActionError("No se pudo aprobar la campaña. Verifica permisos en Firestore o revisa la consola.")
       }
     } catch (error) {
       console.error("Error approving campaign:", error)
-      setShowApproveDialog(false)
       setActionError("Error inesperado al aprobar la campaña.")
     } finally {
       setIsSubmitting(false)
@@ -199,16 +196,13 @@ export function CampaignDetailDialog({
         rejectionReason
       )
       if (success) {
-        setShowRejectDialog(false)
         setRejectionReason("")
         onCampaignUpdated()
       } else {
-        setShowRejectDialog(false)
         setActionError("No se pudo rechazar la campaña. Verifica permisos en Firestore o revisa la consola.")
       }
     } catch (error) {
       console.error("Error rejecting campaign:", error)
-      setShowRejectDialog(false)
       setActionError("Error inesperado al rechazar la campaña.")
     } finally {
       setIsSubmitting(false)

@@ -382,6 +382,18 @@ service cloud.firestore {
     }
 
     // ============================================================================
+    // In-App Messages (Active campaign messages shown inside the mobile app)
+    // ============================================================================
+
+    match /active_inapp_messages/{docId} {
+      // Any authenticated consumer can read — the app listens to this in real-time
+      allow read: if isAuthenticated();
+
+      // Only admins/Cloud Functions write to this collection
+      allow write: if isAdmin();
+    }
+
+    // ============================================================================
     // Default Deny Rule
     // ============================================================================
 
