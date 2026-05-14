@@ -24,6 +24,7 @@ interface AdminSubscriptionUpdateBody {
     | "set_trial_end_date"
     | "expire"
     | "activate_subscription"
+    | "approve_trial_payment"
     | "cancel"
     | "update_status"
   // For extend_trial: number of days to extend
@@ -36,17 +37,13 @@ interface AdminSubscriptionUpdateBody {
   plan?: SubscriptionPlan
   billingPeriod?: BillingPeriod
   amount?: number
-  notes?: string
 }
 
-/**
- * Verify that the request is from an authenticated admin user
- */
-async function verifyAdminAuth(req: NextRequest): Promise<{ uid: string; email: string } | null> {
+async function verifyAdminAuth(req: NextRequest): Promise<boolean> {
   try {
     const authHeader = req.headers.get("Authorization")
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return null
+      return false
     }
 
     const token = authHeader.split("Bearer ")[1]
@@ -54,60 +51,23 @@ async function verifyAdminAuth(req: NextRequest): Promise<{ uid: string; email: 
     const auth = getAuth(app)
     const decodedToken = await auth.verifyIdToken(token)
 
-    // Check if user is admin in Firestore
     const db = getAdminFirestore()
     const userDoc = await db.collection("users").doc(decodedToken.uid).get()
 
-    if (!userDoc.exists) {
-      return null
-    }
+    if (!userDoc.exists) return false
 
     const userData = userDoc.data()
-    if (userData?.user_type !== "admin" && userData?.role !== "admin") {
-      return null
-    }
-
-    return {
-      uid: decodedToken.uid,
-      email: decodedToken.email || "",
-    }
+    return userData?.user_type === "admin" || userData?.role === "admin"
   } catch (error) {
     console.error("[Admin Subscription API] Auth error:", error)
-    return null
-  }
-}
-
-/**
- * Log admin action for audit trail
- */
-async function logAdminAction(
-  adminUid: string,
-  adminEmail: string,
-  businessId: string,
-  action: string,
-  details: Record<string, unknown>
-) {
-  try {
-    const db = getAdminFirestore()
-    await db.collection("admin_audit_log").add({
-      admin_uid: adminUid,
-      admin_email: adminEmail,
-      business_id: businessId,
-      action: action,
-      details: details,
-      created_at: Timestamp.now(),
-    })
-  } catch (error) {
-    console.error("[Admin Subscription API] Error logging action:", error)
-    // Don't fail the request for logging errors
+    return false
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
-    // Verify admin authentication
-    const admin = await verifyAdminAuth(req)
-    if (!admin) {
+    const isAdmin = await verifyAdminAuth(req)
+    if (!isAdmin) {
       return NextResponse.json(
         { error: "Unauthorized - Admin access required" },
         { status: 401 }
@@ -157,12 +117,6 @@ export async function PUT(req: NextRequest) {
           updated_at: now,
         })
 
-        await logAdminAction(admin.uid, admin.email, businessId, "extend_trial", {
-          days: body.days,
-          new_end_date: newEndDate.toISOString(),
-          notes: body.notes,
-        })
-
         return NextResponse.json({
           success: true,
           message: `Trial extended by ${body.days} days`,
@@ -192,11 +146,6 @@ export async function PUT(req: NextRequest) {
           updated_at: now,
         })
 
-        await logAdminAction(admin.uid, admin.email, businessId, "set_trial_end_date", {
-          new_end_date: newEndDate.toISOString(),
-          notes: body.notes,
-        })
-
         return NextResponse.json({
           success: true,
           message: "Trial end date updated",
@@ -208,12 +157,8 @@ export async function PUT(req: NextRequest) {
         await businessRef.update({
           "subscription.status": "expired",
           "subscription.updated_at": now,
-          subscription_status: "expired", // Legacy field
+          subscription_status: "expired",
           updated_at: now,
-        })
-
-        await logAdminAction(admin.uid, admin.email, businessId, "expire", {
-          notes: body.notes,
         })
 
         return NextResponse.json({
@@ -265,16 +210,9 @@ export async function PUT(req: NextRequest) {
           subscription: subscription,
           plan: body.plan,
           subscription_status: "active",
+          status: "active",
           is_founder: isFounder,
           updated_at: now,
-        })
-
-        await logAdminAction(admin.uid, admin.email, businessId, "activate_subscription", {
-          plan: body.plan,
-          billing_period: body.billingPeriod,
-          amount: body.amount,
-          is_founder: isFounder,
-          notes: body.notes,
         })
 
         return NextResponse.json({
@@ -286,16 +224,54 @@ export async function PUT(req: NextRequest) {
         })
       }
 
+      case "approve_trial_payment": {
+        const now2 = Timestamp.now()
+        const trialStart = new Date()
+        const trialEnd = new Date(trialStart)
+        trialEnd.setMonth(trialEnd.getMonth() + 2)
+
+        const trialSubscription = {
+          type: "trial",
+          status: "trial",
+          plan: "trial",
+          billing_period: null,
+          start_date: Timestamp.fromDate(trialStart),
+          end_date: Timestamp.fromDate(trialEnd),
+          current_period_start: null,
+          current_period_end: null,
+          next_payment_date: null,
+          last_payment_date: now2,
+          amount: 20000,
+          currency: "COP",
+          mercadopago_subscription_id: null,
+          mercadopago_payer_id: null,
+          mercadopago_payer_email: null,
+          is_founder: false,
+          created_at: now2,
+          updated_at: now2,
+        }
+
+        await businessRef.update({
+          subscription: trialSubscription,
+          subscription_status: "trial",
+          status: "active",
+          plan: "enterprise",
+          updated_at: now2,
+        })
+
+        return NextResponse.json({
+          success: true,
+          message: "Trial payment approved. Business activated with Enterprise plan for 2 months.",
+          trialEndDate: trialEnd.toISOString(),
+        })
+      }
+
       case "cancel": {
         await businessRef.update({
           "subscription.status": "cancelled",
           "subscription.updated_at": now,
-          subscription_status: "cancelled", // Legacy field
+          subscription_status: "cancelled",
           updated_at: now,
-        })
-
-        await logAdminAction(admin.uid, admin.email, businessId, "cancel", {
-          notes: body.notes,
         })
 
         return NextResponse.json({
@@ -331,13 +307,8 @@ export async function PUT(req: NextRequest) {
         await businessRef.update({
           "subscription.status": body.status,
           "subscription.updated_at": now,
-          subscription_status: body.status, // Legacy field
+          subscription_status: body.status,
           updated_at: now,
-        })
-
-        await logAdminAction(admin.uid, admin.email, businessId, "update_status", {
-          new_status: body.status,
-          notes: body.notes,
         })
 
         return NextResponse.json({
