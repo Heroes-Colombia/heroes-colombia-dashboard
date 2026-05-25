@@ -20,13 +20,13 @@ import type { SubscriptionStatus, SubscriptionPlan, BillingPeriod } from "@/lib/
 interface AdminSubscriptionUpdateBody {
   businessId: string
   action:
-    | "extend_trial"
-    | "set_trial_end_date"
-    | "expire"
-    | "activate_subscription"
-    | "approve_trial_payment"
-    | "cancel"
-    | "update_status"
+  | "extend_trial"
+  | "set_trial_end_date"
+  | "expire"
+  | "activate_subscription"
+  | "approve_trial_payment"
+  | "cancel"
+  | "update_status"
   // For extend_trial: number of days to extend
   days?: number
   // For set_trial_end_date: ISO date string
@@ -42,22 +42,34 @@ interface AdminSubscriptionUpdateBody {
 async function verifyAdminAuth(req: NextRequest): Promise<boolean> {
   try {
     const authHeader = req.headers.get("Authorization")
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return false
-    }
+    if (!authHeader || !authHeader.startsWith("Bearer ")) return false
 
     const token = authHeader.split("Bearer ")[1]
+    if (!token) return false
+
     const { app } = getFirebaseAdmin()
     const auth = getAuth(app)
     const decodedToken = await auth.verifyIdToken(token)
 
     const db = getAdminFirestore()
-    const userDoc = await db.collection("users").doc(decodedToken.uid).get()
+    let userData: FirebaseFirestore.DocumentData | undefined
 
-    if (!userDoc.exists) return false
+    const directDoc = await db.collection("users").doc(decodedToken.uid).get()
+    if (directDoc.exists) {
+      userData = directDoc.data()
+    } else {
+      // Document ID may differ from UID — query by uid field
+      const querySnapshot = await db.collection("users").where("uid", "==", decodedToken.uid).limit(1).get()
+      if (querySnapshot.empty) return false
+      userData = querySnapshot.docs[0].data()
+    }
 
-    const userData = userDoc.data()
-    return userData?.user_type === "admin" || userData?.role === "admin"
+    return (
+      userData?.user_type === "admin" ||
+      userData?.role === "admin" ||
+      userData?.permission === "admin" ||
+      (Array.isArray(userData?.permission) && userData.permission.includes("admin"))
+    )
   } catch (error) {
     console.error("[Admin Subscription API] Auth error:", error)
     return false
@@ -159,6 +171,7 @@ export async function PUT(req: NextRequest) {
           "subscription.updated_at": now,
           subscription_status: "expired",
           updated_at: now,
+          status: "inactive",
         })
 
         return NextResponse.json({
@@ -271,6 +284,7 @@ export async function PUT(req: NextRequest) {
           "subscription.status": "cancelled",
           "subscription.updated_at": now,
           subscription_status: "cancelled",
+          status: "inactive",
           updated_at: now,
         })
 
