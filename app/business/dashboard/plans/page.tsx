@@ -175,8 +175,8 @@ export default function PlansPage() {
 
     try {
       // Get business info from the authenticated user
-      const businessId = businessUser?.business_id || businessUser?.id
-      const businessName = businessUser?.business_name || businessUser?.name || "Negocio"
+      const businessId = businessUser?.businessId
+      const businessName = businessUser?.businessName || "Negocio"
       const email = businessUser?.email || ""
       const phone = businessUser?.phone_number || businessUser?.phone || ""
 
@@ -231,8 +231,8 @@ export default function PlansPage() {
     setTrialError(null)
 
     try {
-      const businessId = businessUser?.business_id || businessUser?.id
-      const businessName = businessUser?.business_name || businessUser?.name || "Negocio"
+      const businessId = businessUser?.businessId
+      const businessName = businessUser?.businessName || "Negocio"
       const email = businessUser?.email || ""
       const phone = businessUser?.phone_number || businessUser?.phone || ""
       const response = await fetch("/api/mercadopago/create-trial-preference", {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createHmac } from "crypto"
 import { getAdminFirestore } from "@/lib/firebase-admin"
 import { getPlanFromMercadoPagoId } from "@/lib/mercadopago-plans"
-import { sendTrialWelcomeEmail, sendSubscriptionActivatedEmail } from "@/lib/email"
+import { sendTrialWelcomeEmail, sendSubscriptionActivatedEmail, sendBusinessNotFoundAlertEmail } from "@/lib/email"
 import { Timestamp } from "firebase-admin/firestore"
 
 const MERCADOPAGO_WEBHOOK_SECRET = process.env.MERCADOPAGO_WEBHOOK_SECRET!
@@ -219,9 +219,21 @@ function parseTrialExternalReference(externalReference: string): {
 async function activateTrialSubscription(
   businessId: string,
   paymentData: PaymentData
-) {
+): Promise<{ endDate: Date } | null> {
   const db = getAdminFirestore()
   const businessRef = db.collection("businesses").doc(businessId)
+
+  const businessSnap = await businessRef.get()
+  if (!businessSnap.exists) {
+    console.error(`[Webhook] Business ${businessId} not found, cannot activate trial`)
+    await sendBusinessNotFoundAlertEmail({
+      businessId,
+      context: "activateTrialSubscription (trial payment approved)",
+      paymentId: paymentData.id,
+      externalReference: paymentData.external_reference,
+    })
+    return null
+  }
 
   const now = new Date()
   const endDate = new Date(now)
@@ -272,9 +284,20 @@ async function updateBusinessSubscription(
   plan: string,
   billingPeriod: string,
   subscriptionData: PreapprovalData
-) {
+): Promise<boolean> {
   const db = getAdminFirestore()
   const businessRef = db.collection("businesses").doc(businessId)
+
+  const businessSnap = await businessRef.get()
+  if (!businessSnap.exists) {
+    console.error(`[Webhook] Business ${businessId} not found, cannot update subscription`)
+    await sendBusinessNotFoundAlertEmail({
+      businessId,
+      context: "updateBusinessSubscription (subscription event)",
+      externalReference: subscriptionData.external_reference,
+    })
+    return false
+  }
 
   const now = Timestamp.now()
   const startDate = Timestamp.fromDate(new Date(subscriptionData.date_created))
@@ -332,6 +355,7 @@ async function updateBusinessSubscription(
   })
 
   console.log(`[Webhook] Updated business ${businessId} with plan ${plan}, is_founder: ${isFounder}`)
+  return true
 }
 
 /**
@@ -427,42 +451,44 @@ export async function POST(req: NextRequest) {
         subscriptionData.status === "authorized"
       ) {
         // Update business subscription
-        await updateBusinessSubscription(
+        const updated = await updateBusinessSubscription(
           businessInfo.businessId,
           businessInfo.plan,
           businessInfo.billingPeriod,
           subscriptionData
         )
 
-        // Create transaction record
-        await createTransactionRecord(
-          businessInfo.businessId,
-          businessInfo.plan,
-          businessInfo.billingPeriod,
-          subscriptionData
-        )
+        if (updated) {
+          // Create transaction record
+          await createTransactionRecord(
+            businessInfo.businessId,
+            businessInfo.plan,
+            businessInfo.billingPeriod,
+            subscriptionData
+          )
 
-        // Send confirmation email if subscription is authorized
-        if (subscriptionData.status === "authorized") {
-          try {
-            // Fetch business name for email
-            const db = getAdminFirestore()
-            const businessRef = db.collection("businesses").doc(businessInfo.businessId)
-            const businessDoc = await businessRef.get()
-            const businessName = businessDoc.data()?.name || "Tu Negocio"
+          // Send confirmation email if subscription is authorized
+          if (subscriptionData.status === "authorized") {
+            try {
+              // Fetch business name for email
+              const db = getAdminFirestore()
+              const businessRef = db.collection("businesses").doc(businessInfo.businessId)
+              const businessDoc = await businessRef.get()
+              const businessName = businessDoc.data()?.name || "Tu Negocio"
 
-            // Use the new sendSubscriptionActivatedEmail for better Fundador handling
-            await sendSubscriptionActivatedEmail({
-              email: subscriptionData.payer_email,
-              businessName: businessName,
-              plan: businessInfo.plan,
-              billingPeriod: businessInfo.billingPeriod,
-              nextPaymentDate: subscriptionData.next_payment_date,
-              isFounder: businessInfo.plan === "fundador",
-            })
-          } catch (emailError) {
-            console.error("[Webhook] Error sending confirmation email:", emailError)
-            // Don't fail the webhook for email errors
+              // Use the new sendSubscriptionActivatedEmail for better Fundador handling
+              await sendSubscriptionActivatedEmail({
+                email: subscriptionData.payer_email,
+                businessName: businessName,
+                plan: businessInfo.plan,
+                billingPeriod: businessInfo.billingPeriod,
+                nextPaymentDate: subscriptionData.next_payment_date,
+                isFounder: businessInfo.plan === "fundador",
+              })
+            } catch (emailError) {
+              console.error("[Webhook] Error sending confirmation email:", emailError)
+              // Don't fail the webhook for email errors
+            }
           }
         }
       }
@@ -495,40 +521,44 @@ export async function POST(req: NextRequest) {
         console.log("[Webhook] Processing approved trial payment for business:", trialInfo.businessId)
 
         // Activate trial subscription
-        const { endDate } = await activateTrialSubscription(trialInfo.businessId, paymentData)
+        const activation = await activateTrialSubscription(trialInfo.businessId, paymentData)
 
-        // Create transaction record for trial
-        const db = getAdminFirestore()
-        const transactionsRef = db.collection("transactions")
-        await transactionsRef.add({
-          business_id: trialInfo.businessId,
-          payment_id: paymentData.id.toString(),
-          type: "trial",
-          amount: paymentData.transaction_amount,
-          currency: "COP",
-          plan: "trial",
-          billing_period: null,
-          payment_method: "mercadopago",
-          payment_reference: paymentData.id.toString(),
-          payment_status: "approved",
-          created_at: Timestamp.now(),
-        })
+        if (activation) {
+          const { endDate } = activation
 
-        // Get business details for email
-        const businessRef = db.collection("businesses").doc(trialInfo.businessId)
-        const businessDoc = await businessRef.get()
-        const businessName = businessDoc.data()?.name || "Tu Negocio"
-
-        // Send trial welcome email
-        try {
-          await sendTrialWelcomeEmail({
-            email: paymentData.payer?.email || paymentData.metadata?.email || "",
-            businessName: businessName,
-            trialEndDate: endDate,
+          // Create transaction record for trial
+          const db = getAdminFirestore()
+          const transactionsRef = db.collection("transactions")
+          await transactionsRef.add({
+            business_id: trialInfo.businessId,
+            payment_id: paymentData.id.toString(),
+            type: "trial",
+            amount: paymentData.transaction_amount,
+            currency: "COP",
+            plan: "trial",
+            billing_period: null,
+            payment_method: "mercadopago",
+            payment_reference: paymentData.id.toString(),
+            payment_status: "approved",
+            created_at: Timestamp.now(),
           })
-        } catch (emailError) {
-          console.error("[Webhook] Error sending trial welcome email:", emailError)
-          // Don't fail the webhook for email errors
+
+          // Get business details for email
+          const businessRef = db.collection("businesses").doc(trialInfo.businessId)
+          const businessDoc = await businessRef.get()
+          const businessName = businessDoc.data()?.name || "Tu Negocio"
+
+          // Send trial welcome email
+          try {
+            await sendTrialWelcomeEmail({
+              email: paymentData.payer?.email || paymentData.metadata?.email || "",
+              businessName: businessName,
+              trialEndDate: endDate,
+            })
+          } catch (emailError) {
+            console.error("[Webhook] Error sending trial welcome email:", emailError)
+            // Don't fail the webhook for email errors
+          }
         }
       } else if (trialInfo) {
         console.log(`[Webhook] Trial payment not approved yet. Status: ${paymentData.status}`)

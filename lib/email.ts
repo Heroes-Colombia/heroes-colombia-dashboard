@@ -92,6 +92,65 @@ export async function sendTrialAdminEmail({
   })
 }
 
+export async function sendBusinessNotFoundAlertEmail({
+  businessId,
+  context,
+  paymentId,
+  externalReference,
+}: {
+  businessId: string
+  context: string
+  paymentId?: string | number
+  externalReference?: string
+}) {
+  const subject = `⚠️ Webhook error: business no encontrado (${businessId})`
+
+  const adminHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1a1a1a; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #dc2626; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+        .content { background: #fff; padding: 30px; border: 1px solid #e5e7e5; border-top: none; border-radius: 0 0 8px 8px; }
+        .field { margin: 15px 0; }
+        .label { font-weight: bold; color: #6b7280; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h2>⚠️ MercadoPago webhook no pudo actualizar el negocio</h2>
+        </div>
+        <div class="content">
+          <div class="field">
+            <div class="label">Contexto:</div>
+            <div>${context}</div>
+          </div>
+          <div class="field">
+            <div class="label">Business ID recibido:</div>
+            <div>${businessId}</div>
+          </div>
+          ${paymentId ? `<div class="field"><div class="label">Payment ID:</div><div>${paymentId}</div></div>` : ""}
+          ${externalReference ? `<div class="field"><div class="label">External reference:</div><div>${externalReference}</div></div>` : ""}
+          <div class="field">
+            <div>El documento <code>businesses/${businessId}</code> no existe en Firestore. El pago fue recibido pero la suscripción NO se activó. Revisar y activar manualmente.</div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  await sendEmail({
+    to: "jonathan@heroescolombia.com",
+    subject: subject,
+    html: adminHtml,
+  })
+}
+
 // Trial Welcome Email
 export async function sendTrialWelcomeEmail({
   email,
